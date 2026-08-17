@@ -1,6 +1,7 @@
 from lock_in.rider_themes import (
     DEFAULT_RIDER_THEME,
     RIDER_THEMES,
+    STANDARD_THEME,
     darken,
     lighten,
     readable_text_color,
@@ -220,3 +221,30 @@ def test_button_text_pair_is_readable_against_the_secondary_fill_both_modes():
         # call, rather than an arbitrary made-up number.
         assert abs(_brightness(light_text) - _brightness(light_fill)) > 150, name
         assert abs(_brightness(dark_text) - _brightness(dark_fill)) > 150, name
+
+
+def test_standard_theme_is_not_one_of_the_38_riders():
+    """STANDARD_THEME lives outside RIDER_THEMES on purpose -- it isn't a
+    Kamen Rider costume, it's Tier 0's neutral baseline."""
+    assert STANDARD_THEME not in RIDER_THEMES.values()
+    assert len(RIDER_THEMES) == 38  # unchanged by adding this constant
+
+
+def test_standard_theme_has_no_tier_1_or_tier_3_effect():
+    assert STANDARD_THEME.tier1_effect == "none"
+    assert STANDARD_THEME.tier3_effect == "none"
+
+
+def test_standard_theme_uses_the_approved_neutral_palette():
+    assert STANDARD_THEME.primary == ("#475569", "#94a3b8")
+    assert STANDARD_THEME.secondary == ("#1c7ed6", "#4dabf7")
+
+
+def test_standard_theme_passes_the_same_contrast_check_every_rider_does():
+    """Same shape as test_primary_text_pair_is_readable_against_its_own_surface_both_modes
+    below, just for this one theme -- it gets the identical color-math
+    guarantees every real Rider gets, for free, from the dataclass."""
+    light_text, dark_text = STANDARD_THEME.primary_text_pair
+    light_surface, dark_surface = STANDARD_THEME.surface_pair
+    assert abs(_brightness(light_text) - _brightness(light_surface)) > 150
+    assert abs(_brightness(dark_text) - _brightness(dark_surface)) > 150
