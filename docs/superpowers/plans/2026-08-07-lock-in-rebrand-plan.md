@@ -20,8 +20,8 @@ GitHub Actions.
 
 - **No git or GitHub operations of any kind** — no `git init`, `add`,
   `commit`, `push`, `tag`, `remote`, and no `gh` commands against the real
-  repo. This repo has no `.git` yet; the user will initialize it, wire up
-  `https://github.com/SVerma2696/lock-in`, and push/tag it themselves
+  repo. This repo has no `.git` yet; it gets initialized and wired up to
+  `https://github.com/SVerma2696/lock-in`, then pushed/tagged, manually,
   after every task below is done. Every task ends with "mark the task
   complete" instead of a commit step.
 - App name is **Lock In** everywhere user-facing; Python package is
@@ -773,7 +773,7 @@ def test_default_theme_is_the_original():
 
 
 def test_spot_check_corrected_palette_values():
-    # These pin the user-corrected palette so a future edit can't quietly
+    # These pin the hand-corrected palette so a future edit can't quietly
     # drift back toward the original (wrong) guesses.
     assert RIDER_THEMES["Kamen Rider (1971)"].primary == "#1b5e3a"
     assert RIDER_THEMES["Kamen Rider (1971)"].secondary == "#c0392b"
@@ -825,7 +825,7 @@ Each entry stores exactly one hex per role; `lighten()` derives a
 dark-mode-friendly variant at load time instead of hand-picking a second
 shade for every one of the 38 entries.
 
-Palette source: user-corrected against real show reference, see
+Palette source: hand-corrected against real show reference, see
 docs/superpowers/specs/2026-08-07-lock-in-rebrand-design.md section 3.
 A handful of ties (OOO, Fourze, Zi-O, Den-O, Saber, Geats each listed
 more than one candidate secondary color) were resolved there too --
@@ -1128,8 +1128,8 @@ Check:
 
 No automated test for the platform-specific subprocess calls themselves
 (they need the real OS tool installed) — verify via Step 4's import/smoke
-check on this machine, and flag mac/Linux behavior for the user to
-confirm on those OSes.
+check on this machine; mac/Linux behavior still needs confirming on
+those OSes directly.
 
 - [ ] **Step 1: Decouple `psutil` from the Windows-only import block**
 
@@ -1308,8 +1308,8 @@ Expected: prints `True` with no exception.
 - [ ] **Step 5: Flag for real-OS verification**
 
 This task's macOS and Linux branches are written to each OS's documented
-mechanism but not run here (this machine is Windows). Note in your final
-summary to the user that `minimize_window` on macOS needs an Accessibility
+mechanism but not run here (this machine is Windows). Note in the final
+summary that `minimize_window` on macOS needs an Accessibility
 permission grant on first use, and on Linux needs `xdotool` installed and
 an X11 (not Wayland) session — both should be manually confirmed on real
 hardware before relying on them.
@@ -1677,8 +1677,8 @@ Read through the whole file once. Confirm:
 Python code.
 
 These can't be executed here (no `.git`, no GitHub connection) — validate
-by parsing the YAML, and leave real end-to-end verification for after the
-user pushes/tags per their own process.
+by parsing the YAML, and leave real end-to-end verification for after
+this gets pushed/tagged.
 
 - [ ] **Step 1: Create the test workflow**
 
@@ -1808,14 +1808,14 @@ Expected: prints `both valid`. If `yaml` isn't installed
 dependency, only a local validation tool.
 
 - [ ] **Step 4: Mark task complete** (no git — and no workflow will
-  actually run until the user pushes this to GitHub themselves)
+  actually run until this gets pushed to GitHub)
 
 ---
 
-## Handoff: what the user runs themselves
+## Handoff: what runs manually
 
-None of the above touched git. Once every task is complete, the user
-runs (not the implementer):
+None of the above touched git. Once every task is complete, these run
+manually (not automatically):
 
 ```bash
 git init

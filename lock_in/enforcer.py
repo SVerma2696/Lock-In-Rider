@@ -207,7 +207,7 @@ def judge(
         return local_verdict
 
     # We don't recognize this window and no model had an opinion — just
-    # leave the user alone.
+    # leave it alone.
     return Verdict(False, Reason.UNKNOWN, 0.5, "not recognised — allowed")
 
 

@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Spec: `docs/superpowers/specs/2026-08-11-tier3-enforcement-interaction-design.md` — this plan implements it in full; no other tier.
-- No git commands as part of any task. The user runs every git step themselves.
+- No git commands as part of any task — every git step runs manually, at the end.
 - Comments stay "simple enough for a 5 year old to understand" — short, plain-English, explain *why* not *what*.
 - TDD: every new pure function/method gets a failing test first.
 - Gaim never blocks real window-switching (topmost + visual dimming only). X's goal screen has no timeout. 555's wrong-code entry has no penalty.

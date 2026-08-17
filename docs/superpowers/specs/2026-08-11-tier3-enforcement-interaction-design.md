@@ -1,7 +1,7 @@
 # Lock In: Tier 3 — Enforcement/interaction tweaks
 
 Date: 2026-08-11
-Status: Approved by user, ready for implementation plan
+Status: Approved, ready for implementation plan
 
 ## Goal
 
@@ -164,8 +164,7 @@ brief "Incorrect code" hint — no penalty, no strike added, no lockout.
   ruled out, matches the project's existing documented stance.
 - Persisting `current_goal_text` across app restarts — in-memory only,
   same rule already applied to Fourze's constellation state in Tier 1.
-- Any git/GitHub action taken by the assistant — the user runs every
-  command themselves.
+- Any git/GitHub action — every command runs manually, at the end.
 
 ## File-by-file change list
 

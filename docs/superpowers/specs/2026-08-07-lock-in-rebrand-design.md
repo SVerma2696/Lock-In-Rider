@@ -1,7 +1,7 @@
 # Lock In: rebrand, Kamen Rider theming, cross-platform parity, and release CI
 
 Date: 2026-08-07
-Status: Approved by user, ready for implementation plan
+Status: Approved, ready for implementation plan
 
 ## Goal
 
@@ -11,8 +11,8 @@ bring macOS/Linux up to real feature parity with Windows, and add a
 tag-triggered GitHub Actions release pipeline that builds installers for
 all three OSes.
 
-Repo the CI will target: `https://github.com/SVerma2696/lock-in` (user will
-create the local git repo, remote, and all pushes/tags themselves — this
+Repo the CI will target: `https://github.com/SVerma2696/lock-in` (the local
+git repo, remote, and all pushes/tags get created manually — this
 implementation does not run any git commands).
 
 ## 1. Identity / rename
@@ -98,7 +98,7 @@ are internal identifiers persisted in `config.json`/`model.json` and are
   pattern as the existing appearance-change handler).
 - Default on first launch: **Kamen Rider (1971)**.
 
-### Final palette (source of truth — user-corrected)
+### Final palette (source of truth — hand-corrected)
 
 | Rider (year) | Primary | Secondary |
 |---|---|---|
@@ -141,8 +141,8 @@ are internal identifiers persisted in `config.json`/`model.json` and are
 | Zeztz (2025) | `#2e7d32` | `#1a1a1a` |
 | MY-TH (2026) | `#1565c0` | `#b0bec5` |
 
-Tie-breaks resolved where the user's source data listed more than two
-colors for a single role (presented back to the user; no objection
+Tie-breaks resolved where the source data listed more than two
+colors for a single role (presented for review; no objection
 raised, proceeding as proposed):
 - **OOO**: secondary Red `#c62828` (dropped yellow/green — red reads
   clearly against the black primary).
@@ -214,9 +214,9 @@ solved.
 
 ## 6. Explicitly out of scope for this pass
 
-- Any git/GitHub action taken by the assistant (init, commit, push, tag,
-  remote, repo creation). The user does all of that themselves; the final
-  deliverable includes the exact commands to run.
+- Any git/GitHub action (init, commit, push, tag, remote, repo creation).
+  All of that happens manually; the final deliverable includes the exact
+  commands to run.
 - Code-signing/notarizing the macOS build.
 - Wayland support for Linux minimize.
 - Per-Rider unique copy/catchphrases (theme is colors only, per the

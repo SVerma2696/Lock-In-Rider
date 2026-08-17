@@ -31,7 +31,7 @@
 
 - Spec: `docs/superpowers/specs/2026-08-10-tier1-rider-progress-variants-design.md` — this plan implements it in full; no other tier.
 - Purely visual — no Config/Settings value, timer length, or blocking behavior changes.
-- No git commands as part of any task. The user runs every git step themselves at the end.
+- No git commands as part of any task — every git step runs manually, at the end.
 - Comments stay "simple enough for a 5 year old to understand" — short, plain-English, explain *why* not *what*, matching every existing comment in `rider_themes.py` and `visuals.py`.
 - TDD: every new function gets a failing test first, then the minimal implementation, following this codebase's existing pattern (`session.py`, `enforcer.py`, `classifier.py`, `rider_themes.py`, `visuals.py` are all unit-tested with no display server).
 - Only the 9 named Riders get a `tier1_effect` other than `"none"`. Every other Rider's rendered output must be provably unchanged (covered by regression tests in Task 1 and Task 10).
@@ -1616,7 +1616,7 @@ to:
 __version__ = "2.0.0"
 ```
 
-This is the version bump the whole 38-Rider project's Tier 1 slice earns — it's the first tier to actually ship code, matching the user's own "v2.0.0" label for this round.
+This is the version bump the whole 38-Rider project's Tier 1 slice earns — it's the first tier to actually ship code, matching the chosen "v2.0.0" label for this round.
 
 - [ ] **Step 4: Run the full test suite one final time, in both environments**
 
@@ -1637,4 +1637,4 @@ git commit -m "docs: document Tier 1 Rider progress variants, bump to v2.0.0"
 - **Spec coverage:** all 9 Riders (Tasks 4-11), the `tier1_effect` field (Task 1), the "no widget layering, all compositing in Pillow" constraint (Tasks 11-13, `apply_tier1_background_effect` + `render_progress` are both the single source of truth for their widget), in-memory-only state with no persistence (Task 6's constellation math needs no stored state at all — simpler than the spec even called for, still satisfies "resets on restart" since it's derived fresh from `progress_fraction` every time), testing approach (pure-function tests for every renderer, screenshot-only for the final `ui.py` wiring) are all covered.
 - **Placeholder scan:** no TBD/TODO; every step has real, runnable code.
 - **Type consistency:** `render_progress`'s signature (Task 10) matches every call site in Task 13; `apply_tier1_background_effect`'s signature (Task 11) matches its call sites in Task 12; `RiderTheme.tier1_effect` (Task 1) is read the same way (`theme.tier1_effect`) everywhere it's used.
-- **One deviation worth flagging to the user directly (not just buried here):** the progress indicator changes from a native, width-stretching `CTkProgressBar` to a fixed-size picture (`PROGRESS_IMAGE_WIDTH = 340`) for ALL 38 Riders, not just the 9 in Tier 1. This was necessary to avoid a Tkinter widget-stacking/pack-ordering bug that a two-widget toggle approach would have hit, and it keeps `ui.py` simple (one widget, one dispatcher call) — but it means the progress bar no longer stretches to fill the window on resize, which is a small, real, visible behavior change from today.
+- **One deviation worth flagging up front (not just buried here):** the progress indicator changes from a native, width-stretching `CTkProgressBar` to a fixed-size picture (`PROGRESS_IMAGE_WIDTH = 340`) for ALL 38 Riders, not just the 9 in Tier 1. This was necessary to avoid a Tkinter widget-stacking/pack-ordering bug that a two-widget toggle approach would have hit, and it keeps `ui.py` simple (one widget, one dispatcher call) — but it means the progress bar no longer stretches to fill the window on resize, which is a small, real, visible behavior change from today.

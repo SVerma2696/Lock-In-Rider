@@ -22,7 +22,7 @@ def test_default_theme_is_the_original():
 
 
 def test_spot_check_corrected_palette_values():
-    # These pin the user-corrected, per-mode palette so a future edit
+    # These pin the hand-corrected, per-mode palette so a future edit
     # can't quietly drift back toward the older, single-shade guesses.
     assert RIDER_THEMES["Kamen Rider (1971)"].primary == ("#154a2e", "#237a4b")
     assert RIDER_THEMES["Kamen Rider (1971)"].secondary == ("#a83225", "#d94436")
@@ -157,7 +157,7 @@ def test_black_gets_stricter_dark_mode_text_contrast_than_normal_riders():
 
 
 def test_black_light_mode_text_is_unaffected():
-    """The user asked for stricter DARK mode contrast only -- light mode
+    """Black's gimmick is stricter DARK mode contrast only -- light mode
     should use the same amount every other Rider gets."""
     black = RIDER_THEMES["Kamen Rider Black (1987)"]
     assert black.primary_text_pair[0] == darken(black.primary[0], 0.35)

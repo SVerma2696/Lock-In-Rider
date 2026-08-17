@@ -1,7 +1,7 @@
 # Lock In: Tier 1 — per-Rider progress bar variants
 
 Date: 2026-08-10
-Status: Approved by user, ready for implementation plan
+Status: Approved, ready for implementation plan
 
 ## Goal
 
@@ -59,8 +59,8 @@ no new asset, no new shape.
 ## 3. Drive — accelerating fill (revised during implementation, not a new shape)
 
 > **Revision note:** this originally specced a 5th custom shape
-> ("Top Gear" speed-line streaks). During implementation the user
-> clarified the intended gimmick was actually an accelerating fill
+> ("Top Gear" speed-line streaks). During implementation it was
+> clarified that the intended gimmick was actually an accelerating fill
 > animation, not a new shape — this section reflects the corrected,
 > final design.
 
@@ -75,7 +75,7 @@ bending the fraction instead of the color.
 ## 4. Black — stricter dark-mode contrast (revised during implementation)
 
 > **Revision note:** this originally specced a "faceted, segmented"
-> progress bar shape. During implementation the user clarified the
+> progress bar shape. During implementation it was clarified that the
 > intended gimmick was actually a dark-mode contrast boost, not a shape
 > change — this section reflects the corrected, final design.
 
@@ -185,8 +185,7 @@ Tier 1's streak/constellation state generally. Nothing here touches
 - The other 8 tiers of the 38-Rider project (behavior-changing gimmicks,
   new data models, networking, hotkeys, etc.) — separate specs, separate
   brainstorming passes.
-- Any git/GitHub action taken by the assistant — the user runs every
-  command themselves.
+- Any git/GitHub action — every command runs manually, at the end.
 - Persisting Fourze's constellation state (or any Tier 1 state) across
   restarts — explicitly agreed to be in-memory only, this pass.
 

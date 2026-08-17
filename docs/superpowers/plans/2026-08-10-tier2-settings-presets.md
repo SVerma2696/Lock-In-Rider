@@ -12,7 +12,7 @@
 
 - Spec: `docs/superpowers/specs/2026-08-10-tier2-settings-presets-design.md` — this plan implements it in full; no other tier.
 - Purely a settings/UX feature — no blocking-logic changes.
-- No git commands as part of any task. The user runs every git step themselves.
+- No git commands as part of any task — every git step runs manually, at the end.
 - Comments stay "simple enough for a 5 year old to understand" — short, plain-English, explain *why* not *what*, matching every existing comment in this codebase.
 - TDD: every new function gets a failing test first, then the minimal implementation.
 - Applying a preset never touches an already-running phase — `session.py`'s `_advance()` captures a phase's duration once, at the moment it starts, so a `Config` change only applies "from the next phase" (already true today, not something this plan needs to build).

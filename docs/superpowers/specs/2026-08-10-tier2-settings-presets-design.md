@@ -1,7 +1,7 @@
 # Lock In: Tier 2 — Settings presets & quick toggles
 
 Date: 2026-08-10
-Status: Approved by user, ready for implementation plan
+Status: Approved, ready for implementation plan
 
 ## Goal
 
@@ -154,8 +154,7 @@ wording-aware label in this app already uses.
   hand — not which button produced them.
 - Graying out/disabling the timer-length spinners while Gavv's toggle
   is active — a text note instead, to keep this pass simple.
-- Any git/GitHub action taken by the assistant — the user runs every
-  command themselves.
+- Any git/GitHub action — every command runs manually, at the end.
 
 ## File-by-file change list
 

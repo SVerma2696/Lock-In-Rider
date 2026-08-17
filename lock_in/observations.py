@@ -99,7 +99,7 @@ class ObservationStore:
 
     Everything lives in memory while the app runs; the file on disk is just a
     backup copy. When we `save()`, we rewrite the whole file from scratch.
-    That's totally fine here — even a heavy user only creates a few thousand
+    That's totally fine here — even heavy use only creates a few thousand
     entries a year, well under a megabyte — and it's much simpler than trying
     to carefully edit individual lines in a file people are meant to open and
     edit by hand anyway.

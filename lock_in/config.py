@@ -48,7 +48,7 @@ def app_data_dir() -> Path:
     elif sys.platform == "darwin":
         base = Path.home() / "Library" / "Application Support"
     else:
-        # Use the folder Linux users have chosen, if they picked one.
+        # Use the folder you've chosen on Linux, if you picked one.
         base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 
     directory = base / APP_NAME
