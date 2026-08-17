@@ -321,3 +321,13 @@ RIDER_THEMES: dict[str, RiderTheme] = {
 
 # The very first Kamen Rider show. A good, neutral starting theme.
 DEFAULT_RIDER_THEME = "Kamen Rider (1971)"
+
+# Tier 0's baseline: NOT one of the 38 Kamen Rider costumes above, and
+# deliberately kept out of RIDER_THEMES (see this file's own docstring —
+# that dict is specifically "a big list of Kamen Rider costume colors").
+# Reuses the same RiderTheme dataclass purely for its color math
+# (surface tinting, contrast-safe text pairs) -- Standard Mode gets
+# those guarantees for free instead of duplicating them.
+STANDARD_THEME = RiderTheme(
+    "Standard", 0, ("#475569", "#94a3b8"), ("#1c7ed6", "#4dabf7"),
+)
