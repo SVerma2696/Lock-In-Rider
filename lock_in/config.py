@@ -138,6 +138,13 @@ class Config:
     # and effective_toast_enabled() below both hand back False, no
     # matter what your real Sounds/Desktop notifications switches say.
     stealth_mute_mode: bool = False
+    # Tier 0's kill switch: while this is on, _apply_rider_theme() in
+    # ui.py swaps in the neutral STANDARD_THEME instead of whichever
+    # Rider is picked below, and Wording reads as Professional no matter
+    # what the switch says. Same non-destructive, read-side pattern as
+    # the three flags above -- rider_theme and terminology are never
+    # overwritten, so turning this back off instantly restores both.
+    standard_mode: bool = False
 
     # --- What happens automatically ----------------------------------------- #
     auto_start_breaks: bool = True        # break starts right away

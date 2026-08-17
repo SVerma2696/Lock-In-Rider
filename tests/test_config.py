@@ -67,3 +67,7 @@ def test_turning_stealth_mute_mode_off_restores_normal_values():
     assert config.effective_sound_enabled() is False
     config.stealth_mute_mode = False
     assert config.effective_sound_enabled() is True
+
+
+def test_standard_mode_defaults_to_off():
+    assert Config().standard_mode is False
