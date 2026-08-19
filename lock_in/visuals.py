@@ -85,6 +85,19 @@ def make_glow(width: int, height: int, color: str, strength: float = 180) -> Ima
     return image
 
 
+def make_flat_fill(width: int, height: int, hex_color: str, alpha: int = 255) -> Image.Image:
+    """
+    Make one plain, solid-colored picture — no pattern, no gradient, no
+    glow. Standard Mode uses this in place of the textured art every
+    Kamen Rider theme gets: a single solid fill is virtually free to
+    draw, which is the actual point of a "lightweight, vanilla" mode.
+    `alpha=0` makes a fully see-through picture, the same size a real
+    glow would have been, used where Standard Mode wants no glow at all.
+    """
+    r, g, b = _hex_to_rgb(hex_color)
+    return Image.new("RGBA", (width, height), (r, g, b, alpha))
+
+
 def make_background_texture(
     width: int, height: int, primary: str, secondary: str, dark: bool,
     era: str = "Heisei",

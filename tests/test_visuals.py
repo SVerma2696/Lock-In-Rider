@@ -3,6 +3,7 @@ from lock_in.visuals import (
     display_font_family,
     load_app_icon,
     make_background_texture,
+    make_flat_fill,
     make_glow,
     make_panel_divider,
 )
@@ -33,6 +34,31 @@ def test_make_glow_is_brightest_in_the_middle():
     # The very corner should be so faint it's practically invisible —
     # this is what keeps the glow from showing a hard rectangle border.
     assert corner_alpha == 0
+
+
+def test_make_flat_fill_returns_the_requested_size():
+    image = make_flat_fill(100, 60, "#ff0000")
+    assert image.size == (100, 60)
+    assert image.mode == "RGBA"
+
+
+def test_make_flat_fill_is_the_same_solid_color_everywhere():
+    image = make_flat_fill(50, 50, "#336699")
+    corner = image.getpixel((0, 0))
+    center = image.getpixel((25, 25))
+    assert corner == center == (0x33, 0x66, 0x99, 255)
+
+
+def test_make_flat_fill_defaults_to_fully_opaque():
+    image = make_flat_fill(10, 10, "#000000")
+    assert image.getpixel((5, 5))[3] == 255
+
+
+def test_make_flat_fill_supports_full_transparency():
+    """Standard Mode uses alpha=0 in place of a real glow -- no soft
+    light behind the timer digits or the Start button at all."""
+    image = make_flat_fill(20, 20, "#000000", alpha=0)
+    assert image.getpixel((10, 10))[3] == 0
 
 
 def test_make_background_texture_returns_the_requested_size():
