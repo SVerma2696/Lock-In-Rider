@@ -48,7 +48,7 @@ from .monitor import BACKEND_AVAILABLE, ActiveWindowMonitor, minimize_window
 from .notifier import Notifier
 from .session import Event, Phase, PomodoroSession, label_for
 from .presets import GAVV_MICRO_SPRINT, KUUGA_PRESETS, SUPER1_PRESETS, TimerPreset
-from .rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES, desaturate
+from .rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES, STANDARD_THEME, desaturate
 from .visuals import (
     SHAPE_EFFECTS,
     apply_gaim_lock_overlay,
@@ -58,6 +58,7 @@ from .visuals import (
     interpolate_agito_color,
     load_app_icon,
     make_background_texture,
+    make_flat_fill,
     make_glow,
     make_panel_divider,
     render_amazon_drain,
@@ -254,7 +255,7 @@ class LockInApp(ctk.CTk):
         If we don't understand the saved name for some reason, we just
         use the first Rider instead of crashing.
         """
-        theme = RIDER_THEMES.get(
+        theme = STANDARD_THEME if self.config_obj.standard_mode else RIDER_THEMES.get(
             self.config_obj.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME]
         )
         # ZX's whole gimmick is going monochrome. Swapping in a
@@ -316,24 +317,39 @@ class LockInApp(ctk.CTk):
 
         primary_light, primary_dark = theme.primary
         secondary_light, secondary_dark = theme.secondary
-        timer_glow_light = make_glow(300, 120, primary_light)
-        timer_glow_dark = make_glow(300, 120, primary_dark)
-        button_glow_light = make_glow(170, 70, secondary_light)
-        button_glow_dark = make_glow(170, 70, secondary_dark)
-        bg_dark = make_background_texture(
-            BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, primary_dark, secondary_dark,
-            dark=True, era=theme.era,
-        )
-        bg_light = make_background_texture(
-            BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, primary_light, secondary_light,
-            dark=False, era=theme.era,
-        )
-        divider_light = make_panel_divider(
-            DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_light, secondary_light, era=theme.era,
-        )
-        divider_dark = make_panel_divider(
-            DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_dark, secondary_dark, era=theme.era,
-        )
+        if self.config_obj.standard_mode:
+            # No glow, and a flat fill instead of an era pattern -- a
+            # solid-color fill is what actually makes this "bypass the
+            # Pillow art": virtually free to draw, versus a
+            # procedurally-generated texture.
+            surface_light, surface_dark = self.color_surface
+            timer_glow_light = make_flat_fill(300, 120, primary_light, alpha=0)
+            timer_glow_dark = make_flat_fill(300, 120, primary_dark, alpha=0)
+            button_glow_light = make_flat_fill(170, 70, secondary_light, alpha=0)
+            button_glow_dark = make_flat_fill(170, 70, secondary_dark, alpha=0)
+            bg_dark = make_flat_fill(BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, surface_dark)
+            bg_light = make_flat_fill(BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, surface_light)
+            divider_light = make_flat_fill(DIVIDER_WIDTH, DIVIDER_HEIGHT, surface_light)
+            divider_dark = make_flat_fill(DIVIDER_WIDTH, DIVIDER_HEIGHT, surface_dark)
+        else:
+            timer_glow_light = make_glow(300, 120, primary_light)
+            timer_glow_dark = make_glow(300, 120, primary_dark)
+            button_glow_light = make_glow(170, 70, secondary_light)
+            button_glow_dark = make_glow(170, 70, secondary_dark)
+            bg_dark = make_background_texture(
+                BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, primary_dark, secondary_dark,
+                dark=True, era=theme.era,
+            )
+            bg_light = make_background_texture(
+                BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, primary_light, secondary_light,
+                dark=False, era=theme.era,
+            )
+            divider_light = make_panel_divider(
+                DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_light, secondary_light, era=theme.era,
+            )
+            divider_dark = make_panel_divider(
+                DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_dark, secondary_dark, era=theme.era,
+            )
         # Keep the PLAIN pattern around separately from whatever ends up
         # on screen -- Stronger/Kiva's effect gets painted fresh on top
         # of this every tick, so we always need the untouched original
