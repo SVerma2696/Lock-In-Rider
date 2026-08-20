@@ -231,7 +231,10 @@ class LockInApp(ctk.CTk):
     # (the Kamen Rider-flavored voice you turn on in Settings)
     # ================================================================== #
     def _is_tokusatsu(self) -> bool:
-        return self.config_obj.terminology == "tokusatsu"
+        # Standard Mode always reads as Professional, no matter what the
+        # Wording switch itself says -- the switch's real value is never
+        # overwritten, so it's back the instant Standard Mode is off.
+        return self.config_obj.terminology == "tokusatsu" and not self.config_obj.standard_mode
 
     def _henshin_word(self) -> str:
         """What the main Start/Henshin button says when it's not running."""
@@ -240,6 +243,12 @@ class LockInApp(ctk.CTk):
     def _rider_row_label_text(self) -> str:
         """What the color-theme picker's row is called in Settings."""
         return "Kamen Rider theme" if self._is_tokusatsu() else "Color theme"
+
+    def _driver_label_text(self) -> str:
+        """What the name label under the timer digits should say right now."""
+        if self.config_obj.standard_mode:
+            return "STANDARD MODE"
+        return self.config_obj.rider_theme.upper()
 
     def _apply_rider_theme(self) -> None:
         """
@@ -504,7 +513,7 @@ class LockInApp(ctk.CTk):
         self.streak_label.pack()
 
         self.driver_label = ctk.CTkLabel(
-            self.normal_header_content, text=self.config_obj.rider_theme.upper(),
+            self.normal_header_content, text=self._driver_label_text(),
             font=ctk.CTkFont(family=DISPLAY_FONT, size=10, weight="bold"),
             text_color=self.color_driver_text,
         )
@@ -890,6 +899,27 @@ class LockInApp(ctk.CTk):
         self.appearance_menu.set(self.config_obj.appearance)
         self.appearance_menu.pack(side="left")
 
+        ctk.CTkLabel(frame, text="Standard Mode", text_color=COLOR_LOOK_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        ctk.CTkLabel(
+            frame,
+            text=("Strips every Rider's color, art, and gimmick for a plain, "
+                  "fast, distraction-free look. Your Rider pick below is "
+                  "remembered and comes right back the moment you turn this "
+                  "back off."),
+            text_color=COLOR_IDLE, justify="left", wraplength=440,
+        ).pack(anchor="w", pady=(0, 6))
+        self.standard_mode_switch = ctk.CTkSwitch(
+            frame, text="Standard Mode (plain, no Rider flavor)",
+            progress_color=COLOR_LOOK_ACCENT,
+            command=self._on_standard_mode_toggled,
+        )
+        if self.config_obj.standard_mode:
+            self.standard_mode_switch.select()
+        else:
+            self.standard_mode_switch.deselect()
+        self.standard_mode_switch.pack(anchor="w", pady=(0, 10))
+
         rider_row = ctk.CTkFrame(frame, fg_color="transparent")
         rider_row.pack(fill="x", pady=(10, 4))
         self.rider_row_label = ctk.CTkLabel(
@@ -908,18 +938,19 @@ class LockInApp(ctk.CTk):
         # from scratch every time you pick a different Rider (see
         # _rebuild_tabs), so there's nothing to hide/show here, we just
         # build whichever ONE row (if any) actually matches right now.
-        if self.config_obj.rider_theme == "Kamen Rider Kuuga (2000)":
-            self._build_timer_preset_row(
-                frame, KUUGA_PRESETS,
-                "Kuuga presets" if self._is_tokusatsu() else "Interval presets",
-            )
-        elif self.config_obj.rider_theme == "Kamen Rider Super-1 (1980)":
-            self._build_timer_preset_row(
-                frame, SUPER1_PRESETS,
-                "Super-1's Five Hands" if self._is_tokusatsu() else "Task-type presets",
-            )
-        elif self.config_obj.rider_theme == "Kamen Rider Gavv (2024)":
-            self._build_gavv_toggle_row(frame)
+        if not self.config_obj.standard_mode:
+            if self.config_obj.rider_theme == "Kamen Rider Kuuga (2000)":
+                self._build_timer_preset_row(
+                    frame, KUUGA_PRESETS,
+                    "Kuuga presets" if self._is_tokusatsu() else "Interval presets",
+                )
+            elif self.config_obj.rider_theme == "Kamen Rider Super-1 (1980)":
+                self._build_timer_preset_row(
+                    frame, SUPER1_PRESETS,
+                    "Super-1's Five Hands" if self._is_tokusatsu() else "Task-type presets",
+                )
+            elif self.config_obj.rider_theme == "Kamen Rider Gavv (2024)":
+                self._build_gavv_toggle_row(frame)
 
         terminology_row = ctk.CTkFrame(frame, fg_color="transparent")
         terminology_row.pack(fill="x", pady=(10, 4))
@@ -1362,7 +1393,7 @@ class LockInApp(ctk.CTk):
         self.config_obj.rider_theme = value
         self.config_obj.save()
         self._apply_rider_theme()
-        self.driver_label.configure(text=value.upper(), text_color=self.color_driver_text)
+        self.driver_label.configure(text=self._driver_label_text(), text_color=self.color_driver_text)
         self.start_button.configure(fg_color=self.color_rider_accent, text_color=self.color_button_text)
         self.header_frame.configure(fg_color=self.color_surface)
         self._sync_progress_widget_visibility()
@@ -1379,6 +1410,25 @@ class LockInApp(ctk.CTk):
         # to call for every other Rider too -- it's a no-op unless
         # current_tier3_effect is "zero_ui".
         self._sync_zero_ui_visibility()
+
+    def _on_standard_mode_toggled(self) -> None:
+        """Called when you flip the Standard Mode switch in Settings."""
+        self.config_obj.standard_mode = self.standard_mode_switch.get()
+        self.config_obj.save()
+        self._apply_rider_theme()
+        self.driver_label.configure(text=self._driver_label_text(), text_color=self.color_driver_text)
+        self.start_button.configure(
+            text=self._henshin_word(), fg_color=self.color_rider_accent,
+            text_color=self.color_button_text,
+        )
+        self.header_frame.configure(fg_color=self.color_surface)
+        self._sync_progress_widget_visibility()
+        self._refresh_timer_widgets()
+        # Same reason _on_rider_theme_change() rebuilds the tabs: the tab
+        # panel colors, and here also the Tier 2 preset row, need to pick
+        # up the change, and the whole Settings tab already gets rebuilt
+        # from scratch on every relevant change.
+        self._rebuild_tabs()
 
     def _on_terminology_switch_toggled(self) -> None:
         """Called when you click the Wording switch itself."""
