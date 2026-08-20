@@ -1429,6 +1429,13 @@ class LockInApp(ctk.CTk):
         # up the change, and the whole Settings tab already gets rebuilt
         # from scratch on every relevant change.
         self._rebuild_tabs()
+        # Toggling Standard Mode flips current_tier3_effect too (see
+        # _apply_rider_theme): turning it ON masks Amazon's zero-UI effect,
+        # turning it OFF restores it. Same as _on_rider_theme_change(),
+        # this needs to take effect immediately mid-focus-block instead of
+        # waiting for the next tick. Safe to call for every Rider -- it's
+        # a no-op unless current_tier3_effect is "zero_ui".
+        self._sync_zero_ui_visibility()
 
     def _on_terminology_switch_toggled(self) -> None:
         """Called when you click the Wording switch itself."""
