@@ -1812,7 +1812,7 @@ class LockInApp(ctk.CTk):
         label = label_for(phase, self.config_obj.terminology)
         progress_fraction = self.session.progress
 
-        driver_text = self.config_obj.rider_theme.upper()
+        driver_text = self._driver_label_text()
         if phase is Phase.FOCUS and self.current_tier3_effect == "goal_gate" and self.current_goal_text:
             driver_text = self.current_goal_text.upper()
         self.driver_label.configure(text=driver_text)
