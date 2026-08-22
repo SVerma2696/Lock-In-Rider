@@ -778,6 +778,13 @@ class LockInApp(ctk.CTk):
             "whole app instantly changes color — this is purely for "
             "looks and never changes how blocking or timers work."
         )
+        bullet(
+            "Want zero Rider flavor at all? Flip \"Standard Mode\" on, "
+            "right above the theme dropdown — it strips every color, "
+            "glow, and gimmick down to a plain grey-and-blue look, no "
+            "matter which Rider is picked underneath. Flip it back off "
+            "and your Rider comes right back, exactly as it was."
+        )
 
         # --- Special Rider powers ---------------------------------------- #
         heading("3. Some heroes have a secret extra power", COLOR_CLAUDE_ACCENT)
