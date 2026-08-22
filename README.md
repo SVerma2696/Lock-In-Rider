@@ -99,6 +99,10 @@ writes correctly even if its own install folder is read-only.
   **9 of those Riders go further still** — a custom-shaped progress bar,
   a color or timing behavior change, or a chrome-level effect around
   the timer, unique to that Rider.
+* A **Standard Mode** switch (Settings tab) strips every Rider's color,
+  art, and gimmick for a plain, fast, distraction-free look — your
+  actual Rider pick is remembered and comes right back the moment you
+  turn it back off.
 * Toggles between **Professional and Tokusatsu wording** app-wide, so
   the exact same install reads as a plain productivity tool or a fully
   Kamen-Rider-flavored one, your choice.
@@ -395,6 +399,19 @@ recognize, so nothing crashes on a corrupted `config.json`. All three
 eras of tokusatsu copy live in `lock_in/enforcer.py` (`MESSAGES_BY_ERA`),
 the patterns in `lock_in/visuals.py`, and the sound tables in
 `lock_in/notifier.py`.
+
+### Tier 0: Standard Mode (no Rider flavor at all)
+
+Settings → "Standard Mode" is a single switch, independent of which
+Rider is picked below it. Turning it on swaps in a plain slate-grey and
+blue palette, turns off every Tier 1/2/3 Rider gimmick, forces Wording
+to Professional, and replaces every piece of Pillow-rendered art (the
+timer/button glow, the background wallpaper, the divider strip) with a
+flat, patternless fill — the same rendering pipeline, just fed a
+neutral color and no texture, which is what makes it the lightest,
+fastest-drawing look in the app. Your actual Rider and Wording choices
+are never overwritten; turning Standard Mode back off restores both
+instantly.
 
 ### Tier 1: 9 Riders with their own gimmick
 
