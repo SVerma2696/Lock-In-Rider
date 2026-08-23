@@ -236,6 +236,12 @@ class LockInApp(ctk.CTk):
         # overwritten, so it's back the instant Standard Mode is off.
         return self.config_obj.terminology == "tokusatsu" and not self.config_obj.standard_mode
 
+    def _effective_terminology(self) -> str:
+        """The wording value to hand to label_for()/message_for()/lockdown_label_for()
+        -- the same Standard Mode override _is_tokusatsu() applies to display
+        copy, as the plain string those functions expect instead of a bool."""
+        return "tokusatsu" if self._is_tokusatsu() else "professional"
+
     def _henshin_word(self) -> str:
         """What the main Start/Henshin button says when it's not running."""
         return "Henshin" if self._is_tokusatsu() else "Start"
@@ -782,8 +788,10 @@ class LockInApp(ctk.CTk):
             "Want zero Rider flavor at all? Flip \"Standard Mode\" on, "
             "right above the theme dropdown — it strips every color, "
             "glow, and gimmick down to a plain grey-and-blue look, no "
-            "matter which Rider is picked underneath. Flip it back off "
-            "and your Rider comes right back, exactly as it was."
+            "matter which Rider is picked underneath. It also switches "
+            "Wording to plain Professional while it's on, even if you'd "
+            "set Wording to Tokusatsu. Flip Standard Mode back off "
+            "and your Rider — and your Wording setting — come right back, exactly as they were."
         )
 
         # --- Special Rider powers ---------------------------------------- #
@@ -911,9 +919,10 @@ class LockInApp(ctk.CTk):
         ctk.CTkLabel(
             frame,
             text=("Strips every Rider's color, art, and gimmick for a plain, "
-                  "fast, distraction-free look. Your Rider pick below is "
-                  "remembered and comes right back the moment you turn this "
-                  "back off."),
+                  "fast, distraction-free look, and switches Wording to "
+                  "plain Professional while it's on. Your Rider pick and "
+                  "Wording setting below are remembered and come right "
+                  "back the moment you turn this back off."),
             text_color=COLOR_IDLE, justify="left", wraplength=440,
         ).pack(anchor="w", pady=(0, 6))
         self.standard_mode_switch = ctk.CTkSwitch(
@@ -974,7 +983,12 @@ class LockInApp(ctk.CTk):
             progress_color=COLOR_ENFORCE_ACCENT,  # the switch's color when it's ON (Tokusatsu)
             command=self._on_terminology_switch_toggled,
         )
-        if self._is_tokusatsu():
+        # Deliberately reads the SAVED value, not _is_tokusatsu(): this
+        # switch needs to show its own real position, not what's currently
+        # displayed -- while Standard Mode is on, _is_tokusatsu() always
+        # says "professional" here, which would show the switch as off
+        # even when Tokusatsu is what's actually saved.
+        if self.config_obj.terminology == "tokusatsu":
             self.terminology_switch.select()
         else:
             self.terminology_switch.deselect()
@@ -1112,7 +1126,7 @@ class LockInApp(ctk.CTk):
         title, body = message_for(
             action,
             era=self.current_era,
-            terminology=self.config_obj.terminology,
+            terminology=self._effective_terminology(),
             app=window.display,
             remaining=self.session.format_remaining(),
             seconds=self.enforcer.seconds_on_blocked_app,
@@ -1174,7 +1188,7 @@ class LockInApp(ctk.CTk):
         overlay.protocol("WM_DELETE_WINDOW", lambda: None)   # the X button on this window does nothing
         self._lockdown_window = overlay
 
-        ctk.CTkLabel(overlay, text=lockdown_label_for(self.current_era, self.config_obj.terminology),
+        ctk.CTkLabel(overlay, text=lockdown_label_for(self.current_era, self._effective_terminology()),
                      font=ctk.CTkFont(size=54, weight="bold"),
                      text_color=self.color_lockdown_text).pack(pady=(220, 10))
 
@@ -1275,7 +1289,7 @@ class LockInApp(ctk.CTk):
             self._close_lockdown()
 
         if phase is not Phase.IDLE:
-            label = label_for(phase, self.config_obj.terminology)
+            label = label_for(phase, self._effective_terminology())
             self.notifier.phase_chime(label)
             if phase.is_break:
                 self._show_banner(
@@ -1443,6 +1457,18 @@ class LockInApp(ctk.CTk):
         # waiting for the next tick. Safe to call for every Rider -- it's
         # a no-op unless current_tier3_effect is "zero_ui".
         self._sync_zero_ui_visibility()
+        # Two more pieces of Tier 3 state live outside _apply_rider_theme()'s
+        # reach and normally only get set/cleared at a phase transition
+        # (_on_phase_started()/_on_phase_ended()): Gaim's always-on-top lock
+        # and Amazon's zero-grace enforcement. If Standard Mode gets flipped
+        # mid-focus-block, current_tier3_effect just changed out from under
+        # both of them, so re-derive each from the current effect and phase
+        # right now instead of leaving them stuck until the next transition.
+        self.attributes("-topmost", self.current_tier3_effect == "lock_overlay" and self.session.phase is Phase.FOCUS)
+        self.config_obj.zero_grace_mode = (
+            self.current_tier3_effect == "zero_ui" and self.session.phase is Phase.FOCUS
+        )
+        self.config_obj.save()
 
     def _on_terminology_switch_toggled(self) -> None:
         """Called when you click the Wording switch itself."""
@@ -1809,7 +1835,7 @@ class LockInApp(ctk.CTk):
     # ================================================================== #
     def _refresh_timer_widgets(self) -> None:
         phase = self.session.phase
-        label = label_for(phase, self.config_obj.terminology)
+        label = label_for(phase, self._effective_terminology())
         progress_fraction = self.session.progress
 
         driver_text = self._driver_label_text()
