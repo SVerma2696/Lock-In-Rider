@@ -71,3 +71,9 @@ def test_turning_stealth_mute_mode_off_restores_normal_values():
 
 def test_standard_mode_defaults_to_off():
     assert Config().standard_mode is False
+
+
+def test_standard_mode_round_trips_through_save_and_load(tmp_path):
+    path = tmp_path / "config.json"
+    Config(standard_mode=True).save(path)
+    assert Config.load(path).standard_mode is True
