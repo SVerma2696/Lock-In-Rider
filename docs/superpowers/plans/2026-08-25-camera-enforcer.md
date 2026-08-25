@@ -665,13 +665,9 @@ Expected: FAIL — `ImportError: cannot import name 'PhoneWatcher'`
 
 - [ ] **Step 3: Implement `PhoneWatcher`**
 
-Add to `lock_in/camera_enforcer.py`, after `PhoneDetector`:
+Add to `lock_in/camera_enforcer.py`, after `PhoneDetector`. This uses `threading` and `Optional`, which aren't imported yet — Step 5 below adds them to the file's top-level imports in one pass, alongside everything else this file needs; don't add a separate `import threading` here.
 
 ```python
-import threading
-from typing import Callable, Optional
-
-
 class PhoneWatcher:
     """
     Checks the webcam for a phone, on its own background thread --
@@ -793,14 +789,9 @@ class PhoneWatcher:
             self._stop.wait(self.interval)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 4: Add `threading` and `Optional` to the file's top-level imports**
 
-Run: `pytest tests/test_camera_enforcer.py -v`
-Expected: all PASS
-
-- [ ] **Step 5: Move the `import threading` / `from typing import Callable, Optional` lines to the top of the file**
-
-`lock_in/camera_enforcer.py` should have exactly one set of imports at the top, in this order (standard library, then relative):
+`lock_in/camera_enforcer.py` should have exactly one set of imports, at the very top of the file, in this order (standard library, then relative) — replace whatever import block is there now (from Tasks 2-3) with this complete one:
 
 ```python
 from __future__ import annotations
@@ -813,14 +804,12 @@ from typing import Callable, Optional
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo
 ```
 
-Remove the inline `import threading` / `from typing import Callable, Optional` added in Step 3 now that they're at the top (the earlier `from typing import Callable` from Task 2's `CameraEnforcer` is covered by this same top-level import).
-
-- [ ] **Step 6: Run the full test file once more to confirm the import cleanup didn't break anything**
+- [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_camera_enforcer.py -v`
 Expected: all PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add lock_in/camera_enforcer.py tests/test_camera_enforcer.py
