@@ -15,6 +15,7 @@ from lock_in.camera_enforcer import (
     MODEL_PBTXT_PATH,
     CameraEnforcer,
     PhoneDetector,
+    PhoneWatcher,
 )
 
 EXPECTED_PB_SHA256 = "2a8d8a89d695842e60d8c6d144181100555563e21acf2fa1e8f561fec5c3c6ad"
@@ -160,3 +161,83 @@ def test_no_detections_at_all_is_false():
     detector = PhoneDetector(net)
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
     assert detector.detect(frame) is False
+
+
+class FakeCapture:
+    def __init__(self, frame=None) -> None:
+        self.released = False
+        self._frame = frame if frame is not None else np.zeros((2, 2, 3), dtype=np.uint8)
+
+    def read(self):
+        return True, self._frame
+
+    def release(self) -> None:
+        self.released = True
+
+
+class FakeDetector:
+    def __init__(self, result: bool = False) -> None:
+        self.result = result
+        self.calls = 0
+
+    def detect(self, frame) -> bool:
+        self.calls += 1
+        return self.result
+
+
+def test_camera_stays_closed_until_resumed():
+    opened = []
+
+    def factory():
+        opened.append(1)
+        return FakeCapture()
+
+    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
+                            camera_factory=factory)
+    watcher._step()
+    assert opened == []           # never resumed -- must not touch the camera at all
+
+    watcher.resume()
+    watcher._step()
+    assert opened == [1]
+
+
+def test_pausing_releases_the_camera_handle():
+    cap = FakeCapture()
+    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
+                            camera_factory=lambda: cap)
+    watcher.resume()
+    watcher._step()
+    assert cap.released is False
+
+    watcher.pause()
+    assert cap.released is True
+
+
+def test_a_detected_phone_reaches_the_callback():
+    seen = []
+    watcher = PhoneWatcher(callback=seen.append, detector=FakeDetector(result=True),
+                            camera_factory=lambda: FakeCapture())
+    watcher.resume()
+    watcher._step()
+    assert seen == [True]
+
+
+def test_no_phone_also_reaches_the_callback():
+    seen = []
+    watcher = PhoneWatcher(callback=seen.append, detector=FakeDetector(result=False),
+                            camera_factory=lambda: FakeCapture())
+    watcher.resume()
+    watcher._step()
+    assert seen == [False]
+
+
+def test_a_camera_that_fails_to_open_never_crashes_a_step():
+    def broken_factory():
+        raise RuntimeError("camera is in use by another app")
+
+    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
+                            camera_factory=broken_factory)
+    watcher.resume()
+    watcher._step()   # must not raise
+    watcher._step()   # must not raise a second time either
