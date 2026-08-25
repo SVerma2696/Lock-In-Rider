@@ -146,6 +146,14 @@ class Config:
     # overwritten, so turning this back off instantly restores both.
     standard_mode: bool = False
 
+    # Strict Camera Monitoring: off unless you turn it on yourself. When
+    # it's on, PhoneWatcher (camera_enforcer.py) samples your webcam
+    # roughly every 4 seconds during a focus block, and a phone in frame
+    # feeds the exact same WARN/NAG/MINIMIZE/LOCKDOWN ladder Enforcer
+    # already runs for blocked apps. Nothing about a frame is ever saved,
+    # shown, or sent anywhere -- it's judged and thrown away immediately.
+    camera_monitoring_enabled: bool = False
+
     # --- What happens automatically ----------------------------------------- #
     auto_start_breaks: bool = True        # break starts right away
     auto_start_focus: bool = False        # you must press start to work again
