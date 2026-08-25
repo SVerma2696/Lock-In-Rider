@@ -121,6 +121,7 @@ class PhoneWatcher:
         self._stop = threading.Event()
         self._paused = threading.Event()
         self._paused.set()   # start paused -- nothing to check until a focus block begins
+        self._cam_lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
     def start(self) -> None:
@@ -156,12 +157,13 @@ class PhoneWatcher:
 
     # ------------------------------------------------------------------ #
     def _release_camera(self) -> None:
-        if self._cap is not None:
-            try:
-                self._cap.release()
-            except Exception:
-                pass
-            self._cap = None
+        with self._cam_lock:
+            if self._cap is not None:
+                try:
+                    self._cap.release()
+                except Exception:
+                    pass
+                self._cap = None
 
     def _ensure_detector(self) -> None:
         if self._detector is None and not self._detector_unavailable:
@@ -170,6 +172,11 @@ class PhoneWatcher:
             except Exception:
                 self._detector_unavailable = True
 
+    @property
+    def is_capturing(self) -> bool:
+        """True only while a real camera handle is actually open right now."""
+        return self._cap is not None
+
     def _step(self) -> None:
         """One sample: open the camera if needed, read one frame, judge it, report it."""
         if self._paused.is_set():
@@ -177,16 +184,22 @@ class PhoneWatcher:
         self._ensure_detector()
         if self._detector is None:
             return
-        if self._cap is None:
+        with self._cam_lock:
+            if self._paused.is_set():      # a pause landed while we were setting up
+                return
+            if self._cap is None:
+                try:
+                    self._cap = self._camera_factory()
+                except Exception:
+                    self._cap = None
+                    return
             try:
-                self._cap = self._camera_factory()
+                ok, frame = self._cap.read()
             except Exception:
-                self._cap = None
                 return
+        if not ok:
+            return
         try:
-            ok, frame = self._cap.read()
-            if not ok:
-                return
             self._callback(self._detector.detect(frame))
         except Exception:
             pass
