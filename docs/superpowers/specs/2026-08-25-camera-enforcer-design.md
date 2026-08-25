@@ -139,12 +139,13 @@ alone — Standard Mode strips Rider flavor, not enforcement behavior.
   the same way `pywin32`/`winotify` already are: the app works
   perfectly without it, this one switch just can't turn on.
 - A small pre-trained SSD MobileNet v2 object-detection model
-  (COCO-trained, 80 classes including "cell phone", Apache-2.0
-  licensed, ~28MB), bundled into `lock_in/assets/` — same pattern as
-  the existing app icon. Fully offline: no first-run download, no
-  network call, ever. `build.bat` already ships everything under
-  `lock_in/assets/` via `--add-data`, so no packaging changes needed.
-  The implementation plan pins the exact model file/source/checksum.
+  (COCO-trained, 80 classes including "cell phone" at class id 77,
+  Apache-2.0 licensed, ~66MB frozen graph + a 113KB config file),
+  bundled into `lock_in/assets/` — same pattern as the existing app
+  icon. Fully offline: no first-run download, no network call, ever.
+  `build.bat` already ships everything under `lock_in/assets/` via
+  `--add-data`, so no packaging changes needed. The implementation
+  plan pins the exact source URLs and checksums.
 
 ## Error handling
 
