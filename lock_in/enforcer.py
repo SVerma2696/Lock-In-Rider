@@ -74,6 +74,7 @@ class Reason(str, Enum):
     CLAUDE = "claude"
     UNKNOWN = "unknown"
     NOT_FOCUSING = "not_focusing"
+    CAMERA = "camera"
 
 
 @dataclass
