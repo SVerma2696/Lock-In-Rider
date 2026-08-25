@@ -1142,7 +1142,7 @@ class LockInApp(ctk.CTk):
             action = self.camera_enforcer.update(phone_seen)
             self._log_activity(CameraEnforcer.PHONE_WINDOW, verdict)
             if action is not Action.NONE:
-                self._perform(action, CameraEnforcer.PHONE_WINDOW)
+                self._perform(action, CameraEnforcer.PHONE_WINDOW, seconds=self.camera_enforcer.seconds_on_phone)
 
     def _drain_claude_queue(self) -> None:
         """
@@ -1177,15 +1177,17 @@ class LockInApp(ctk.CTk):
     # ================================================================== #
     # Actually doing something about a blocked window
     # ================================================================== #
-    def _perform(self, action: Action, window: WindowInfo) -> None:
+    def _perform(self, action: Action, window: WindowInfo, seconds: Optional[float] = None) -> None:
         """Turn a step on the ladder into something you actually see or hear."""
+        if seconds is None:
+            seconds = self.enforcer.seconds_on_blocked_app
         title, body = message_for(
             action,
             era=self.current_era,
             terminology=self._effective_terminology(),
             app=window.display,
             remaining=self.session.format_remaining(),
-            seconds=self.enforcer.seconds_on_blocked_app,
+            seconds=seconds,
             lockdown=self.config_obj.lockdown_seconds,
         )
 
