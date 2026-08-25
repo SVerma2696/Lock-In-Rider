@@ -509,3 +509,7 @@ def test_claude_none_behaves_exactly_like_before(config, model):
     v = judge(win("unknown.exe", "TikTok For You page"), config, model)
     assert v.blocked
     assert v.reason is Reason.CLASSIFIER
+
+
+def test_reason_camera_exists():
+    assert Reason.CAMERA.value == "camera"
