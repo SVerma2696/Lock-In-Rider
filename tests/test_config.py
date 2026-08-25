@@ -77,3 +77,13 @@ def test_standard_mode_round_trips_through_save_and_load(tmp_path):
     path = tmp_path / "config.json"
     Config(standard_mode=True).save(path)
     assert Config.load(path).standard_mode is True
+
+
+def test_camera_monitoring_enabled_defaults_to_off():
+    assert Config().camera_monitoring_enabled is False
+
+
+def test_camera_monitoring_enabled_round_trips_through_save_and_load(tmp_path):
+    path = tmp_path / "config.json"
+    Config(camera_monitoring_enabled=True).save(path)
+    assert Config.load(path).camera_monitoring_enabled is True
