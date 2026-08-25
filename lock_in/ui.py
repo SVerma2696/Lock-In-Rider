@@ -1151,10 +1151,13 @@ class LockInApp(ctk.CTk):
                 continue
             if not self.config_obj.camera_monitoring_enabled:
                 continue
+            if not self.config_obj.enforcement_enabled:
+                continue
 
             verdict = Verdict(phone_seen, Reason.CAMERA, 1.0)
             action = self.camera_enforcer.update(phone_seen)
-            self._log_activity(CameraEnforcer.PHONE_WINDOW, verdict)
+            if phone_seen:
+                self._log_activity(CameraEnforcer.PHONE_WINDOW, verdict)
             if action is not Action.NONE:
                 self._perform(action, CameraEnforcer.PHONE_WINDOW, seconds=self.camera_enforcer.seconds_on_phone)
 
@@ -1213,13 +1216,15 @@ class LockInApp(ctk.CTk):
 
         elif action is Action.MINIMIZE:
             self.notifier.notify(title, body, urgency="high")
-            minimize_window(window.handle)
+            if window.handle is not None:
+                minimize_window(window.handle)
             # Bring our own window forward, so the timer is what you see now.
             self.after(120, self._raise_self)
 
         elif action is Action.LOCKDOWN:
             self.notifier.notify(title, body, urgency="high")
-            minimize_window(window.handle)
+            if window.handle is not None:
+                minimize_window(window.handle)
             self._show_lockdown()
 
     def _raise_self(self) -> None:
@@ -1867,18 +1872,22 @@ class LockInApp(ctk.CTk):
                          font=ctk.CTkFont(size=10),
                          text_color=COLOR_IDLE).pack(anchor="w")
 
-            # These two buttons are how you actually correct and teach the model.
-            ctk.CTkButton(row, text="was studying", width=90, height=26,
-                          font=ctk.CTkFont(size=10), fg_color="transparent",
-                          border_width=1,
-                          command=lambda e=entry: self._correct(e, STUDY)
-                          ).pack(side="right", padx=(0, 10))
+            # These two buttons are how you actually correct and teach the
+            # model -- they don't make sense for a camera-sourced row (there's
+            # no text to learn from, and clicking "was studying" would
+            # allowlist "your phone"), so camera rows don't get them.
+            if entry["reason"] is not Reason.CAMERA:
+                ctk.CTkButton(row, text="was studying", width=90, height=26,
+                              font=ctk.CTkFont(size=10), fg_color="transparent",
+                              border_width=1,
+                              command=lambda e=entry: self._correct(e, STUDY)
+                              ).pack(side="right", padx=(0, 10))
 
-            ctk.CTkButton(row, text="distraction", width=80, height=26,
-                          font=ctk.CTkFont(size=10), fg_color=COLOR_DANGER,
-                          hover_color="#96281b",
-                          command=lambda e=entry: self._correct(e, DISTRACTION)
-                          ).pack(side="right", padx=6)
+                ctk.CTkButton(row, text="distraction", width=80, height=26,
+                              font=ctk.CTkFont(size=10), fg_color=COLOR_DANGER,
+                              hover_color="#96281b",
+                              command=lambda e=entry: self._correct(e, DISTRACTION)
+                              ).pack(side="right", padx=6)
 
     def _correct(self, entry: dict, label: str) -> None:
         """
@@ -1937,6 +1946,7 @@ class LockInApp(ctk.CTk):
             self.config_obj.camera_monitoring_enabled
             and self.session.phase is Phase.FOCUS
             and self.session.is_running
+            and self.camera_watcher.is_capturing
         )
         self.camera_indicator_label.configure(
             text="\U0001F4F7 Camera monitoring active" if active else ""

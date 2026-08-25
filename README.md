@@ -844,6 +844,9 @@ use — never the key itself.
 - Strict Camera Monitoring only checks your default webcam (device
   index 0) -- no multi-camera picker, and no way to change the sample
   interval or confidence threshold from the UI.
+- If the camera fails mid-focus-block (unplugged, grabbed by another app),
+  monitoring silently stops sampling until the next focus block rather than
+  recovering automatically.
 
 ---
 

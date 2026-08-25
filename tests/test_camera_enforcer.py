@@ -41,6 +41,11 @@ def test_camera_backend_available_is_true_once_cv2_and_the_model_are_present():
     assert CAMERA_BACKEND_AVAILABLE is True
 
 
+def test_the_bundled_model_actually_loads_and_runs():
+    detector = PhoneDetector.from_files(MODEL_PB_PATH, MODEL_PBTXT_PATH)
+    assert detector.detect(np.zeros((240, 320, 3), dtype=np.uint8)) is False
+
+
 class FakeClock:
     def __init__(self) -> None:
         self.now = 500.0
