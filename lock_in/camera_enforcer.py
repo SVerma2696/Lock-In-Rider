@@ -22,9 +22,33 @@ enforcer.py / monitor.py boundary elsewhere in this app:
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Callable
 
+try:
+    import cv2  # type: ignore
+except ImportError:  # pragma: no cover - depends on install
+    cv2 = None
+
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo
+
+_ASSETS_DIR = Path(__file__).parent / "assets"
+MODEL_PB_PATH = _ASSETS_DIR / "phone_detector.pb"
+MODEL_PBTXT_PATH = _ASSETS_DIR / "phone_detector.pbtxt"
+
+# True only once everything Strict Camera Monitoring needs -- the
+# opencv-python-headless package AND both bundled model files -- is
+# actually present. ui.py disables the Settings switch (with an
+# explanation) whenever this is False, the same treatment monitor.py's
+# BACKEND_AVAILABLE already gets for window detection.
+CAMERA_BACKEND_AVAILABLE = (
+    cv2 is not None and MODEL_PB_PATH.exists() and MODEL_PBTXT_PATH.exists()
+)
+
+PHONE_CLASS_ID = 77                     # COCO's class id for "cell phone"
+DETECTION_CONFIDENCE_THRESHOLD = 0.5
+DETECTION_INPUT_SIZE = (300, 300)
+SAMPLE_INTERVAL_SECONDS = 4.0
 
 
 class CameraEnforcer:

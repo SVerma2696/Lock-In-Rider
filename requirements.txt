@@ -6,6 +6,13 @@ customtkinter>=5.2.2
 # work at all now too.
 Pillow>=10.0.0
 
+# This lets the app look at your webcam and recognize a phone in frame,
+# for the opt-in "Strict Camera Monitoring" switch in the Blocking tab.
+# Not required for anything else -- the app works fully without it, that
+# one switch just can't turn on. -headless because nothing here ever
+# opens a window with OpenCV's own GUI code.
+opencv-python-headless>=4.8.0
+
 # These help the app see which window you're looking at, on Windows.
 # Without them, the app still works, but it can't tell what app you're in,
 # so it can't block anything.
