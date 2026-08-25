@@ -878,6 +878,20 @@ class LockInApp(ctk.CTk):
             "pick. The hero is just for fun."
         )
 
+        # --- Strict Camera Monitoring ------------------------------------ #
+        heading("4. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
+        body(
+            "A separate opt-in extra, nothing to do with heroes: turn it "
+            "on in the Blocking tab and Lock In checks your webcam every "
+            "few seconds during a focus block for a phone in frame, "
+            "using the exact same warn-then-escalate ladder as blocked "
+            "apps. Off by default. Only runs during an actual focus "
+            "block, and the camera turns off the instant a break starts "
+            "or you flip the switch back off -- watch for the little "
+            "\"Camera monitoring active\" label under the timer; the "
+            "camera is only ever on when that's showing."
+        )
+
     # ------------------------------------------------------------------ #
     def _build_settings_tab(self, parent) -> None:
         frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")

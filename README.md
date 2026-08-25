@@ -748,6 +748,53 @@ xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display
 
 ---
 
+## Strict Camera Monitoring (optional, off by default)
+
+A separate opt-in extra, unrelated to Claude fallback: while turned on,
+Lock In watches your webcam during a focus block and runs the exact
+same WARN → NAG → (hard mode) MINIMIZE → LOCKDOWN ladder it already
+runs for blocked apps -- just aimed at a phone in frame.
+
+### Setup
+
+**1. Install OpenCV.**
+
+```bat
+pip install opencv-python-headless
+```
+
+**2. Turn it on.** Blocking tab → "Strict Camera Monitoring (uses your
+webcam to catch phones)". If the switch is greyed out, the message
+underneath tells you exactly what's missing.
+
+### What actually happens to a frame
+
+Roughly every 4 seconds during a focus block, one frame is grabbed from
+your default webcam, checked against a small bundled object-detection
+model for a phone, and thrown away immediately. Nothing is ever saved
+to disk, shown on screen, or sent over a network -- there is no network
+call anywhere in this feature, the model ships inside the app itself.
+
+### How it stays out of the way
+
+- **Off by default, one switch, your call entirely.**
+- **Only runs during an active focus block.** Paused on every break,
+  on idle, and the instant the session ends -- exactly like the window
+  monitor that blocks distracting apps.
+- **The camera closes the moment monitoring pauses.** The detection
+  model stays loaded in memory (so turning it back on doesn't have to
+  reload anything), but the actual webcam handle is released
+  immediately on every break/pause/toggle-off, so the hardware light on
+  your laptop always matches what the app's own on-screen "Camera
+  monitoring active" label says -- never lit when the label isn't
+  showing.
+- **Fails silent, not broken.** No webcam, `opencv-python-headless`
+  not installed, the camera locked by another app -- all of it
+  degrades to "feature unavailable," never a crash, never a lockdown
+  UI you can't explain.
+
+---
+
 ## 🔧 Config
 
 Settings, the trained model, and your training data all live in
@@ -794,6 +841,9 @@ use — never the key itself.
 - **The model needs data before it's much use.** Out of the box it knows the
   seed corpus and not your habits. The block and allow lists work perfectly from
   minute one; the classifier is the part that earns its keep over a few weeks.
+- Strict Camera Monitoring only checks your default webcam (device
+  index 0) -- no multi-camera picker, and no way to change the sample
+  interval or confidence threshold from the UI.
 
 ---
 
