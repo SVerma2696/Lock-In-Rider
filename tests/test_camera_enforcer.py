@@ -4,6 +4,7 @@ blocked apps. No real camera or model involved anywhere in this file."""
 
 import hashlib
 
+import numpy as np
 import pytest
 
 from lock_in.config import Config
@@ -13,6 +14,7 @@ from lock_in.camera_enforcer import (
     MODEL_PB_PATH,
     MODEL_PBTXT_PATH,
     CameraEnforcer,
+    PhoneDetector,
 )
 
 EXPECTED_PB_SHA256 = "2a8d8a89d695842e60d8c6d144181100555563e21acf2fa1e8f561fec5c3c6ad"
@@ -114,3 +116,47 @@ def test_phone_window_reads_naturally_in_the_existing_messages():
         remaining="20:00", seconds=5, lockdown=15,
     )
     assert "your phone" in body
+
+
+class FakeNet:
+    """Stands in for a real cv2.dnn network -- returns a canned detection
+    array shaped like the real SSD output, (1, 1, N, 7):
+    [batchId, classId, confidence, left, top, right, bottom]."""
+
+    def __init__(self, detections) -> None:
+        self._output = np.array([[detections]], dtype=np.float32)
+        self.last_input = None
+
+    def setInput(self, blob) -> None:
+        self.last_input = blob
+
+    def forward(self):
+        return self._output
+
+
+def test_detects_a_confident_phone():
+    net = FakeNet([[0.0, 77.0, 0.9, 0.1, 0.1, 0.5, 0.5]])
+    detector = PhoneDetector(net)
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    assert detector.detect(frame) is True
+
+
+def test_ignores_a_confident_non_phone_class():
+    net = FakeNet([[0.0, 1.0, 0.95, 0.1, 0.1, 0.5, 0.5]])   # class 1 = "person"
+    detector = PhoneDetector(net)
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    assert detector.detect(frame) is False
+
+
+def test_ignores_a_low_confidence_phone():
+    net = FakeNet([[0.0, 77.0, 0.2, 0.1, 0.1, 0.5, 0.5]])
+    detector = PhoneDetector(net)
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    assert detector.detect(frame) is False
+
+
+def test_no_detections_at_all_is_false():
+    net = FakeNet([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+    detector = PhoneDetector(net)
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    assert detector.detect(frame) is False

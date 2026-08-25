@@ -51,6 +51,36 @@ DETECTION_INPUT_SIZE = (300, 300)
 SAMPLE_INTERVAL_SECONDS = 4.0
 
 
+class PhoneDetector:
+    """
+    Wraps one loaded OpenCV DNN network. Construction (`from_files`) is
+    the slow part -- reading the model off disk and building the graph
+    -- so `PhoneWatcher` (next task) builds exactly one of these and
+    keeps it warm in memory for as long as the app runs, regardless of
+    how many times the camera itself opens and closes.
+    """
+
+    def __init__(self, net) -> None:
+        self._net = net
+
+    @classmethod
+    def from_files(cls, pb_path: Path, pbtxt_path: Path) -> "PhoneDetector":
+        net = cv2.dnn.readNetFromTensorflow(str(pb_path), str(pbtxt_path))
+        return cls(net)
+
+    def detect(self, frame) -> bool:
+        """One frame in, one answer out: was a phone visible, confidently, anywhere in it?"""
+        blob = cv2.dnn.blobFromImage(frame, size=DETECTION_INPUT_SIZE, swapRB=True, crop=False)
+        self._net.setInput(blob)
+        output = self._net.forward()
+        for detection in output[0, 0]:
+            class_id = int(detection[1])
+            confidence = float(detection[2])
+            if class_id == PHONE_CLASS_ID and confidence >= DETECTION_CONFIDENCE_THRESHOLD:
+                return True
+        return False
+
+
 class CameraEnforcer:
     """
     Feeds phone-sighting samples through the same escalation ladder
