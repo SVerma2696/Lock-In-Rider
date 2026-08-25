@@ -43,7 +43,8 @@ from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 from .claude_fallback import ClaudeFallback
 from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, app_data_dir
 from .observations import ObservationStore
-from .enforcer import Action, Enforcer, Reason, WindowInfo, judge, lockdown_label_for, message_for
+from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
+from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
 from .monitor import BACKEND_AVAILABLE, ActiveWindowMonitor, minimize_window
 from .notifier import Notifier
 from .session import Event, Phase, PomodoroSession, label_for
@@ -138,11 +139,13 @@ class LockInApp(ctk.CTk):
         self.observations = ObservationStore(OBSERVATIONS_PATH)
         self.claude = ClaudeFallback(self.config_obj)
         self.enforcer = Enforcer(self.config_obj)
+        self.camera_enforcer = CameraEnforcer(self.config_obj)
         self.notifier = Notifier(self.config_obj)
         self.notifier.banner_callback = self._queue_banner
 
         # Safe mailboxes for passing messages between threads.
         self._window_queue: "queue.Queue[WindowInfo]" = queue.Queue()
+        self._camera_queue: "queue.Queue[bool]" = queue.Queue()
         self._banner_queue: "queue.Queue[tuple]" = queue.Queue()
         self._claude_queue: "queue.Queue[tuple]" = queue.Queue()
 
@@ -150,6 +153,7 @@ class LockInApp(ctk.CTk):
             callback=self._window_queue.put,   # safe to call from any thread — does nothing fancy
             interval=1.0,
         )
+        self.camera_watcher = PhoneWatcher(callback=self._camera_queue.put)
 
         # The activity list: dicts of {time, text, blocked, reason, label}
         self.activity: List[dict] = []
@@ -181,6 +185,7 @@ class LockInApp(ctk.CTk):
         self._build_tabs()
 
         self.monitor.start()
+        self.camera_watcher.start()
         self._sync_progress_widget_visibility()
         self._pump()          # start the UI heartbeat
         self._refresh_timer_widgets()
@@ -587,6 +592,15 @@ class LockInApp(ctk.CTk):
         )
         self.watch_label.pack(pady=(12, 0))
 
+        # Only ever shown while a focus block is actually running AND the
+        # switch is on -- i.e. exactly whenever PhoneWatcher genuinely has
+        # the camera open. Gone the instant either stops being true, on
+        # top of whatever your webcam's own hardware light already shows.
+        self.camera_indicator_label = ctk.CTkLabel(
+            header, text="", font=ctk.CTkFont(size=11), text_color=COLOR_ENFORCE_ACCENT,
+        )
+        self.camera_indicator_label.pack(pady=(4, 0))
+
     def _build_divider(self) -> None:
         """
         Builds the thin, decorated strip that sits in the gap between
@@ -637,6 +651,23 @@ class LockInApp(ctk.CTk):
         ctk.CTkSwitch(frame, text="Hard mode (minimise windows, lockdown screen)",
                       variable=self.hard_var, progress_color=COLOR_DANGER,
                       command=self._save_from_widgets).pack(anchor="w", pady=6)
+
+        self.camera_var = ctk.BooleanVar(value=self.config_obj.camera_monitoring_enabled)
+        self.camera_switch = ctk.CTkSwitch(
+            frame, text="Strict Camera Monitoring (uses your webcam to catch phones)",
+            variable=self.camera_var, progress_color=COLOR_DANGER,
+            command=self._on_camera_switch_toggled,
+        )
+        self.camera_switch.pack(anchor="w", pady=6)
+        if not CAMERA_BACKEND_AVAILABLE:
+            self.camera_switch.configure(state="disabled")
+            ctk.CTkLabel(
+                frame,
+                text=("Strict Camera Monitoring needs opencv-python-headless "
+                      "and its bundled model file, and isn't available right "
+                      "now. Run: pip install opencv-python-headless"),
+                text_color=COLOR_WARN, justify="left", wraplength=440,
+            ).pack(anchor="w", pady=(0, 6))
 
         self.classifier_var = ctk.BooleanVar(value=self.config_obj.use_classifier)
         ctk.CTkSwitch(frame, text="Use the learned model on unlisted apps",
@@ -1022,6 +1053,7 @@ class LockInApp(ctk.CTk):
                     self._on_phase_started()
 
             self._drain_window_queue()
+            self._drain_camera_queue()
             self._drain_claude_queue()
             self._drain_banner_queue()
             self._refresh_timer_widgets()
@@ -1087,6 +1119,30 @@ class LockInApp(ctk.CTk):
 
         if latest is not None:
             self._update_watch_label(latest)
+
+    def _drain_camera_queue(self) -> None:
+        """Look at every phone-sighting sample PhoneWatcher noticed, and act on it."""
+        while True:
+            try:
+                phone_seen = self._camera_queue.get_nowait()
+            except queue.Empty:
+                return
+
+            # PhoneWatcher only ever samples while resumed, but a sample
+            # can still be sitting in the queue from the instant before
+            # a pause/toggle-off took effect -- skip it rather than act
+            # on a stale reading, same guard _drain_window_queue already
+            # applies to window samples.
+            if self.session.phase is not Phase.FOCUS or not self.session.is_running:
+                continue
+            if not self.config_obj.camera_monitoring_enabled:
+                continue
+
+            verdict = Verdict(phone_seen, Reason.CAMERA, 1.0)
+            action = self.camera_enforcer.update(phone_seen)
+            self._log_activity(CameraEnforcer.PHONE_WINDOW, verdict)
+            if action is not Action.NONE:
+                self._perform(action, CameraEnforcer.PHONE_WINDOW)
 
     def _drain_claude_queue(self) -> None:
         """
@@ -1261,6 +1317,7 @@ class LockInApp(ctk.CTk):
     def _on_phase_started(self) -> None:
         """Turn on watching for FOCUS, turn it off for everything else."""
         self.enforcer.reset()
+        self.camera_enforcer.reset()
         phase = self.session.phase
 
         if phase is Phase.FOCUS and self.current_tier3_effect == "stealth_mute":
@@ -1284,8 +1341,11 @@ class LockInApp(ctk.CTk):
 
         if phase is Phase.FOCUS and self.session.is_running:
             self.monitor.resume()
+            if self.config_obj.camera_monitoring_enabled:
+                self.camera_watcher.resume()
         else:
             self.monitor.pause()
+            self.camera_watcher.pause()
             self._close_lockdown()
 
         if phase is not Phase.IDLE:
@@ -1303,6 +1363,7 @@ class LockInApp(ctk.CTk):
 
     def _on_phase_ended(self) -> None:
         self.monitor.pause()
+        self.camera_watcher.pause()
         self._close_lockdown()
         if self.current_tier3_effect == "lock_overlay":
             self.attributes("-topmost", False)
@@ -1338,8 +1399,11 @@ class LockInApp(ctk.CTk):
         if not was_running and self.session.is_running:
             if self.session.phase is Phase.FOCUS:
                 self.monitor.resume()
+                if self.config_obj.camera_monitoring_enabled:
+                    self.camera_watcher.resume()
         else:
             self.monitor.pause()
+            self.camera_watcher.pause()
 
         self._refresh_timer_widgets()
 
@@ -1394,7 +1458,9 @@ class LockInApp(ctk.CTk):
     def _on_reset(self) -> None:
         self.session.reset()
         self.enforcer.reset()
+        self.camera_enforcer.reset()
         self.monitor.pause()
+        self.camera_watcher.pause()
         self._close_lockdown()
         self._refresh_timer_widgets()
 
@@ -1527,6 +1593,23 @@ class LockInApp(ctk.CTk):
         self.config_obj.save()
         self.claude.clear_cache()          # an old "unavailable" answer shouldn't stick around
         self._refresh_claude_status()
+
+    def _on_camera_switch_toggled(self) -> None:
+        """
+        Applies right away, even in the middle of a focus block -- same
+        reasoning that already applies to every other enforcement switch
+        in this app: turning Strict Camera Monitoring off should stop
+        the camera immediately, not wait for the next focus block to
+        start. Turning it ON mid-block starts it immediately too.
+        """
+        self.config_obj.camera_monitoring_enabled = self.camera_var.get()
+        self.config_obj.save()
+        if self.config_obj.camera_monitoring_enabled:
+            if self.session.phase is Phase.FOCUS and self.session.is_running:
+                self.camera_watcher.resume()
+        else:
+            self.camera_watcher.pause()
+        self._sync_camera_indicator()
 
     def _refresh_claude_status(self) -> None:
         status = self.claude.status
@@ -1833,6 +1916,16 @@ class LockInApp(ctk.CTk):
     # ================================================================== #
     # Helpers that redraw parts of the screen
     # ================================================================== #
+    def _sync_camera_indicator(self) -> None:
+        active = (
+            self.config_obj.camera_monitoring_enabled
+            and self.session.phase is Phase.FOCUS
+            and self.session.is_running
+        )
+        self.camera_indicator_label.configure(
+            text="\U0001F4F7 Camera monitoring active" if active else ""
+        )
+
     def _refresh_timer_widgets(self) -> None:
         phase = self.session.phase
         label = label_for(phase, self._effective_terminology())
@@ -1912,6 +2005,7 @@ class LockInApp(ctk.CTk):
         # The title bar also shows a tiny timer, so it's visible even when
         # this window is hidden behind others.
         self.title(f"{self.session.format_remaining()} · {label} — Lock In")
+        self._sync_camera_indicator()
 
     def _refresh_progress_shape(self, progress_fraction: float) -> None:
         """
@@ -2054,6 +2148,7 @@ class LockInApp(ctk.CTk):
             self.observations.save()
         finally:
             self.monitor.stop()
+            self.camera_watcher.stop()
             self.destroy()
 
 
