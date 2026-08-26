@@ -145,6 +145,13 @@ class Config:
     # the three flags above -- rider_theme and terminology are never
     # overwritten, so turning this back off instantly restores both.
     standard_mode: bool = False
+    # Black RX's manual-break toggle: while this is on,
+    # effective_auto_start_breaks() below hands back False no matter
+    # what your real Auto-start breaks switch says -- same read-side
+    # override pattern as Gavv's micro_sprint_mode, your real setting
+    # is never overwritten, so turning this back off instantly
+    # restores it.
+    blackrx_manual_breaks: bool = False
 
     # Strict Camera Monitoring: off unless you turn it on yourself. When
     # it's on, PhoneWatcher (camera_enforcer.py) samples your webcam
@@ -272,3 +279,7 @@ class Config:
     def effective_toast_enabled(self) -> bool:
         """The same idea as effective_sound_enabled, for Desktop notifications."""
         return False if self.stealth_mute_mode else self.toast_enabled
+
+    def effective_auto_start_breaks(self) -> bool:
+        """Black RX's manual-break override -- see the field comment above."""
+        return False if self.blackrx_manual_breaks else self.auto_start_breaks

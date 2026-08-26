@@ -87,3 +87,24 @@ def test_camera_monitoring_enabled_round_trips_through_save_and_load(tmp_path):
     path = tmp_path / "config.json"
     Config(camera_monitoring_enabled=True).save(path)
     assert Config.load(path).camera_monitoring_enabled is True
+
+
+def test_blackrx_manual_breaks_defaults_to_off():
+    assert Config().blackrx_manual_breaks is False
+
+
+def test_effective_auto_start_breaks_is_false_when_blackrx_manual_breaks_is_on():
+    config = Config(auto_start_breaks=True, blackrx_manual_breaks=True)
+    assert config.effective_auto_start_breaks() is False
+
+
+def test_effective_auto_start_breaks_matches_the_real_setting_when_off():
+    config = Config(auto_start_breaks=True, blackrx_manual_breaks=False)
+    assert config.effective_auto_start_breaks() is True
+
+
+def test_turning_blackrx_manual_breaks_off_restores_the_real_setting():
+    config = Config(auto_start_breaks=True, blackrx_manual_breaks=True)
+    assert config.effective_auto_start_breaks() is False
+    config.blackrx_manual_breaks = False
+    assert config.effective_auto_start_breaks() is True
