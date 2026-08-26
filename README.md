@@ -750,14 +750,16 @@ xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display
 
 ## Strict Camera Monitoring (optional, off by default)
 
-A separate opt-in extra, unrelated to Claude fallback: while turned on,
-Lock In watches your webcam during a focus block and runs the exact
-same WARN → NAG → (hard mode) MINIMIZE → LOCKDOWN ladder it already
-runs for blocked apps -- just aimed at a phone in frame.
+A separate extra thing, nothing to do with Claude fallback: turn it on
+and Lock In watches your webcam during a focus block. If it spots a
+phone, you get warned the same way you'd get warned for opening a
+blocked app -- first a gentle nudge, then louder, and (if you've also
+turned on hard mode) eventually a full-screen lockdown, just like
+already happens for blocked apps.
 
 ### Setup
 
-**1. Install OpenCV.**
+**1. Install OpenCV** (the tool that lets the app look through your webcam).
 
 ```bat
 pip install opencv-python-headless
@@ -767,31 +769,33 @@ pip install opencv-python-headless
 webcam to catch phones)". If the switch is greyed out, the message
 underneath tells you exactly what's missing.
 
-### What actually happens to a frame
+### What actually happens to a picture from your camera
 
-Roughly every 4 seconds during a focus block, one frame is grabbed from
-your default webcam, checked against a small bundled object-detection
-model for a phone, and thrown away immediately. Nothing is ever saved
-to disk, shown on screen, or sent over a network -- there is no network
-call anywhere in this feature, the model ships inside the app itself.
+Roughly every 4 seconds during a focus block, the app grabs one
+picture from your default webcam, checks it for a phone, and then
+throws that picture away right away. Nothing is ever saved to your
+computer, shown on screen, or sent anywhere over the internet -- this
+whole feature never goes online at all. The thing it uses to recognize
+a phone is built into the app itself, so it doesn't need to download
+anything either.
 
 ### How it stays out of the way
 
-- **Off by default, one switch, your call entirely.**
-- **Only runs during an active focus block.** Paused on every break,
-  on idle, and the instant the session ends -- exactly like the window
-  monitor that blocks distracting apps.
-- **The camera closes the moment monitoring pauses.** The detection
-  model stays loaded in memory (so turning it back on doesn't have to
-  reload anything), but the actual webcam handle is released
-  immediately on every break/pause/toggle-off, so the hardware light on
-  your laptop always matches what the app's own on-screen "Camera
-  monitoring active" label says -- never lit when the label isn't
-  showing.
-- **Fails silent, not broken.** No webcam, `opencv-python-headless`
-  not installed, the camera locked by another app -- all of it
-  degrades to "feature unavailable," never a crash, never a lockdown
-  UI you can't explain.
+- **Off unless you turn it on. One switch. Your choice.**
+- **Only watches during an actual focus block.** It stops on every
+  break, when the timer is idle, and the moment the session ends --
+  exactly like the part of the app that blocks distracting apps.
+- **The camera turns off the second monitoring pauses.** The little
+  helper that recognizes phones stays ready in memory (so turning the
+  switch back on doesn't have to reload anything), but the actual
+  webcam turns off right away on every break, pause, or toggle-off --
+  so your laptop's little camera light always matches what the app's
+  own on-screen "Camera monitoring active" words say. It's never on
+  when those words aren't showing.
+- **If something goes wrong, it just quietly stops -- it never
+  crashes.** No webcam, `opencv-python-headless` not installed, the
+  camera being used by another app -- any of those just turn the
+  feature off for now, with no crash and no confusing lockdown screen.
 
 ---
 
@@ -841,12 +845,12 @@ use — never the key itself.
 - **The model needs data before it's much use.** Out of the box it knows the
   seed corpus and not your habits. The block and allow lists work perfectly from
   minute one; the classifier is the part that earns its keep over a few weeks.
-- Strict Camera Monitoring only checks your default webcam (device
-  index 0) -- no multi-camera picker, and no way to change the sample
-  interval or confidence threshold from the UI.
-- If the camera fails mid-focus-block (unplugged, grabbed by another app),
-  monitoring silently stops sampling until the next focus block rather than
-  recovering automatically.
+- Strict Camera Monitoring only looks through your main, default webcam --
+  no picker for a second camera, and no setting to change how often it
+  checks or how sure it needs to be.
+- If the camera stops working partway through a focus block (unplugged,
+  grabbed by another app), monitoring just quietly stops until the next
+  focus block, instead of trying to fix itself right away.
 
 ---
 
