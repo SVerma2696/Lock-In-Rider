@@ -188,6 +188,10 @@ class LockInApp(ctk.CTk):
         self._build_divider()
         self._build_tabs()
 
+        self.bind_all("<space>", self._on_zeztz_space)
+        self.bind_all("s", self._on_zeztz_skip)
+        self.bind_all("r", self._on_zeztz_reset)
+
         self.monitor.start()
         self.camera_watcher.start()
         self._sync_progress_widget_visibility()
@@ -1497,6 +1501,19 @@ class LockInApp(ctk.CTk):
         self.camera_watcher.pause()
         self._close_lockdown()
         self._refresh_timer_widgets()
+
+    def _on_zeztz_space(self, event=None) -> None:
+        """Space bar starts/pauses -- only while Zeztz's hotkey mode is on."""
+        if self.current_tier4_effect == "hotkeys":
+            self._on_toggle()
+
+    def _on_zeztz_skip(self, event=None) -> None:
+        if self.current_tier4_effect == "hotkeys":
+            self._on_skip()
+
+    def _on_zeztz_reset(self, event=None) -> None:
+        if self.current_tier4_effect == "hotkeys":
+            self._on_reset()
 
     def _on_appearance_change(self, value: str) -> None:
         ctk.set_appearance_mode(value)
