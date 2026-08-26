@@ -296,6 +296,28 @@ def test_vials_progress_combines_near_completion():
     assert _alpha_sum(combined) > _alpha_sum(almost_full)
 
 
+def test_bookmark_progress_returns_the_requested_size():
+    from lock_in.visuals import render_bookmark_progress
+    image = render_bookmark_progress(120, 60, 0.5, "#c62828", "#1565c0", dark=False)
+    assert image.size == (120, 60)
+    assert image.mode == "RGBA"
+
+
+def test_bookmark_progress_fills_more_at_higher_progress():
+    from lock_in.visuals import render_bookmark_progress
+    low = render_bookmark_progress(120, 60, 0.1, "#c62828", "#1565c0", dark=False)
+    high = render_bookmark_progress(120, 60, 0.8, "#c62828", "#1565c0", dark=False)
+    assert _alpha_sum(high) > _alpha_sum(low)
+
+
+def test_bookmark_progress_shows_the_ribbon_outline_even_at_zero_percent():
+    """The ribbon (including its pointed tip) should still be visible at
+    0% progress, so it reads as a bookmark from the very first tick."""
+    from lock_in.visuals import render_bookmark_progress
+    empty = render_bookmark_progress(120, 60, 0.0, "#c62828", "#1565c0", dark=False)
+    assert _alpha_sum(empty) > 0
+
+
 def test_ease_drive_progress_matches_true_progress_at_the_endpoints():
     from lock_in.visuals import ease_drive_progress
     assert ease_drive_progress(0.0) == 0.0
@@ -324,6 +346,7 @@ def test_render_progress_routes_each_shape_effect_to_its_own_renderer():
         "rising_bar": visuals.render_rising_bar_progress,
         "constellation": visuals.render_constellation_progress,
         "vials": visuals.render_vials_progress,
+        "bookmark": visuals.render_bookmark_progress,
     }
     for effect, direct_renderer in routing.items():
         via_dispatch = visuals.render_progress(effect, 100, 40, 0.5, "#ff0000", "#00ff00", False)
@@ -336,7 +359,7 @@ def test_shape_effects_constant_matches_the_dispatch_table():
     widget instead of the plain bar -- it has to list exactly the
     Riders render_progress actually knows how to draw."""
     from lock_in import visuals
-    assert visuals.SHAPE_EFFECTS == {"windmill", "rising_bar", "constellation", "vials"}
+    assert visuals.SHAPE_EFFECTS == {"windmill", "rising_bar", "constellation", "vials", "bookmark"}
 
 
 def test_border_glow_overlay_returns_same_size_as_base():
