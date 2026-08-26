@@ -87,11 +87,15 @@ _WINDOWS_ALERT_TONES = {
     "Heisei": [(1000, 110), (760, 110), (1000, 160)],
     "Reiwa": [(1800, 70), (1400, 70), (1800, 70), (2200, 120)],
 }
+_WINDOWS_CHIME_TONES["ExAid"] = [(1046, 60), (1318, 60), (1568, 60), (2093, 90)]
+_WINDOWS_ALERT_TONES["ExAid"] = [(1568, 50), (1244, 50), (1568, 50), (2093, 50), (1568, 90)]
 
 # These are all sound files that already come with macOS, so no extra
 # download is needed — just a different built-in sound per era.
 _MAC_CHIME_SOUND = {"Showa": "Basso", "Heisei": "Ping", "Reiwa": "Glass"}
 _MAC_ALERT_SOUND = {"Showa": "Funk", "Heisei": "Sosumi", "Reiwa": "Hero"}
+_MAC_CHIME_SOUND["ExAid"] = "Tink"
+_MAC_ALERT_SOUND["ExAid"] = "Ping"
 
 # A couple of common sound files that ship on most Linux desktops, most
 # fitting first. We use whichever one of these actually exists on this
@@ -106,6 +110,8 @@ _LINUX_ALERT_CANDIDATES = {
     "Heisei": ["dialog-warning.oga", "bell.oga"],
     "Reiwa": ["complete.oga", "message.oga", "bell.oga"],
 }
+_LINUX_CHIME_CANDIDATES["ExAid"] = ["message.oga", "bell.oga"]
+_LINUX_ALERT_CANDIDATES["ExAid"] = ["complete.oga", "bell.oga"]
 _LINUX_SOUND_DIR = "/usr/share/sounds/freedesktop/stereo"
 
 
@@ -170,7 +176,7 @@ class Notifier:
         """A soft, friendly chime when a new phase (focus or break) starts."""
         if not self.config.effective_sound_enabled():
             return
-        era = self._era()
+        era = self._sound_key()
         if IS_WINDOWS and _winsound is not None:
             self._beep_sequence(_WINDOWS_CHIME_TONES.get(era, _WINDOWS_CHIME_TONES[DEFAULT_ERA]))
         elif IS_MACOS:
@@ -184,7 +190,7 @@ class Notifier:
         """A sharper sound for when you need a nudge back to work."""
         if not self.config.effective_sound_enabled():
             return
-        era = self._era()
+        era = self._sound_key()
         if IS_WINDOWS and _winsound is not None:
             self._beep_sequence(_WINDOWS_ALERT_TONES.get(era, _WINDOWS_ALERT_TONES[DEFAULT_ERA]))
         elif IS_MACOS:
@@ -194,15 +200,17 @@ class Notifier:
             candidates = _LINUX_ALERT_CANDIDATES.get(era, _LINUX_ALERT_CANDIDATES[DEFAULT_ERA])
             self._play_linux_sound(candidates, repeat=2)
 
-    def _era(self) -> str:
+    def _sound_key(self) -> str:
         """
-        Which Kamen Rider era (Showa/Heisei/Reiwa) the currently-picked
-        Rider is from — this is what actually picks the sound cues.
-
-        If the saved Rider name isn't one we recognise, we quietly fall
-        back to the very first Rider instead of crashing.
+        Which sound table to use: normally the Rider's era
+        (Showa/Heisei/Reiwa), or "ExAid" specifically when Ex-Aid's
+        chiptune gimmick is active and Standard Mode isn't overriding
+        it. If the saved Rider name isn't one we recognise, we quietly
+        fall back to the very first Rider instead of crashing.
         """
         theme = RIDER_THEMES.get(self.config.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME])
+        if theme.tier4_effect == "chiptune_alert" and not self.config.standard_mode:
+            return "ExAid"
         return theme.era
 
     # ------------------------------------------------------------------ #
