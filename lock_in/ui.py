@@ -754,7 +754,7 @@ class LockInApp(ctk.CTk):
             segmented_button_selected_color=self.color_rider_accent,
             text_color=self.color_button_text,
         )
-        self.tabs.pack(fill="both", expand=True, padx=20, pady=(0, 16))
+        self._mpack(self.tabs, fill="both", expand=True, padx=20, pady=(0, 16))
 
         for name in ("Blocking", "Activity", "Settings", "Help"):
             self.tabs.add(name)
@@ -2293,10 +2293,10 @@ class LockInApp(ctk.CTk):
         """
         if self.current_tier1_effect in SHAPE_EFFECTS:
             self.progress.pack_forget()
-            self.progress_shape.pack(fill="x", pady=(12, 14), before=self.controls)
+            self._mpack(self.progress_shape, fill="x", pady=(12, 14), before=self.controls)
         else:
             self.progress_shape.pack_forget()
-            self.progress.pack(fill="x", pady=(12, 14), before=self.controls)
+            self._mpack(self.progress, fill="x", pady=(12, 14), before=self.controls)
 
     def _sync_zero_ui_visibility(self) -> None:
         """
@@ -2317,7 +2317,7 @@ class LockInApp(ctk.CTk):
             self.progress_shape.pack_forget()
             self._timer_glow_label.place_forget()
             self.tabs.pack_forget()
-            self.zero_ui_label.pack(pady=(20, 20), before=self.controls)
+            self._mpack(self.zero_ui_label, pady=(20, 20), before=self.controls)
             self.start_button.configure(text="⏸" if self.session.is_running else "▶", width=44)
             self.skip_button.configure(text="⏭", width=44)
             self.reset_button.configure(text="⟲", width=44)
@@ -2333,9 +2333,9 @@ class LockInApp(ctk.CTk):
                 # progress widget before controls too, naturally stacks
                 # them in the right order: content, then progress, then
                 # controls.
-                self.normal_header_content.pack(before=self.controls)
-                self._timer_glow_label.place(relx=0.5, rely=0.33, anchor="center")
-                self.tabs.pack(fill="both", expand=True, padx=20, pady=(0, 16), after=self._divider_label)
+                self._mpack(self.normal_header_content, before=self.controls)
+                self._mplace(self._timer_glow_label, relx=0.5, rely=0.33, anchor="center")
+                self._mpack(self.tabs, fill="both", expand=True, padx=20, pady=(0, 16), after=self._divider_label)
                 self._sync_progress_widget_visibility()
                 self.start_button.configure(
                     text="Pause" if self.session.is_running else self._henshin_word(), width=140,
@@ -2376,7 +2376,7 @@ class LockInApp(ctk.CTk):
         bg, fg = colors.get(urgency, colors["low"])
 
         self.banner.configure(text=text, fg_color=bg, text_color=fg)
-        self.banner.pack(fill="x", pady=(0, 10), before=self.phase_label)
+        self._mpack(self.banner, fill="x", pady=(0, 10), before=self.phase_label)
 
         # Cancel any earlier "hide the banner" timer, so a new banner always
         # gets its own full amount of time on screen.
