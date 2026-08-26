@@ -1502,17 +1502,27 @@ class LockInApp(ctk.CTk):
         self._close_lockdown()
         self._refresh_timer_widgets()
 
+    def _zeztz_hotkeys_active(self) -> bool:
+        """False while hotkeys aren't Zeztz's current gimmick, OR while you're
+        typing into any text field -- otherwise 's' or 'r' would both type the
+        letter AND trigger Skip/Reset at the same time."""
+        if self.current_tier4_effect != "hotkeys":
+            return False
+        focused = self.focus_get()
+        if focused is not None and focused.winfo_class() in ("Entry", "Text"):
+            return False
+        return True
+
     def _on_zeztz_space(self, event=None) -> None:
-        """Space bar starts/pauses -- only while Zeztz's hotkey mode is on."""
-        if self.current_tier4_effect == "hotkeys":
+        if self._zeztz_hotkeys_active():
             self._on_toggle()
 
     def _on_zeztz_skip(self, event=None) -> None:
-        if self.current_tier4_effect == "hotkeys":
+        if self._zeztz_hotkeys_active():
             self._on_skip()
 
     def _on_zeztz_reset(self, event=None) -> None:
-        if self.current_tier4_effect == "hotkeys":
+        if self._zeztz_hotkeys_active():
             self._on_reset()
 
     def _on_appearance_change(self, value: str) -> None:
