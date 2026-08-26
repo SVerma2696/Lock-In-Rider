@@ -487,6 +487,43 @@ def render_vials_progress(
     return image
 
 
+def render_bookmark_progress(
+    width: int, height: int, progress_fraction: float,
+    primary: str, secondary: str, dark: bool,
+) -> Image.Image:
+    """
+    Saber's whole gimmick is an e-reader, so instead of a normal bar
+    this draws a bookmark ribbon hanging down from the top. The
+    straight part of the ribbon fills in from the top as the block
+    progresses -- like a ribbon marking how far you've read -- while
+    the pointed tip at the bottom stays outline-only the whole time,
+    so it still reads as a bookmark shape even at 0%.
+    """
+    progress_fraction = max(0.0, min(1.0, progress_fraction))
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image, "RGBA")
+
+    r1, g1, b1 = _hex_to_rgb(primary)
+    r2, g2, b2 = _hex_to_rgb(secondary)
+    ribbon_width = max(12, height // 3)
+    left = width // 2 - ribbon_width // 2
+    right = left + ribbon_width
+    top = 2
+    tip = height - 2
+    notch = tip - ribbon_width // 2
+
+    draw.polygon(
+        [(left, top), (right, top), (right, notch), (width // 2, tip), (left, notch)],
+        outline=(r2, g2, b2, 140), width=1,
+    )
+
+    fill_bottom = top + round((notch - top) * progress_fraction)
+    if fill_bottom > top:
+        draw.rectangle([left, top, right, fill_bottom], fill=(r1, g1, b1, 220))
+
+    return image
+
+
 def ease_drive_progress(progress_fraction: float) -> float:
     """
     Drive's whole gimmick is shifting gears to go faster. So instead of
@@ -505,6 +542,7 @@ _SHAPE_RENDERERS = {
     "rising_bar": render_rising_bar_progress,
     "constellation": render_constellation_progress,
     "vials": render_vials_progress,
+    "bookmark": render_bookmark_progress,
 }
 
 # The only 6 tier1_effect values that need a picture instead of the
