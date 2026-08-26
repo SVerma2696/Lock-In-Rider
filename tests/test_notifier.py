@@ -26,15 +26,15 @@ def make_notifier(rider_theme: str) -> Notifier:
 
 
 def test_era_matches_the_configured_riders_era():
-    assert make_notifier("Kamen Rider (1971)")._era() == "Showa"
-    assert make_notifier("Kamen Rider Kuuga (2000)")._era() == "Heisei"
-    assert make_notifier("Kamen Rider Saber (2020)")._era() == "Reiwa"
+    assert make_notifier("Kamen Rider (1971)")._sound_key() == "Showa"
+    assert make_notifier("Kamen Rider Kuuga (2000)")._sound_key() == "Heisei"
+    assert make_notifier("Kamen Rider Saber (2020)")._sound_key() == "Reiwa"
 
 
 def test_era_falls_back_for_an_unrecognised_rider_name():
     # The fallback Rider is the very first one, which is a Showa Rider.
     from lock_in.rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES
-    assert make_notifier("Not A Real Rider")._era() == RIDER_THEMES[DEFAULT_RIDER_THEME].era
+    assert make_notifier("Not A Real Rider")._sound_key() == RIDER_THEMES[DEFAULT_RIDER_THEME].era
 
 
 def test_every_era_has_windows_tones():
@@ -82,3 +82,21 @@ def test_stealth_mute_mode_silences_sound_and_toast_checks():
     config = Config(sound_enabled=True, toast_enabled=True, stealth_mute_mode=True)
     assert config.effective_sound_enabled() is False
     assert config.effective_toast_enabled() is False
+
+
+def test_sound_key_is_exaid_when_the_current_rider_has_the_chiptune_effect():
+    config = Config(rider_theme="Kamen Rider Ex-Aid (2016)")
+    notifier = Notifier(config)
+    assert notifier._sound_key() == "ExAid"
+
+
+def test_sound_key_falls_back_to_era_for_every_other_rider():
+    config = Config(rider_theme="Kamen Rider Kuuga (2000)")
+    notifier = Notifier(config)
+    assert notifier._sound_key() == "Heisei"
+
+
+def test_sound_key_ignores_exaid_under_standard_mode():
+    config = Config(rider_theme="Kamen Rider Ex-Aid (2016)", standard_mode=True)
+    notifier = Notifier(config)
+    assert notifier._sound_key() != "ExAid"

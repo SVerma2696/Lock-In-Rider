@@ -58,6 +58,7 @@ from .visuals import (
     ease_drive_progress,
     interpolate_agito_color,
     load_app_icon,
+    load_pixel_font,
     make_background_texture,
     make_flat_fill,
     make_glow,
@@ -391,6 +392,15 @@ class LockInApp(ctk.CTk):
         # mirror-flip, hidden-timer, dashboard-cards, ghost-widget, and
         # hotkey code later in this file.
         self.current_tier4_effect = theme.tier4_effect
+        if self.current_tier4_effect == "pixel_font":
+            self._active_display_font = load_pixel_font()
+        else:
+            self._active_display_font = DISPLAY_FONT
+        if hasattr(self, "time_label"):
+            self.time_label.configure(
+                font=ctk.CTkFont(family=self._active_display_font, size=76, weight="bold"))
+            self.phase_label.configure(
+                font=ctk.CTkFont(family=self._active_display_font, size=16, weight="bold"))
         self.rider_primary_pair = theme.primary
         self.rider_secondary_pair = theme.secondary
         # Stronger's glow uses the Rider's own primary (already a red);
@@ -640,14 +650,14 @@ class LockInApp(ctk.CTk):
 
         self.phase_label = ctk.CTkLabel(
             self.normal_header_content, text="Standing By",
-            font=ctk.CTkFont(family=DISPLAY_FONT, size=16, weight="bold"),
+            font=ctk.CTkFont(family=self._active_display_font, size=16, weight="bold"),
             text_color=COLOR_IDLE,
         )
         self._mpack(self.phase_label, pady=(4, 0))
 
         self.time_label = ctk.CTkLabel(
             self.normal_header_content, text="25:00",
-            font=ctk.CTkFont(family=DISPLAY_FONT, size=76, weight="bold"),
+            font=ctk.CTkFont(family=self._active_display_font, size=76, weight="bold"),
         )
         self._mpack(self.time_label, pady=(0, 4))
         self.time_label.bind("<Enter>", lambda e: self._set_kabuto_revealed(True))

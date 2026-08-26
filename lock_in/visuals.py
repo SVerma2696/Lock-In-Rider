@@ -45,6 +45,37 @@ def display_font_family() -> str:
     return "Noto Sans"
 
 
+_PIXEL_FONT_LOADED = False
+
+
+def load_pixel_font() -> str:
+    """
+    Loads Ex-Aid's bundled pixel font for THIS process only -- no
+    system install, no admin rights needed, and Windows cleans it up
+    automatically when the app closes. On macOS/Linux, this quietly
+    does nothing and the caller falls back to a plain monospace font
+    instead -- same "reduced feature set on non-Windows" shape
+    monitor.py's window detection already has.
+
+    Safe to call more than once -- only actually loads the font file
+    the first time.
+    """
+    global _PIXEL_FONT_LOADED
+    if sys.platform != "win32" or _PIXEL_FONT_LOADED:
+        return "Press Start 2P" if _PIXEL_FONT_LOADED else "Menlo"
+    font_path = Path(__file__).parent / "assets" / "press_start_2p.ttf"
+    try:
+        import ctypes
+        FR_PRIVATE = 0x10
+        result = ctypes.windll.gdi32.AddFontResourceExW(str(font_path), FR_PRIVATE, 0)
+        if result:
+            _PIXEL_FONT_LOADED = True
+            return "Press Start 2P"
+    except Exception:
+        pass
+    return "Consolas"
+
+
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
