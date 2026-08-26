@@ -250,7 +250,7 @@ def test_constellation_progress_draws_the_exact_color_it_is_given():
     not in this renderer -- it just draws whatever hex it's handed."""
     from lock_in.visuals import render_constellation_progress
     image = render_constellation_progress(200, 60, 1.0, "#ffffff", "#ef6c00", dark=False)
-    opaque_pixels = [p for p in image.getdata() if p[3] > 200]
+    opaque_pixels = [p for p in image.get_flattened_data() if p[3] > 200]
     assert any(p[:3] == (255, 255, 255) for p in opaque_pixels)
 
 

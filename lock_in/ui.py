@@ -881,15 +881,16 @@ class LockInApp(ctk.CTk):
         # --- Strict Camera Monitoring ------------------------------------ #
         heading("4. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
         body(
-            "A separate opt-in extra, nothing to do with heroes: turn it "
-            "on in the Blocking tab and Lock In checks your webcam every "
-            "few seconds during a focus block for a phone in frame, "
-            "using the exact same warn-then-escalate ladder as blocked "
-            "apps. Off by default. Only runs during an actual focus "
-            "block, and the camera turns off the instant a break starts "
-            "or you flip the switch back off -- watch for the little "
-            "\"Camera monitoring active\" label under the timer; the "
-            "camera is only ever on when that's showing."
+            "A separate extra, nothing to do with heroes: turn it on in "
+            "the Blocking tab, and Lock In peeks at your webcam every "
+            "few seconds during a focus block to check for a phone. If "
+            "it sees one, you get warned the same way you would for a "
+            "blocked app. It's off unless you turn it on. It only "
+            "watches during an actual focus block -- the second a "
+            "break starts, or you flip the switch back off, the camera "
+            "turns off too. Watch for the little \"Camera monitoring "
+            "active\" words under the timer: the camera is only ever "
+            "on when those words are showing."
         )
 
     # ------------------------------------------------------------------ #
