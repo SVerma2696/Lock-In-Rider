@@ -886,26 +886,26 @@ class LockInApp(ctk.CTk):
         so a total beginner (or a five-year-old) can follow it without
         knowing anything about the app already."""
         frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        frame.pack(fill="both", expand=True)
+        self._mpack(frame, fill="both", expand=True)
 
         def heading(text: str, color) -> None:
-            ctk.CTkLabel(
+            self._mpack(ctk.CTkLabel(
                 frame, text=text, text_color=color,
                 font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
-            ).pack(anchor="w", pady=(16, 4), fill="x")
+            ), anchor="w", pady=(16, 4), fill="x")
 
         def body(text: str) -> None:
-            ctk.CTkLabel(
+            self._mpack(ctk.CTkLabel(
                 frame, text=text, justify="left", wraplength=460, anchor="w",
-            ).pack(anchor="w", pady=3, fill="x")
+            ), anchor="w", pady=3, fill="x")
 
         def bullet(text: str) -> None:
             body(f"•  {text}")
 
-        ctk.CTkLabel(
+        self._mpack(ctk.CTkLabel(
             frame, text="How to use Lock In", text_color=COLOR_LOOK_ACCENT,
             font=ctk.CTkFont(size=15, weight="bold"),
-        ).pack(anchor="w", pady=(0, 6))
+        ), anchor="w", pady=(0, 6))
         body(
             "Lock In is a timer that helps you get work done by making "
             "distracting apps annoying to open while you're focusing. "
@@ -1032,73 +1032,73 @@ class LockInApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _build_settings_tab(self, parent) -> None:
         frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        frame.pack(fill="both", expand=True)
+        self._mpack(frame, fill="both", expand=True)
 
         self.spinners: dict[str, ctk.CTkEntry] = {}
 
         def add_number(key: str, label: str, value: int) -> None:
             """Makes one number field with a label next to it. We check the value when it's saved."""
             row = ctk.CTkFrame(frame, fg_color="transparent")
-            row.pack(fill="x", pady=4)
-            ctk.CTkLabel(row, text=label, width=260, anchor="w").pack(side="left")
+            self._mpack(row, fill="x", pady=4)
+            self._mpack(ctk.CTkLabel(row, text=label, width=260, anchor="w"), side="left")
             entry = ctk.CTkEntry(row, width=70)
             entry.insert(0, str(value))
-            entry.pack(side="left")
+            self._mpack(entry, side="left")
             self.spinners[key] = entry
 
-        ctk.CTkLabel(frame, text="Timer lengths", text_color=COLOR_TIMER_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(0, 4))
+        self._mpack(ctk.CTkLabel(frame, text="Timer lengths", text_color=COLOR_TIMER_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(0, 4))
         add_number("focus_minutes", "Focus length (min)", self.config_obj.focus_minutes)
         add_number("short_break_minutes", "Short break (min)", self.config_obj.short_break_minutes)
         add_number("long_break_minutes", "Long break (min)", self.config_obj.long_break_minutes)
         add_number("blocks_until_long_break", "Blocks before long break",
                    self.config_obj.blocks_until_long_break)
 
-        ctk.CTkLabel(frame, text="Enforcement", text_color=COLOR_ENFORCE_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(frame, text="Enforcement", text_color=COLOR_ENFORCE_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
         add_number("grace_seconds", "Grace period on a blocked app (s)",
                    self.config_obj.grace_seconds)
         add_number("strike_interval_seconds", "Seconds between escalations",
                    self.config_obj.strike_interval_seconds)
         add_number("lockdown_seconds", "Lockdown length (s)", self.config_obj.lockdown_seconds)
 
-        ctk.CTkLabel(frame, text="Behavior & notifications", text_color=COLOR_LOOK_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(frame, text="Behavior & notifications", text_color=COLOR_LOOK_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
 
         self.autobreak_var = ctk.BooleanVar(value=self.config_obj.auto_start_breaks)
-        ctk.CTkSwitch(frame, text="Auto-start breaks", variable=self.autobreak_var,
+        self._mpack(ctk.CTkSwitch(frame, text="Auto-start breaks", variable=self.autobreak_var,
                       progress_color=COLOR_LOOK_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=4)
+                      command=self._save_from_widgets), anchor="w", pady=4)
 
         self.autofocus_var = ctk.BooleanVar(value=self.config_obj.auto_start_focus)
-        ctk.CTkSwitch(frame, text="Auto-start next focus block", variable=self.autofocus_var,
+        self._mpack(ctk.CTkSwitch(frame, text="Auto-start next focus block", variable=self.autofocus_var,
                       progress_color=COLOR_LOOK_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=4)
+                      command=self._save_from_widgets), anchor="w", pady=4)
 
         self.sound_var = ctk.BooleanVar(value=self.config_obj.sound_enabled)
-        ctk.CTkSwitch(frame, text="Sounds", variable=self.sound_var,
+        self._mpack(ctk.CTkSwitch(frame, text="Sounds", variable=self.sound_var,
                       progress_color=COLOR_LOOK_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=4)
+                      command=self._save_from_widgets), anchor="w", pady=4)
 
         self.toast_var = ctk.BooleanVar(value=self.config_obj.toast_enabled)
-        ctk.CTkSwitch(frame, text="Desktop notifications", variable=self.toast_var,
+        self._mpack(ctk.CTkSwitch(frame, text="Desktop notifications", variable=self.toast_var,
                       progress_color=COLOR_LOOK_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=4)
+                      command=self._save_from_widgets), anchor="w", pady=4)
 
         row = ctk.CTkFrame(frame, fg_color="transparent")
-        row.pack(fill="x", pady=(10, 4))
-        ctk.CTkLabel(row, text="Appearance", width=260, anchor="w").pack(side="left")
+        self._mpack(row, fill="x", pady=(10, 4))
+        self._mpack(ctk.CTkLabel(row, text="Appearance", width=260, anchor="w"), side="left")
         self.appearance_menu = ctk.CTkOptionMenu(
             row, values=["dark", "light", "system"], width=110,
             fg_color=COLOR_LOOK_ACCENT, button_color=COLOR_LOOK_ACCENT,
             command=self._on_appearance_change,
         )
         self.appearance_menu.set(self.config_obj.appearance)
-        self.appearance_menu.pack(side="left")
+        self._mpack(self.appearance_menu, side="left")
 
-        ctk.CTkLabel(frame, text="Standard Mode", text_color=COLOR_LOOK_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
-        ctk.CTkLabel(
+        self._mpack(ctk.CTkLabel(frame, text="Standard Mode", text_color=COLOR_LOOK_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(
             frame,
             text=("Strips every Rider's color, art, and gimmick for a plain, "
                   "fast, distraction-free look, and switches Wording to "
@@ -1106,7 +1106,7 @@ class LockInApp(ctk.CTk):
                   "Wording setting below are remembered and come right "
                   "back the moment you turn this back off."),
             text_color=COLOR_IDLE, justify="left", wraplength=440,
-        ).pack(anchor="w", pady=(0, 6))
+        ), anchor="w", pady=(0, 6))
         self.standard_mode_switch = ctk.CTkSwitch(
             frame, text="Standard Mode (plain, no Rider flavor)",
             progress_color=COLOR_LOOK_ACCENT,
@@ -1116,20 +1116,20 @@ class LockInApp(ctk.CTk):
             self.standard_mode_switch.select()
         else:
             self.standard_mode_switch.deselect()
-        self.standard_mode_switch.pack(anchor="w", pady=(0, 10))
+        self._mpack(self.standard_mode_switch, anchor="w", pady=(0, 10))
 
         rider_row = ctk.CTkFrame(frame, fg_color="transparent")
-        rider_row.pack(fill="x", pady=(10, 4))
+        self._mpack(rider_row, fill="x", pady=(10, 4))
         self.rider_row_label = ctk.CTkLabel(
             rider_row, text=self._rider_row_label_text(), width=260, anchor="w",
         )
-        self.rider_row_label.pack(side="left")
+        self._mpack(self.rider_row_label, side="left")
         self.rider_menu = ctk.CTkOptionMenu(
             rider_row, values=list(RIDER_THEMES.keys()), width=220,
             command=self._on_rider_theme_change,
         )
         self.rider_menu.set(self.config_obj.rider_theme)
-        self.rider_menu.pack(side="left")
+        self._mpack(self.rider_menu, side="left")
 
         # Kuuga/Super-1's preset buttons and Gavv's toggle only show up
         # for their own Rider -- this whole tab already gets rebuilt
@@ -1153,14 +1153,14 @@ class LockInApp(ctk.CTk):
                 self._build_blackrx_toggle_row(frame)
 
         terminology_row = ctk.CTkFrame(frame, fg_color="transparent")
-        terminology_row.pack(fill="x", pady=(10, 4))
-        ctk.CTkLabel(terminology_row, text="Wording", width=140, anchor="w").pack(side="left")
+        self._mpack(terminology_row, fill="x", pady=(10, 4))
+        self._mpack(ctk.CTkLabel(terminology_row, text="Wording", width=140, anchor="w"), side="left")
 
         # A switch you can see the state of at a glance: "Professional"
         # printed in the same color the switch turns when it's off,
         # "Tokusatsu" printed in the color it turns when it's on.
-        ctk.CTkLabel(terminology_row, text="Professional", font=ctk.CTkFont(size=12),
-                     text_color=COLOR_LOOK_ACCENT).pack(side="left", padx=(0, 8))
+        self._mpack(ctk.CTkLabel(terminology_row, text="Professional", font=ctk.CTkFont(size=12),
+                     text_color=COLOR_LOOK_ACCENT), side="left", padx=(0, 8))
         self.terminology_switch = ctk.CTkSwitch(
             terminology_row, text="",
             fg_color=COLOR_LOOK_ACCENT,          # the switch's color when it's OFF (Professional)
@@ -1176,16 +1176,16 @@ class LockInApp(ctk.CTk):
             self.terminology_switch.select()
         else:
             self.terminology_switch.deselect()
-        self.terminology_switch.pack(side="left", padx=8)
-        ctk.CTkLabel(terminology_row, text="Tokusatsu", font=ctk.CTkFont(size=12),
-                     text_color=COLOR_ENFORCE_ACCENT).pack(side="left")
+        self._mpack(self.terminology_switch, side="left", padx=8)
+        self._mpack(ctk.CTkLabel(terminology_row, text="Tokusatsu", font=ctk.CTkFont(size=12),
+                     text_color=COLOR_ENFORCE_ACCENT), side="left")
 
-        ctk.CTkButton(frame, text="Save settings",
-                      command=self._save_settings).pack(anchor="w", pady=14)
+        self._mpack(ctk.CTkButton(frame, text="Save settings",
+                      command=self._save_settings), anchor="w", pady=14)
 
-        ctk.CTkButton(frame, text="Rebuild model from labels", fg_color="transparent",
+        self._mpack(ctk.CTkButton(frame, text="Rebuild model from labels", fg_color="transparent",
                       border_width=1, text_color=COLOR_DANGER,
-                      command=self._reset_model).pack(anchor="w")
+                      command=self._reset_model), anchor="w")
 
     # ================================================================== #
     # The heartbeat — keeps everything moving
@@ -1827,26 +1827,26 @@ class LockInApp(ctk.CTk):
         doesn't know or care what the numbers mean, it just hands over
         the whole bundle.
         """
-        ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
 
         row = ctk.CTkFrame(parent, fg_color="transparent")
-        row.pack(fill="x", pady=(0, 4))
+        self._mpack(row, fill="x", pady=(0, 4))
 
         for preset in presets:
             button_name = preset.name_tokusatsu if self._is_tokusatsu() else preset.name_professional
             column = ctk.CTkFrame(row, fg_color="transparent")
-            column.pack(side="left", padx=(0, 8))
-            ctk.CTkButton(
+            self._mpack(column, side="left", padx=(0, 8))
+            self._mpack(ctk.CTkButton(
                 column, text=button_name, width=90,
                 fg_color=COLOR_TIMER_ACCENT,
                 command=lambda p=preset: self._apply_timer_preset(p),
-            ).pack()
+            ))
             if preset.description:
-                ctk.CTkLabel(
+                self._mpack(ctk.CTkLabel(
                     column, text=preset.description, font=ctk.CTkFont(size=9),
                     text_color=COLOR_IDLE, wraplength=90,
-                ).pack(pady=(2, 0))
+                ), pady=(2, 0))
 
     def _apply_timer_preset(self, preset: TimerPreset) -> None:
         """
@@ -1883,8 +1883,8 @@ class LockInApp(ctk.CTk):
         until you turn it off, it isn't a one-click-and-done preset.
         """
         heading = "Bite-Sized Mode" if self._is_tokusatsu() else "Micro-Sprint Mode"
-        ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
 
         self.micro_sprint_switch = ctk.CTkSwitch(
             parent, text=f"{GAVV_MICRO_SPRINT.focus_minutes}m focus / "
@@ -1896,20 +1896,20 @@ class LockInApp(ctk.CTk):
             self.micro_sprint_switch.select()
         else:
             self.micro_sprint_switch.deselect()
-        self.micro_sprint_switch.pack(anchor="w", pady=4)
+        self._mpack(self.micro_sprint_switch, anchor="w", pady=4)
 
-        ctk.CTkLabel(
+        self._mpack(ctk.CTkLabel(
             parent,
             text="Overrides your timer lengths above until you turn this back off.",
             font=ctk.CTkFont(size=10), text_color=COLOR_IDLE,
-        ).pack(anchor="w")
+        ), anchor="w")
 
     def _build_blackrx_toggle_row(self, parent) -> None:
         """A single switch, same shape as Gavv's -- Black RX's manual-break
         mode stays on until you turn it off, not a one-click preset."""
         heading = "Manual Recovery" if self._is_tokusatsu() else "Manual Break Mode"
-        ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+        self._mpack(ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w", pady=(14, 4))
 
         self.blackrx_switch = ctk.CTkSwitch(
             parent, text="Never auto-start breaks -- always wait for you to press Start",
@@ -1920,13 +1920,13 @@ class LockInApp(ctk.CTk):
             self.blackrx_switch.select()
         else:
             self.blackrx_switch.deselect()
-        self.blackrx_switch.pack(anchor="w", pady=4)
+        self._mpack(self.blackrx_switch, anchor="w", pady=4)
 
-        ctk.CTkLabel(
+        self._mpack(ctk.CTkLabel(
             parent,
             text="Overrides Auto-start breaks above until you turn this back off.",
             font=ctk.CTkFont(size=10), text_color=COLOR_IDLE,
-        ).pack(anchor="w")
+        ), anchor="w")
 
     def _on_blackrx_toggled(self) -> None:
         """Called when you click the Manual Break Mode switch itself."""
