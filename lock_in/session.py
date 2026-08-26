@@ -267,7 +267,7 @@ class PomodoroSession:
             n = self.config.blocks_until_long_break
             earned_long = n > 0 and self.completed_focus_blocks % n == 0
             nxt = Phase.LONG_BREAK if earned_long else Phase.SHORT_BREAK
-            auto = self.config.auto_start_breaks
+            auto = self.config.effective_auto_start_breaks()
         else:
             nxt = Phase.FOCUS
             auto = self.config.auto_start_focus
