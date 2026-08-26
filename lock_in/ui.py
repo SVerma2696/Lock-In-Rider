@@ -767,26 +767,26 @@ class LockInApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _build_blocking_tab(self, parent) -> None:
         frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        frame.pack(fill="both", expand=True)
+        self._mpack(frame, fill="both", expand=True)
 
         if not BACKEND_AVAILABLE:
-            ctk.CTkLabel(
+            self._mpack(ctk.CTkLabel(
                 frame,
                 text=("App detection unavailable on this system.\n"
                       "Install pywin32 + psutil on Windows to enable it.\n"
                       "The timer works fine either way."),
                 text_color=COLOR_WARN, justify="left",
-            ).pack(anchor="w", pady=(0, 10))
+            ), anchor="w", pady=(0, 10))
 
         self.enforce_var = ctk.BooleanVar(value=self.config_obj.enforcement_enabled)
-        ctk.CTkSwitch(frame, text="Block distracting apps during focus",
+        self._mpack(ctk.CTkSwitch(frame, text="Block distracting apps during focus",
                       variable=self.enforce_var, progress_color=COLOR_ENFORCE_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=6)
+                      command=self._save_from_widgets), anchor="w", pady=6)
 
         self.hard_var = ctk.BooleanVar(value=self.config_obj.hard_mode)
-        ctk.CTkSwitch(frame, text="Hard mode (minimise windows, lockdown screen)",
+        self._mpack(ctk.CTkSwitch(frame, text="Hard mode (minimise windows, lockdown screen)",
                       variable=self.hard_var, progress_color=COLOR_DANGER,
-                      command=self._save_from_widgets).pack(anchor="w", pady=6)
+                      command=self._save_from_widgets), anchor="w", pady=6)
 
         self.camera_var = ctk.BooleanVar(value=self.config_obj.camera_monitoring_enabled)
         self.camera_switch = ctk.CTkSwitch(
@@ -794,90 +794,90 @@ class LockInApp(ctk.CTk):
             variable=self.camera_var, progress_color=COLOR_DANGER,
             command=self._on_camera_switch_toggled,
         )
-        self.camera_switch.pack(anchor="w", pady=6)
+        self._mpack(self.camera_switch, anchor="w", pady=6)
         if not CAMERA_BACKEND_AVAILABLE:
             self.camera_switch.configure(state="disabled")
-            ctk.CTkLabel(
+            self._mpack(ctk.CTkLabel(
                 frame,
                 text=("Strict Camera Monitoring needs opencv-python-headless "
                       "and its bundled model file, and isn't available right "
                       "now. Run: pip install opencv-python-headless"),
                 text_color=COLOR_WARN, justify="left", wraplength=440,
-            ).pack(anchor="w", pady=(0, 6))
+            ), anchor="w", pady=(0, 6))
 
         self.classifier_var = ctk.BooleanVar(value=self.config_obj.use_classifier)
-        ctk.CTkSwitch(frame, text="Use the learned model on unlisted apps",
+        self._mpack(ctk.CTkSwitch(frame, text="Use the learned model on unlisted apps",
                       variable=self.classifier_var, progress_color=COLOR_TIMER_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=6)
+                      command=self._save_from_widgets), anchor="w", pady=6)
 
         self.record_var = ctk.BooleanVar(value=self.config_obj.record_observations)
-        ctk.CTkSwitch(frame, text="Record windows for training (stays on this PC)",
+        self._mpack(ctk.CTkSwitch(frame, text="Record windows for training (stays on this PC)",
                       variable=self.record_var, progress_color=COLOR_LOOK_ACCENT,
-                      command=self._save_from_widgets).pack(anchor="w", pady=6)
+                      command=self._save_from_widgets), anchor="w", pady=6)
 
         # --- The Claude helper -------------------------------------------- #
-        ctk.CTkLabel(frame, text="").pack(pady=2)
-        ctk.CTkLabel(frame, text="Claude fallback", text_color=COLOR_CLAUDE_ACCENT,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(
+        self._mpack(ctk.CTkLabel(frame, text=""), pady=2)
+        self._mpack(ctk.CTkLabel(frame, text="Claude fallback", text_color=COLOR_CLAUDE_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")), anchor="w")
+        self._mpack(ctk.CTkLabel(
             frame,
             text=("Off by default. When the local model is unsure, sends "
                   "just that one window's title to the Claude API instead "
                   "of guessing. Confident local judgements never leave "
                   "your machine."),
             text_color=COLOR_IDLE, justify="left", wraplength=440,
-        ).pack(anchor="w", pady=(0, 6))
+        ), anchor="w", pady=(0, 6))
 
         self.claude_var = ctk.BooleanVar(value=self.config_obj.claude_fallback_enabled)
-        ctk.CTkSwitch(frame, text="Enable Claude fallback for ambiguous windows",
+        self._mpack(ctk.CTkSwitch(frame, text="Enable Claude fallback for ambiguous windows",
                       variable=self.claude_var, progress_color=COLOR_CLAUDE_ACCENT,
-                      command=self._on_claude_toggle).pack(anchor="w", pady=4)
+                      command=self._on_claude_toggle), anchor="w", pady=4)
 
         self.claude_status = ctk.CTkLabel(frame, text="", font=ctk.CTkFont(size=11),
                                           text_color=COLOR_IDLE)
-        self.claude_status.pack(anchor="w", pady=(0, 4))
+        self._mpack(self.claude_status, anchor="w", pady=(0, 4))
         self._refresh_claude_status()
 
-        ctk.CTkLabel(frame, text="Blocked apps (one process name per line)",
+        self._mpack(ctk.CTkLabel(frame, text="Blocked apps (one process name per line)",
                      text_color=COLOR_ENFORCE_ACCENT,
-                     font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(16, 4))
+                     font=ctk.CTkFont(size=12, weight="bold")), anchor="w", pady=(16, 4))
         self.blocklist_box = ctk.CTkTextbox(frame, height=120, border_width=2,
                                             border_color=COLOR_ENFORCE_ACCENT)
         self.blocklist_box.insert("1.0", "\n".join(self.config_obj.blocklist))
-        self.blocklist_box.pack(fill="x")
+        self._mpack(self.blocklist_box, fill="x")
 
-        ctk.CTkLabel(frame, text="Always-allowed apps", text_color=COLOR_BREAK,
-                     font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", pady=(16, 4))
+        self._mpack(ctk.CTkLabel(frame, text="Always-allowed apps", text_color=COLOR_BREAK,
+                     font=ctk.CTkFont(size=12, weight="bold")), anchor="w", pady=(16, 4))
         self.allowlist_box = ctk.CTkTextbox(frame, height=120, border_width=2,
                                             border_color=COLOR_BREAK)
         self.allowlist_box.insert("1.0", "\n".join(self.config_obj.allowlist))
-        self.allowlist_box.pack(fill="x")
+        self._mpack(self.allowlist_box, fill="x")
 
-        ctk.CTkButton(frame, text="Save lists",
-                      command=self._save_lists).pack(anchor="w", pady=14)
+        self._mpack(ctk.CTkButton(frame, text="Save lists",
+                      command=self._save_lists), anchor="w", pady=14)
 
     # ------------------------------------------------------------------ #
     def _build_activity_tab(self, parent) -> None:
         header = ctk.CTkFrame(parent, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 6))
+        self._mpack(header, fill="x", pady=(0, 6))
 
-        ctk.CTkLabel(header, text="What you were on during focus blocks.",
+        self._mpack(ctk.CTkLabel(header, text="What you were on during focus blocks.",
                      text_color=COLOR_ACTIVITY_ACCENT,
-                     font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+                     font=ctk.CTkFont(size=12, weight="bold")), side="left")
 
         self.model_stats = ctk.CTkLabel(header, text="", font=ctk.CTkFont(size=11),
                                         text_color=COLOR_IDLE)
-        self.model_stats.pack(side="right")
+        self._mpack(self.model_stats, side="right")
 
         self.activity_frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        self.activity_frame.pack(fill="both", expand=True)
+        self._mpack(self.activity_frame, fill="both", expand=True)
 
         self.activity_empty = ctk.CTkLabel(
             self.activity_frame,
             text="Nothing logged yet.\nStart a focus block and this fills in.",
             text_color=COLOR_IDLE, justify="left",
         )
-        self.activity_empty.pack(anchor="w", pady=20)
+        self._mpack(self.activity_empty, anchor="w", pady=20)
         self._update_model_stats()
 
     # ------------------------------------------------------------------ #
@@ -2045,8 +2045,8 @@ class LockInApp(ctk.CTk):
             child.destroy()
 
         if not self.activity:
-            ctk.CTkLabel(self.activity_frame, text="Nothing logged yet.",
-                         text_color=COLOR_IDLE).pack(anchor="w", pady=20)
+            self._mpack(ctk.CTkLabel(self.activity_frame, text="Nothing logged yet.",
+                         text_color=COLOR_IDLE), anchor="w", pady=20)
             return
 
         for entry in reversed(self.activity):
@@ -2057,17 +2057,17 @@ class LockInApp(ctk.CTk):
             dot_color = COLOR_DANGER if entry.get("blocked") else COLOR_BREAK
 
             row = ctk.CTkFrame(self.activity_frame, border_width=1, border_color=dot_color)
-            row.pack(fill="x", pady=3)
+            self._mpack(row, fill="x", pady=3)
 
-            ctk.CTkLabel(row, text="●", text_color=dot_color, width=20,
-                         font=ctk.CTkFont(size=14)).pack(side="left", padx=(10, 0))
+            self._mpack(ctk.CTkLabel(row, text="●", text_color=dot_color, width=20,
+                         font=ctk.CTkFont(size=14)), side="left", padx=(10, 0))
 
             left = ctk.CTkFrame(row, fg_color="transparent")
-            left.pack(side="left", fill="x", expand=True, padx=10, pady=8)
+            self._mpack(left, side="left", fill="x", expand=True, padx=10, pady=8)
 
-            ctk.CTkLabel(left, text=entry["key"], anchor="w",
+            self._mpack(ctk.CTkLabel(left, text=entry["key"], anchor="w",
                          font=ctk.CTkFont(size=12, weight="bold"),
-                         wraplength=280, justify="left").pack(anchor="w")
+                         wraplength=280, justify="left"), anchor="w")
 
             status = "blocked" if entry.get("blocked") else "allowed"
             detail = f"{entry['time']} · {status} · {entry['reason'].value}"
@@ -2078,26 +2078,26 @@ class LockInApp(ctk.CTk):
             if entry["corrected"]:
                 detail += f" · you said: {entry['corrected']}"
 
-            ctk.CTkLabel(left, text=detail, anchor="w",
+            self._mpack(ctk.CTkLabel(left, text=detail, anchor="w",
                          font=ctk.CTkFont(size=10),
-                         text_color=COLOR_IDLE).pack(anchor="w")
+                         text_color=COLOR_IDLE), anchor="w")
 
             # These two buttons are how you actually correct and teach the
             # model -- they don't make sense for a camera-sourced row (there's
             # no text to learn from, and clicking "was studying" would
             # allowlist "your phone"), so camera rows don't get them.
             if entry["reason"] is not Reason.CAMERA:
-                ctk.CTkButton(row, text="was studying", width=90, height=26,
+                self._mpack(ctk.CTkButton(row, text="was studying", width=90, height=26,
                               font=ctk.CTkFont(size=10), fg_color="transparent",
                               border_width=1,
                               command=lambda e=entry: self._correct(e, STUDY)
-                              ).pack(side="right", padx=(0, 10))
+                              ), side="right", padx=(0, 10))
 
-                ctk.CTkButton(row, text="distraction", width=80, height=26,
+                self._mpack(ctk.CTkButton(row, text="distraction", width=80, height=26,
                               font=ctk.CTkFont(size=10), fg_color=COLOR_DANGER,
                               hover_color="#96281b",
                               command=lambda e=entry: self._correct(e, DISTRACTION)
-                              ).pack(side="right", padx=6)
+                              ), side="right", padx=6)
 
     def _correct(self, entry: dict, label: str) -> None:
         """
