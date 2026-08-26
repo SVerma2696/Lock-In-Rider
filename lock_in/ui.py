@@ -37,7 +37,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import customtkinter as ctk
-from PIL import ImageTk
+from PIL import ImageOps, ImageTk
 
 from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 from .claude_fallback import ClaudeFallback
@@ -441,6 +441,8 @@ class LockInApp(ctk.CTk):
         # to start from, not last tick's already-tinted result.
         self._base_bg_dark = bg_dark
         self._base_bg_light = bg_light
+        self._base_divider_dark = divider_dark
+        self._base_divider_light = divider_light
 
         if hasattr(self, "_timer_glow_image"):
             self._timer_glow_image.configure(light_image=timer_glow_light, dark_image=timer_glow_dark)
@@ -491,7 +493,28 @@ class LockInApp(ctk.CTk):
             bg_light = apply_gaim_lock_overlay(bg_light, in_focus)
             bg_dark = apply_gaim_lock_overlay(bg_dark, in_focus)
 
+        if self._is_mirrored:
+            bg_light = ImageOps.mirror(bg_light)
+            bg_dark = ImageOps.mirror(bg_dark)
+
         self._bg_image.configure(light_image=bg_light, dark_image=bg_dark)
+
+    def _sync_mirror_divider(self) -> None:
+        """The divider strip has no per-tick refresh path the way the
+        background wallpaper does, so Ryuki's mirror needs this one
+        small explicit call instead -- see _sync_mirror_layout() for
+        why phase transitions (not every tick) are the right moment."""
+        if not hasattr(self, "_base_divider_light"):
+            return
+        if self._is_mirrored:
+            self._divider_image.configure(
+                light_image=ImageOps.mirror(self._base_divider_light),
+                dark_image=ImageOps.mirror(self._base_divider_dark),
+            )
+        else:
+            self._divider_image.configure(
+                light_image=self._base_divider_light, dark_image=self._base_divider_dark,
+            )
 
     def _on_window_resized(self, event) -> None:
         """
@@ -1498,6 +1521,9 @@ class LockInApp(ctk.CTk):
             else:
                 self._show_banner("Focus session started. Blocking is active.", "low")
 
+        self._sync_mirror_layout()
+        self._sync_mirror_divider()
+
     def _on_phase_ended(self) -> None:
         self.monitor.pause()
         self.camera_watcher.pause()
@@ -1511,6 +1537,9 @@ class LockInApp(ctk.CTk):
         # the app were to crash, you'd only lose at most one block's worth
         # of training data, never more.
         self.observations.save()
+
+        self._sync_mirror_layout()
+        self._sync_mirror_divider()
 
     # ================================================================== #
     # What happens when you click a button
@@ -2186,7 +2215,9 @@ class LockInApp(ctk.CTk):
             self.progress.set(progress_fraction)
             self.progress.configure(progress_color=fill_color)
 
-        if self.current_tier1_effect in ("border_glow", "night_overlay") or self.current_tier3_effect == "lock_overlay":
+        if (self.current_tier1_effect in ("border_glow", "night_overlay")
+                or self.current_tier3_effect == "lock_overlay"
+                or self.current_tier4_effect == "mirror_flip"):
             self._refresh_background_effect(progress_fraction)
 
         if self.current_tier3_effect == "zero_ui" and phase is Phase.FOCUS:
