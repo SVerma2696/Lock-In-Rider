@@ -114,6 +114,11 @@ class RiderTheme:
     # ui.py reads this to decide what enforcement/interaction behavior
     # this Rider needs.
     tier3_effect: str = "none"
+    # "none" for every Rider except the 8 with a Tier 4 gimmick (see
+    # docs/superpowers/specs/2026-08-26-tier4-alternate-display-modes-design.md).
+    # ui.py, notifier.py, and ambient.py all read this to decide what
+    # display/audio/input behavior this Rider needs.
+    tier4_effect: str = "none"
 
     @property
     def primary_pair(self) -> tuple[str, str]:
@@ -230,6 +235,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Black RX (1988)": RiderTheme(
         "Showa", 1988, ("#225c25", "#4caf50"), ("#111111", "#616161"),
+        tier4_effect="manual_break_toggle",
     ),
     "Kamen Rider Kuuga (2000)": RiderTheme(
         "Heisei", 2000, ("#961d22", "#ef5350"), ("#1a1a1a", "#757575"),
@@ -239,6 +245,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Ryuki (2002)": RiderTheme(
         "Heisei", 2002, ("#9c1e1e", "#ef5350"), ("#757575", "#b0bec5"),
+        tier4_effect="mirror_flip",
     ),
     "Kamen Rider 555 (2003)": RiderTheme(
         "Heisei", 2003, ("#111111", "#424242"), ("#a60000", "#ff1744"),
@@ -249,9 +256,11 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Hibiki (2005)": RiderTheme(
         "Heisei", 2005, ("#310d5e", "#7b1fa2"), ("#9c1e1e", "#ef5350"),
+        tier4_effect="ambient_loop",
     ),
     "Kamen Rider Kabuto (2006)": RiderTheme(
         "Heisei", 2006, ("#9c1e1e", "#ef5350"), ("#607d8b", "#b0bec5"),
+        tier4_effect="hidden_timer",
     ),
     "Kamen Rider Den-O (2007)": RiderTheme(
         "Heisei", 2007, ("#9c1e1e", "#ef5350"), ("#90a4ae", "#eceff1"),
@@ -283,9 +292,11 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Ghost (2015)": RiderTheme(
         "Heisei", 2015, ("#111111", "#616161"), ("#cc7a00", "#ffb74d"),
+        tier4_effect="ghost_widget",
     ),
     "Kamen Rider Ex-Aid (2016)": RiderTheme(
         "Heisei", 2016, ("#b3154b", "#f06292"), ("#009e52", "#69f0ae"),
+        tier4_effect="chiptune_alert",
     ),
     "Kamen Rider Build (2017)": RiderTheme(
         "Heisei", 2017, ("#9c1e1e", "#ef5350"), ("#0f4a8f", "#42a5f5"), tier1_effect="vials",
@@ -295,9 +306,11 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Zero-One (2019)": RiderTheme(
         "Reiwa", 2019, ("#77a100", "#c6ff00"), ("#111111", "#616161"),
+        tier4_effect="dashboard_cards",
     ),
     "Kamen Rider Saber (2020)": RiderTheme(
         "Reiwa", 2020, ("#9c1e1e", "#ef5350"), ("#1a1a1a", "#757575"),
+        tier1_effect="bookmark",
     ),
     "Kamen Rider Revice (2021)": RiderTheme(
         "Reiwa", 2021, ("#b3154b", "#f06292"), ("#0097a7", "#18ffff"),
@@ -313,6 +326,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Zeztz (2025)": RiderTheme(
         "Reiwa", 2025, ("#225c25", "#4caf50"), ("#111111", "#616161"),
+        tier4_effect="hotkeys",
     ),
     "Kamen Rider MY-TH (2026)": RiderTheme(
         "Reiwa", 2026, ("#0f4a8f", "#42a5f5"), ("#78909c", "#b0bec5"),
