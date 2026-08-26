@@ -127,7 +127,7 @@ def test_tier1_effect_defaults_to_none_for_ordinary_riders():
     assert RIDER_THEMES["Kamen Rider Gavv (2024)"].tier1_effect == "none"
 
 
-def test_tier1_effect_is_assigned_to_exactly_the_9_named_riders():
+def test_tier1_effect_is_assigned_to_exactly_the_10_named_riders():
     expected = {
         "Kamen Rider (1971)": "windmill",
         "Kamen Rider Skyrider (1979)": "rising_bar",
@@ -138,6 +138,7 @@ def test_tier1_effect_is_assigned_to_exactly_the_9_named_riders():
         "Kamen Rider Drive (2014)": "accelerating_fill",
         "Kamen Rider Agito (2001)": "color_interpolation",
         "Kamen Rider Kiva (2008)": "night_overlay",
+        "Kamen Rider Saber (2020)": "bookmark",
     }
     for name, effect in expected.items():
         assert RIDER_THEMES[name].tier1_effect == effect, name
@@ -248,3 +249,34 @@ def test_standard_theme_passes_the_same_contrast_check_every_rider_does():
     light_surface, dark_surface = STANDARD_THEME.surface_pair
     assert abs(_brightness(light_text) - _brightness(light_surface)) > 150
     assert abs(_brightness(dark_text) - _brightness(dark_surface)) > 150
+
+
+def test_tier4_effect_defaults_to_none():
+    from lock_in.rider_themes import RiderTheme
+    theme = RiderTheme("Heisei", 2000, ("#000000", "#ffffff"), ("#111111", "#eeeeee"))
+    assert theme.tier4_effect == "none"
+
+
+def test_exactly_these_eight_riders_have_a_tier4_effect():
+    from lock_in.rider_themes import RIDER_THEMES
+    expected = {
+        "Kamen Rider Black RX (1988)": "manual_break_toggle",
+        "Kamen Rider Ryuki (2002)": "mirror_flip",
+        "Kamen Rider Kabuto (2006)": "hidden_timer",
+        "Kamen Rider Ex-Aid (2016)": "chiptune_alert",
+        "Kamen Rider Hibiki (2005)": "ambient_loop",
+        "Kamen Rider Zero-One (2019)": "dashboard_cards",
+        "Kamen Rider Ghost (2015)": "ghost_widget",
+        "Kamen Rider Zeztz (2025)": "hotkeys",
+    }
+    for name, effect in expected.items():
+        assert RIDER_THEMES[name].tier4_effect == effect, name
+    tier4_riders = {n for n, t in RIDER_THEMES.items() if t.tier4_effect != "none"}
+    assert tier4_riders == set(expected)
+
+
+def test_saber_is_a_tier1_bookmark_shape_not_a_tier4_effect():
+    from lock_in.rider_themes import RIDER_THEMES
+    saber = RIDER_THEMES["Kamen Rider Saber (2020)"]
+    assert saber.tier1_effect == "bookmark"
+    assert saber.tier4_effect == "none"
