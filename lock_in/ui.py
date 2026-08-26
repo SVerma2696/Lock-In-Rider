@@ -135,6 +135,10 @@ class LockInApp(ctk.CTk):
         # only, same rule as Fourze's constellation state: it resets
         # every time the app restarts, no save file needed.
         self.current_goal_text = ""
+        # Kabuto's hidden-timer gimmick: True only while you're hovering
+        # over the digits to peek at the real time. Resets every time
+        # you move the mouse away -- never saved, never persisted.
+        self._kabuto_revealed = False
         self.model = NaiveBayesClassifier.load(MODEL_PATH)
         self.observations = ObservationStore(OBSERVATIONS_PATH)
         self.claude = ClaudeFallback(self.config_obj)
@@ -520,6 +524,8 @@ class LockInApp(ctk.CTk):
             font=ctk.CTkFont(family=DISPLAY_FONT, size=76, weight="bold"),
         )
         self.time_label.pack(pady=(0, 4))
+        self.time_label.bind("<Enter>", lambda e: self._set_kabuto_revealed(True))
+        self.time_label.bind("<Leave>", lambda e: self._set_kabuto_revealed(False))
 
         self.streak_label = ctk.CTkLabel(
             self.normal_header_content, text="0 blocks done", font=ctk.CTkFont(size=12),
@@ -1988,6 +1994,11 @@ class LockInApp(ctk.CTk):
             text="\U0001F4F7 Camera monitoring active" if active else ""
         )
 
+    def _set_kabuto_revealed(self, revealed: bool) -> None:
+        """Called on hover enter/leave over the timer digits."""
+        self._kabuto_revealed = revealed
+        self._refresh_timer_widgets()
+
     def _refresh_timer_widgets(self) -> None:
         phase = self.session.phase
         label = label_for(phase, self._effective_terminology())
@@ -1998,7 +2009,12 @@ class LockInApp(ctk.CTk):
             driver_text = self.current_goal_text.upper()
         self.driver_label.configure(text=driver_text)
 
-        self.time_label.configure(text=self.session.format_remaining())
+        hide_kabuto_digits = (
+            self.current_tier4_effect == "hidden_timer"
+            and phase is Phase.FOCUS
+            and not self._kabuto_revealed
+        )
+        self.time_label.configure(text="--:--" if hide_kabuto_digits else self.session.format_remaining())
 
         # The progress bar's fill uses the plain, vivid Rider color — but
         # the WORDS use the separate, always-readable version instead,
