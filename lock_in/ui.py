@@ -326,6 +326,10 @@ class LockInApp(ctk.CTk):
         # goal-gate, zero-UI, lock-overlay, and code-unlock code later
         # in this file.
         self.current_tier3_effect = theme.tier3_effect
+        # Which Tier 4 gimmick (if any) this Rider has -- read by the
+        # mirror-flip, hidden-timer, dashboard-cards, ghost-widget, and
+        # hotkey code later in this file.
+        self.current_tier4_effect = theme.tier4_effect
         self.rider_primary_pair = theme.primary
         self.rider_secondary_pair = theme.secondary
         # Stronger's glow uses the Rider's own primary (already a red);
