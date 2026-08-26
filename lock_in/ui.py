@@ -115,6 +115,57 @@ ZERO_UI_WIDTH = 340
 ZERO_UI_HEIGHT = 120
 
 
+def _flip_side(side):
+    return {"left": "right", "right": "left"}.get(side, side)
+
+
+def _flip_anchor_or_sticky(value):
+    """Swaps every 'w' for 'e' and vice versa inside an anchor/sticky
+    string (e.g. 'nw' -> 'ne'), leaving n/s/center parts untouched."""
+    if value is None:
+        return value
+    return "".join({"w": "e", "e": "w"}.get(c, c) for c in value)
+
+
+def flip_pack_kwargs(mirrored: bool, kwargs: dict) -> dict:
+    """Given the kwargs you were about to pass to .pack(), return the
+    kwargs to actually use -- flipped if `mirrored` is True, exactly
+    as given otherwise."""
+    if not mirrored:
+        return dict(kwargs)
+    result = dict(kwargs)
+    if "side" in result:
+        result["side"] = _flip_side(result["side"])
+    if "anchor" in result:
+        result["anchor"] = _flip_anchor_or_sticky(result["anchor"])
+    return result
+
+
+def flip_place_kwargs(mirrored: bool, kwargs: dict) -> dict:
+    if not mirrored:
+        return dict(kwargs)
+    result = dict(kwargs)
+    if "relx" in result:
+        # round() sidesteps binary-float artifacts like 1 - 0.18 landing
+        # on 0.8200000000000001 instead of 0.82.
+        result["relx"] = round(1 - result["relx"], 10)
+    if "anchor" in result:
+        result["anchor"] = _flip_anchor_or_sticky(result["anchor"])
+    return result
+
+
+def flip_grid_kwargs(mirrored: bool, total_columns: int, kwargs: dict) -> dict:
+    if not mirrored:
+        return dict(kwargs)
+    result = dict(kwargs)
+    if "column" in result:
+        columnspan = result.get("columnspan", 1)
+        result["column"] = total_columns - result["column"] - columnspan
+    if "sticky" in result:
+        result["sticky"] = _flip_anchor_or_sticky(result["sticky"])
+    return result
+
+
 class LockInApp(ctk.CTk):
     """The main app window — everything you see lives inside this."""
 
@@ -183,6 +234,8 @@ class LockInApp(ctk.CTk):
         # Whenever you resize the window, stretch the picture to match —
         # otherwise it would stay one fixed size and leave a bare edge.
         self.bind("<Configure>", self._on_window_resized)
+
+        self._mirror_managed_widgets: list = []
 
         self._build_header()
         self._build_divider()
@@ -483,6 +536,52 @@ class LockInApp(ctk.CTk):
                 "Run: pip install pywin32 psutil",
                 "high", duration_ms=20000,
             )
+
+    # ------------------------------------------------------------------ #
+    # Ryuki's mirror mechanism -- see flip_pack_kwargs/flip_place_kwargs/
+    # flip_grid_kwargs above for the actual flipping logic. These three
+    # wrappers are drop-in replacements for .pack()/.place()/.grid():
+    # same arguments, but every geometry call in this file goes through
+    # one of these instead of calling the real method directly, so a
+    # single _sync_mirror_layout() call can re-flip everything at once
+    # when a break starts or ends.
+    # ------------------------------------------------------------------ #
+    @property
+    def _is_mirrored(self) -> bool:
+        return self.current_tier4_effect == "mirror_flip" and self.session.phase.is_break
+
+    def _mpack(self, widget, **kwargs) -> None:
+        flipped = flip_pack_kwargs(self._is_mirrored, kwargs)
+        widget.pack(**flipped)
+        self._mirror_managed_widgets.append(("pack", widget, None, kwargs))
+
+    def _mplace(self, widget, **kwargs) -> None:
+        flipped = flip_place_kwargs(self._is_mirrored, kwargs)
+        widget.place(**flipped)
+        self._mirror_managed_widgets.append(("place", widget, None, kwargs))
+
+    def _mgrid(self, widget, total_columns: int, **kwargs) -> None:
+        flipped = flip_grid_kwargs(self._is_mirrored, total_columns, kwargs)
+        widget.grid(**flipped)
+        self._mirror_managed_widgets.append(("grid", widget, total_columns, kwargs))
+
+    def _sync_mirror_layout(self) -> None:
+        """Re-applies every registered widget's geometry against the
+        CURRENT mirror state. Call this whenever the phase crosses into
+        or out of a break -- that's the only moment anything should
+        actually flip."""
+        for manager, widget, total_columns, kwargs in self._mirror_managed_widgets:
+            try:
+                if manager == "pack":
+                    widget.pack_configure(**flip_pack_kwargs(self._is_mirrored, kwargs))
+                elif manager == "place":
+                    widget.place_configure(**flip_place_kwargs(self._is_mirrored, kwargs))
+                else:
+                    widget.grid_configure(**flip_grid_kwargs(self._is_mirrored, total_columns, kwargs))
+            except Exception:
+                # A widget that's been destroyed since it was registered
+                # (e.g. a rebuilt Settings tab) shouldn't crash the sync.
+                pass
 
     # ================================================================== #
     # Building the pieces you see on screen
