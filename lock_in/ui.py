@@ -612,7 +612,7 @@ class LockInApp(ctk.CTk):
     def _build_header(self) -> None:
         """Builds the top area: banner, phase name, countdown, progress bar, and buttons."""
         header = ctk.CTkFrame(self, corner_radius=16, fg_color=self.color_surface)
-        header.pack(fill="x", padx=20, pady=(16, 4))
+        self._mpack(header, fill="x", padx=20, pady=(16, 4))
         # Kept so `_on_rider_theme_change` can re-tint this panel later
         # without having to rebuild the whole header from scratch.
         self.header_frame = header
@@ -628,7 +628,7 @@ class LockInApp(ctk.CTk):
         # phase name above it — whatever gets made first is stacked at
         # the back, so this makes sure the glow never paints over words.
         self._timer_glow_label = ctk.CTkLabel(header, text="", image=self._timer_glow_image)
-        self._timer_glow_label.place(relx=0.5, rely=0.33, anchor="center")
+        self._mplace(self._timer_glow_label, relx=0.5, rely=0.33, anchor="center")
 
         # Wrapped in one frame so Amazon's zero-UI mode can hide all 4
         # of these at once, safely, instead of hiding and restoring
@@ -643,13 +643,13 @@ class LockInApp(ctk.CTk):
             font=ctk.CTkFont(family=DISPLAY_FONT, size=16, weight="bold"),
             text_color=COLOR_IDLE,
         )
-        self.phase_label.pack(pady=(4, 0))
+        self._mpack(self.phase_label, pady=(4, 0))
 
         self.time_label = ctk.CTkLabel(
             self.normal_header_content, text="25:00",
             font=ctk.CTkFont(family=DISPLAY_FONT, size=76, weight="bold"),
         )
-        self.time_label.pack(pady=(0, 4))
+        self._mpack(self.time_label, pady=(0, 4))
         self.time_label.bind("<Enter>", lambda e: self._set_kabuto_revealed(True))
         self.time_label.bind("<Leave>", lambda e: self._set_kabuto_revealed(False))
 
@@ -657,18 +657,18 @@ class LockInApp(ctk.CTk):
             self.normal_header_content, text="0 blocks done", font=ctk.CTkFont(size=12),
             text_color=COLOR_IDLE,
         )
-        self.streak_label.pack()
+        self._mpack(self.streak_label)
 
         self.driver_label = ctk.CTkLabel(
             self.normal_header_content, text=self._driver_label_text(),
             font=ctk.CTkFont(family=DISPLAY_FONT, size=10, weight="bold"),
             text_color=self.color_driver_text,
         )
-        self.driver_label.pack(pady=(2, 0))
+        self._mpack(self.driver_label, pady=(2, 0))
 
         self.progress = ctk.CTkProgressBar(header, height=8, corner_radius=4)
         self.progress.set(0)
-        self.progress.pack(fill="x", pady=(12, 14))
+        self._mpack(self.progress, fill="x", pady=(12, 14))
 
         # A second, picture-based widget -- only shown INSTEAD of the
         # plain bar above, and only for the 4 Riders with their own
@@ -683,25 +683,25 @@ class LockInApp(ctk.CTk):
         self.zero_ui_label = ctk.CTkLabel(header, text="", image=None)
 
         self.controls = ctk.CTkFrame(header, fg_color="transparent")
-        self.controls.pack()
+        self._mpack(self.controls)
         # normal_header_content was created earlier in this method (before
         # the progress bar), but wasn't packed yet until now -- pack() needs
         # self.controls to already be managed for `before=` to place it
         # correctly, right where it visually belongs: above the progress bar.
-        self.normal_header_content.pack(before=self.progress)
+        self._mpack(self.normal_header_content, before=self.progress)
         controls = self.controls
 
         # Same trick as the timer glow: made first, so it sits behind the
         # Henshin button that gets made right after it.
         self._button_glow_label = ctk.CTkLabel(controls, text="", image=self._button_glow_image)
-        self._button_glow_label.place(relx=0.18, rely=0.5, anchor="center")
+        self._mplace(self._button_glow_label, relx=0.18, rely=0.5, anchor="center")
 
         self.start_button = ctk.CTkButton(
             controls, text=self._henshin_word(), width=140, height=40,
             font=ctk.CTkFont(family=DISPLAY_FONT, size=15, weight="bold"), command=self._on_toggle,
             fg_color=self.color_rider_accent, text_color=self.color_button_text,
         )
-        self.start_button.grid(row=0, column=0, padx=6)
+        self._mgrid(self.start_button, total_columns=3, row=0, column=0, padx=6)
 
         self.skip_button = ctk.CTkButton(
             controls, text="Skip", width=80, height=40,
@@ -710,7 +710,7 @@ class LockInApp(ctk.CTk):
             hover_color=("#d0ebff", "#173a5e"),
             command=self._on_skip,
         )
-        self.skip_button.grid(row=0, column=1, padx=6)
+        self._mgrid(self.skip_button, total_columns=3, row=0, column=1, padx=6)
 
         self.reset_button = ctk.CTkButton(
             controls, text="Reset", width=80, height=40,
@@ -719,14 +719,14 @@ class LockInApp(ctk.CTk):
             hover_color=("#ffe3e3", "#4a1414"),
             command=self._on_reset,
         )
-        self.reset_button.grid(row=0, column=2, padx=6)
+        self._mgrid(self.reset_button, total_columns=3, row=0, column=2, padx=6)
 
         # Shows, live, what window we currently think you're looking at.
         self.watch_label = ctk.CTkLabel(
             header, text="", font=ctk.CTkFont(size=11), text_color=COLOR_IDLE,
             wraplength=480,
         )
-        self.watch_label.pack(pady=(12, 0))
+        self._mpack(self.watch_label, pady=(12, 0))
 
         # Only ever shown while a focus block is actually running AND the
         # switch is on -- i.e. exactly whenever PhoneWatcher genuinely has
@@ -735,7 +735,7 @@ class LockInApp(ctk.CTk):
         self.camera_indicator_label = ctk.CTkLabel(
             header, text="", font=ctk.CTkFont(size=11), text_color=COLOR_ENFORCE_ACCENT,
         )
-        self.camera_indicator_label.pack(pady=(4, 0))
+        self._mpack(self.camera_indicator_label, pady=(4, 0))
 
     def _build_divider(self) -> None:
         """
@@ -745,7 +745,7 @@ class LockInApp(ctk.CTk):
         is picked, instead of just being empty space.
         """
         self._divider_label = ctk.CTkLabel(self, text="", image=self._divider_image)
-        self._divider_label.pack(fill="x", padx=20, pady=(0, 4))
+        self._mpack(self._divider_label, fill="x", padx=20, pady=(0, 4))
 
     def _build_tabs(self) -> None:
         self.tabs = ctk.CTkTabview(
@@ -1404,25 +1404,30 @@ class LockInApp(ctk.CTk):
         overlay.protocol("WM_DELETE_WINDOW", lambda: None)   # the X button on this window does nothing
         self._lockdown_window = overlay
 
-        ctk.CTkLabel(overlay, text=lockdown_label_for(self.current_era, self._effective_terminology()),
-                     font=ctk.CTkFont(size=54, weight="bold"),
-                     text_color=self.color_lockdown_text).pack(pady=(220, 10))
+        self._mpack(
+            ctk.CTkLabel(overlay, text=lockdown_label_for(self.current_era, self._effective_terminology()),
+                         font=ctk.CTkFont(size=54, weight="bold"),
+                         text_color=self.color_lockdown_text),
+            pady=(220, 10),
+        )
 
         remaining_word = "mission" if self._is_tokusatsu() else "session"
-        ctk.CTkLabel(overlay, text=f"{self.session.format_remaining()} left in this {remaining_word}",
-                     font=ctk.CTkFont(size=20), text_color="#9aa4b2").pack()
+        self._mpack(
+            ctk.CTkLabel(overlay, text=f"{self.session.format_remaining()} left in this {remaining_word}",
+                         font=ctk.CTkFont(size=20), text_color="#9aa4b2")
+        )
 
         countdown = ctk.CTkLabel(overlay, text="", font=ctk.CTkFont(size=16),
                                  text_color="#6b7480")
-        countdown.pack(pady=26)
+        self._mpack(countdown, pady=26)
 
         if self.current_tier3_effect == "code_unlock":
             code_entry = ctk.CTkEntry(overlay, width=140, justify="center",
                                        font=ctk.CTkFont(size=16))
-            code_entry.pack(pady=(4, 4))
+            self._mpack(code_entry, pady=(4, 4))
             code_hint = ctk.CTkLabel(overlay, text="Enter code to unlock early",
                                       font=ctk.CTkFont(size=11), text_color="#6b7480")
-            code_hint.pack(pady=(0, 12))
+            self._mpack(code_hint, pady=(0, 12))
 
             def check_code(event=None) -> None:
                 if code_entry.get().strip() == "555":
@@ -1434,10 +1439,12 @@ class LockInApp(ctk.CTk):
             code_entry.bind("<Return>", check_code)
 
         end_button_text = "Abort Mission" if self._is_tokusatsu() else "End Session"
-        ctk.CTkButton(overlay, text=end_button_text, width=200,
-                      fg_color="transparent", border_width=1,
-                      text_color="#6b7480", hover_color="#1d2026",
-                      command=self._end_session_from_lockdown).pack()
+        self._mpack(
+            ctk.CTkButton(overlay, text=end_button_text, width=200,
+                          fg_color="transparent", border_width=1,
+                          text_color="#6b7480", hover_color="#1d2026",
+                          command=self._end_session_from_lockdown)
+        )
 
         remaining = {"value": self.config_obj.lockdown_seconds}
 
@@ -1590,17 +1597,23 @@ class LockInApp(ctk.CTk):
         overlay.protocol("WM_DELETE_WINDOW", lambda: None)
 
         title = "DEEP SETUP" if self._is_tokusatsu() else "Set your goal"
-        ctk.CTkLabel(overlay, text=title, font=ctk.CTkFont(size=40, weight="bold"),
-                     text_color=self.color_lockdown_text).pack(pady=(220, 20))
-        ctk.CTkLabel(overlay, text="What are you working on this block?",
-                     font=ctk.CTkFont(size=16), text_color="#9aa4b2").pack(pady=(0, 16))
+        self._mpack(
+            ctk.CTkLabel(overlay, text=title, font=ctk.CTkFont(size=40, weight="bold"),
+                         text_color=self.color_lockdown_text),
+            pady=(220, 20),
+        )
+        self._mpack(
+            ctk.CTkLabel(overlay, text="What are you working on this block?",
+                         font=ctk.CTkFont(size=16), text_color="#9aa4b2"),
+            pady=(0, 16),
+        )
 
         entry = ctk.CTkEntry(overlay, width=420, height=44, font=ctk.CTkFont(size=15))
-        entry.pack(pady=(0, 8))
+        self._mpack(entry, pady=(0, 8))
         entry.focus_set()
 
         hint = ctk.CTkLabel(overlay, text="", font=ctk.CTkFont(size=12), text_color=COLOR_DANGER)
-        hint.pack()
+        self._mpack(hint)
 
         def submit(event=None) -> None:
             text = entry.get().strip()
@@ -1613,7 +1626,7 @@ class LockInApp(ctk.CTk):
 
         entry.bind("<Return>", submit)
         begin_word = "Begin" if self._is_tokusatsu() else "Start"
-        ctk.CTkButton(overlay, text=begin_word, width=200, command=submit).pack(pady=20)
+        self._mpack(ctk.CTkButton(overlay, text=begin_word, width=200, command=submit), pady=20)
 
     def _on_skip(self) -> None:
         for event in self.session.skip():
