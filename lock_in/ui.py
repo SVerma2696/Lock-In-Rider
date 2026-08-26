@@ -1017,6 +1017,8 @@ class LockInApp(ctk.CTk):
                 )
             elif self.config_obj.rider_theme == "Kamen Rider Gavv (2024)":
                 self._build_gavv_toggle_row(frame)
+            elif self.config_obj.rider_theme == "Kamen Rider Black RX (1988)":
+                self._build_blackrx_toggle_row(frame)
 
         terminology_row = ctk.CTkFrame(frame, fg_color="transparent")
         terminology_row.pack(fill="x", pady=(10, 4))
@@ -1727,6 +1729,35 @@ class LockInApp(ctk.CTk):
             text="Overrides your timer lengths above until you turn this back off.",
             font=ctk.CTkFont(size=10), text_color=COLOR_IDLE,
         ).pack(anchor="w")
+
+    def _build_blackrx_toggle_row(self, parent) -> None:
+        """A single switch, same shape as Gavv's -- Black RX's manual-break
+        mode stays on until you turn it off, not a one-click preset."""
+        heading = "Manual Recovery" if self._is_tokusatsu() else "Manual Break Mode"
+        ctk.CTkLabel(parent, text=heading, text_color=COLOR_TIMER_ACCENT,
+                     font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(14, 4))
+
+        self.blackrx_switch = ctk.CTkSwitch(
+            parent, text="Never auto-start breaks -- always wait for you to press Start",
+            progress_color=COLOR_TIMER_ACCENT,
+            command=self._on_blackrx_toggled,
+        )
+        if self.config_obj.blackrx_manual_breaks:
+            self.blackrx_switch.select()
+        else:
+            self.blackrx_switch.deselect()
+        self.blackrx_switch.pack(anchor="w", pady=4)
+
+        ctk.CTkLabel(
+            parent,
+            text="Overrides Auto-start breaks above until you turn this back off.",
+            font=ctk.CTkFont(size=10), text_color=COLOR_IDLE,
+        ).pack(anchor="w")
+
+    def _on_blackrx_toggled(self) -> None:
+        """Called when you click the Manual Break Mode switch itself."""
+        self.config_obj.blackrx_manual_breaks = self.blackrx_switch.get() == 1
+        self.config_obj.save()
 
     def _on_micro_sprint_toggled(self) -> None:
         """Called when you click the Micro-Sprint switch itself."""
