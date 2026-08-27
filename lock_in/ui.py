@@ -216,6 +216,7 @@ class LockInApp(ctk.CTk):
         # The activity list: dicts of {time, text, blocked, reason, label}
         self.activity: List[dict] = []
         self._lockdown_window: Optional[ctk.CTkToplevel] = None
+        self._ghost_widget: Optional[ctk.CTkToplevel] = None
         self._banner_after_id: Optional[str] = None
 
         # ---------------- The window frame ------------------------------ #
@@ -1522,6 +1523,61 @@ class LockInApp(ctk.CTk):
         self._close_lockdown()
         self._on_reset()
 
+    def _show_ghost_widget(self) -> None:
+        if self._ghost_widget is not None:
+            return
+        widget = ctk.CTkToplevel(self)
+        widget.overrideredirect(True)
+        widget.attributes("-topmost", True)
+        widget.configure(fg_color="#121417")
+        widget.geometry("140x50+80+80")
+
+        self._ghost_time_label = ctk.CTkLabel(
+            widget, text=self.session.format_remaining(),
+            font=ctk.CTkFont(family=DISPLAY_FONT, size=22, weight="bold"),
+            text_color=self.color_focus_text,
+        )
+        self._ghost_time_label.pack(pady=(6, 2))
+
+        self._ghost_progress = ctk.CTkProgressBar(widget, height=4, corner_radius=2)
+        self._ghost_progress.set(self.session.progress)
+        self._ghost_progress.pack(fill="x", padx=8, pady=(0, 6))
+
+        def restore(event=None) -> None:
+            self._hide_ghost_widget()
+            self.deiconify()
+
+        widget.bind("<Button-1>", restore)
+        self._ghost_time_label.bind("<Button-1>", restore)
+
+        def start_drag(event) -> None:
+            widget._drag_start = (event.x, event.y)
+
+        def do_drag(event) -> None:
+            x = widget.winfo_x() + event.x - widget._drag_start[0]
+            y = widget.winfo_y() + event.y - widget._drag_start[1]
+            widget.geometry(f"+{x}+{y}")
+
+        widget.bind("<ButtonPress-1>", start_drag, add="+")
+        widget.bind("<B1-Motion>", do_drag)
+
+        self._ghost_widget = widget
+        self.iconify()
+
+    def _hide_ghost_widget(self) -> None:
+        if self._ghost_widget is not None:
+            try:
+                self._ghost_widget.destroy()
+            except Exception:
+                pass
+            self._ghost_widget = None
+
+    def _refresh_ghost_widget(self) -> None:
+        if self._ghost_widget is None:
+            return
+        self._ghost_time_label.configure(text=self.session.format_remaining())
+        self._ghost_progress.set(self.session.progress)
+
     # ================================================================== #
     # Reacting to the timer changing phases
     # ================================================================== #
@@ -1555,10 +1611,13 @@ class LockInApp(ctk.CTk):
             self.ambient.start_if_applicable()
             if self.config_obj.camera_monitoring_enabled:
                 self.camera_watcher.resume()
+            if self.current_tier4_effect == "ghost_widget":
+                self._show_ghost_widget()
         else:
             self.monitor.pause()
             self.camera_watcher.pause()
             self._close_lockdown()
+            self._hide_ghost_widget()
 
         if phase is not Phase.IDLE:
             label = label_for(phase, self._effective_terminology())
@@ -1581,6 +1640,7 @@ class LockInApp(ctk.CTk):
         self.ambient.stop()
         self.camera_watcher.pause()
         self._close_lockdown()
+        self._hide_ghost_widget()
         if self.current_tier3_effect == "lock_overlay":
             self.attributes("-topmost", False)
         if self.current_tier3_effect == "zero_ui":
@@ -1688,6 +1748,7 @@ class LockInApp(ctk.CTk):
         self.ambient.stop()
         self.camera_watcher.pause()
         self._close_lockdown()
+        self._hide_ghost_widget()
         self._refresh_timer_widgets()
 
     def _zeztz_hotkeys_active(self) -> bool:
@@ -2315,6 +2376,7 @@ class LockInApp(ctk.CTk):
         # this window is hidden behind others.
         self.title(f"{self.session.format_remaining()} · {label} — Lock In")
         self._sync_camera_indicator()
+        self._refresh_ghost_widget()
 
     def _refresh_progress_shape(self, progress_fraction: float) -> None:
         """
