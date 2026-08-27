@@ -45,6 +45,7 @@ from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, app_data_dir
 from .observations import ObservationStore
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
+from .ambient import AmbientPlayer
 from .monitor import BACKEND_AVAILABLE, ActiveWindowMonitor, minimize_window
 from .notifier import Notifier
 from .session import Event, Phase, PomodoroSession, label_for
@@ -198,6 +199,7 @@ class LockInApp(ctk.CTk):
         self.camera_enforcer = CameraEnforcer(self.config_obj)
         self.notifier = Notifier(self.config_obj)
         self.notifier.banner_callback = self._queue_banner
+        self.ambient = AmbientPlayer(self.config_obj)
 
         # Safe mailboxes for passing messages between threads.
         self._window_queue: "queue.Queue[WindowInfo]" = queue.Queue()
@@ -1518,6 +1520,7 @@ class LockInApp(ctk.CTk):
 
         if phase is Phase.FOCUS and self.session.is_running:
             self.monitor.resume()
+            self.ambient.start_if_applicable()
             if self.config_obj.camera_monitoring_enabled:
                 self.camera_watcher.resume()
         else:
@@ -1543,6 +1546,7 @@ class LockInApp(ctk.CTk):
 
     def _on_phase_ended(self) -> None:
         self.monitor.pause()
+        self.ambient.stop()
         self.camera_watcher.pause()
         self._close_lockdown()
         if self.current_tier3_effect == "lock_overlay":
@@ -1649,6 +1653,7 @@ class LockInApp(ctk.CTk):
         self.enforcer.reset()
         self.camera_enforcer.reset()
         self.monitor.pause()
+        self.ambient.stop()
         self.camera_watcher.pause()
         self._close_lockdown()
         self._refresh_timer_widgets()
@@ -2406,6 +2411,7 @@ class LockInApp(ctk.CTk):
             self.observations.save()
         finally:
             self.monitor.stop()
+            self.ambient.stop()
             self.camera_watcher.stop()
             self.destroy()
 
