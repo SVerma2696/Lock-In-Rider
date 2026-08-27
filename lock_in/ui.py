@@ -621,6 +621,31 @@ class LockInApp(ctk.CTk):
     # ================================================================== #
     # Building the pieces you see on screen
     # ================================================================== #
+    def _build_dashboard_cards(self, parent) -> None:
+        """Zero-One's reskin: the same values normal_header_content
+        already shows, laid out as bordered corporate-looking cards
+        instead of the centered timer stack. No new data -- just a
+        different arrangement of what's already tracked."""
+        row = ctk.CTkFrame(parent, fg_color="transparent")
+        self._mpack(row, fill="x", pady=(8, 4))
+
+        def card(label: str, value_getter) -> ctk.CTkLabel:
+            box = ctk.CTkFrame(row, border_width=1, border_color=self.color_rider_accent)
+            self._mpack(box, side="left", expand=True, fill="both", padx=4)
+            self._mpack(ctk.CTkLabel(box, text=label, font=ctk.CTkFont(size=10),
+                                      text_color=COLOR_IDLE), pady=(6, 0))
+            value_label = ctk.CTkLabel(box, text=value_getter(),
+                                        font=ctk.CTkFont(size=16, weight="bold"))
+            self._mpack(value_label, pady=(0, 6))
+            return value_label
+
+        self._dashboard_status_value = card("Status", lambda: label_for(
+            self.session.phase, self._effective_terminology()))
+        self._dashboard_time_value = card("Time Remaining", self.session.format_remaining)
+        self._dashboard_streak_value = card(
+            "Sessions Complete", lambda: str(self.session.completed_focus_blocks))
+        self._dashboard_profile_value = card("Active Profile", self._driver_label_text)
+
     def _build_header(self) -> None:
         """Builds the top area: banner, phase name, countdown, progress bar, and buttons."""
         header = ctk.CTkFrame(self, corner_radius=16, fg_color=self.color_surface)
@@ -701,6 +726,13 @@ class LockInApp(ctk.CTk):
         # self.controls to already be managed for `before=` to place it
         # correctly, right where it visually belongs: above the progress bar.
         self._mpack(self.normal_header_content, before=self.progress)
+
+        # Zero-One's dashboard-card reskin -- same values as
+        # normal_header_content, just arranged as bordered cards.
+        # Not packed yet on purpose; visibility is decided in
+        # _refresh_timer_widgets(), matching zero_ui_label above.
+        self._dashboard_cards_frame = ctk.CTkFrame(header, fg_color="transparent")
+
         controls = self.controls
 
         # Same trick as the timer glow: made first, so it sits behind the
@@ -2264,6 +2296,20 @@ class LockInApp(ctk.CTk):
         else:
             streak_text = f"{done} session{'s' if done != 1 else ''} complete · Long break in {until_long}"
         self.streak_label.configure(text=streak_text, text_color=COLOR_LOOK_ACCENT)
+
+        if self.current_tier4_effect == "dashboard_cards":
+            if not self._dashboard_cards_frame.winfo_ismapped():
+                for child in self._dashboard_cards_frame.winfo_children():
+                    child.destroy()
+                self._build_dashboard_cards(self._dashboard_cards_frame)
+                self._mpack(self._dashboard_cards_frame, fill="x")
+            self._dashboard_status_value.configure(
+                text=label_for(phase, self._effective_terminology()))
+            self._dashboard_time_value.configure(text=self.session.format_remaining())
+            self._dashboard_streak_value.configure(text=str(self.session.completed_focus_blocks))
+            self._dashboard_profile_value.configure(text=self._driver_label_text())
+        elif self._dashboard_cards_frame.winfo_ismapped():
+            self._dashboard_cards_frame.pack_forget()
 
         # The title bar also shows a tiny timer, so it's visible even when
         # this window is hidden behind others.
