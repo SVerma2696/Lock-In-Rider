@@ -103,6 +103,63 @@ app._on_skip()
 app.update()
 check("break -> focus", app.session.phase is Phase.FOCUS)
 
+print("mirror-layout regression (issue #1: resurrecting hidden widgets)...")
+# A Tier-1-shape Rider (this is also the app's default Rider) hides the
+# plain progress bar in favor of its own custom shape. Before the fix,
+# _sync_mirror_layout() ran unconditionally on every phase transition
+# for every Rider and replayed the ORIGINAL pack_configure() call on
+# every widget it had ever seen -- including this one, resurrecting the
+# plain bar right below the buttons even though a different feature had
+# deliberately pack_forget()-ten it.
+app._on_reset()
+app.update()
+app._on_rider_theme_change("Kamen Rider (1971)")
+app.update()
+check("windmill shape shown before any phase transition",
+      app.progress_shape.winfo_manager() != "")
+check("plain progress bar hidden before any phase transition",
+      app.progress.winfo_manager() == "")
+app._on_skip()   # IDLE -> FOCUS: the exact "first phase transition" the bug hit
+app.update()
+check("plain progress bar still hidden after a phase transition (issue #1)",
+      app.progress.winfo_manager() == "")
+check("windmill shape still shown after a phase transition",
+      app.progress_shape.winfo_manager() != "")
+
+print("mirror-layout regression (Ryuki still flips correctly)...")
+# The fix adds a guard that makes _sync_mirror_layout() a no-op for
+# every Rider except Ryuki -- confirm it does NOT also break the one
+# Rider it's supposed to keep working.
+app._on_reset()
+app.update()
+app._on_rider_theme_change("Kamen Rider Ryuki (2002)")
+app.update()
+check("start button unmirrored before any break",
+      int(app.start_button.grid_info()["column"]) == 0)
+check("reset button unmirrored before any break",
+      int(app.reset_button.grid_info()["column"]) == 2)
+app._on_skip()   # IDLE -> FOCUS (still unmirrored -- FOCUS isn't a break)
+app.update()
+check("buttons still unmirrored entering focus",
+      int(app.start_button.grid_info()["column"]) == 0)
+app._on_skip()   # FOCUS -> break (mirrored)
+app.update()
+check("start button mirrors to column 2 on break",
+      int(app.start_button.grid_info()["column"]) == 2)
+check("reset button mirrors to column 0 on break",
+      int(app.reset_button.grid_info()["column"]) == 0)
+app._on_skip()   # break -> FOCUS (un-mirrored again)
+app.update()
+check("start button un-mirrors back to column 0",
+      int(app.start_button.grid_info()["column"]) == 0)
+check("reset button un-mirrors back to column 2",
+      int(app.reset_button.grid_info()["column"]) == 2)
+
+app._on_reset()
+app.update()
+app._on_rider_theme_change("Kamen Rider (1971)")   # back to the default Rider
+app.update()
+
 print("tabs...")
 for tab in ("Blocking", "Activity", "Settings"):
     app.tabs.set(tab)

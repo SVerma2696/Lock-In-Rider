@@ -491,7 +491,7 @@ for the implementation plan.
 
 ### Tier 4: Alternate display modes
 
-Nine more Riders each change how the app looks, sounds, or acts during a focus
+Eight more Riders each change how the app looks, sounds, or acts during a focus
 block — completely separate from the Tier 1 progress-bar gimmicks above:
 
 - **Black RX** — makes breaks wait for you to press Start instead of starting
