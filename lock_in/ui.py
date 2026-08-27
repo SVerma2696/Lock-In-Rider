@@ -1059,8 +1059,33 @@ class LockInApp(ctk.CTk):
             "pick. The hero is just for fun."
         )
 
+        # --- Tier 4 ------------------------------------------------------ #
+        heading("4. Nine more heroes have their own display trick", COLOR_ENFORCE_ACCENT)
+        body(
+            "A separate batch, nothing to do with the progress-bar heroes "
+            "above: turn one of these Riders on and something about how "
+            "the app looks, sounds, or behaves changes, on top of its "
+            "own colors."
+        )
+        for name, what in [
+            ("Black RX", "a switch that makes breaks always wait for you to press Start, instead of starting on their own."),
+            ("Ryuki", "the whole window flips left-to-right during a break, then flips right back the moment focus starts again."),
+            ("Kabuto", "the timer digits are hidden while you focus -- hover over where they'd be to peek at the real time."),
+            ("Ex-Aid", "the timer switches to a pixel font, and its alert sound becomes an 8-bit jingle."),
+            ("Hibiki", "a soft ambient sound plays in the background for as long as a focus block runs."),
+            ("Zero-One", "the timer restyles itself as a row of dashboard cards instead of the usual centered digits."),
+            ("Ghost", "the main window hides itself and a small floating clock stays on top of everything else -- click it to bring the full window back."),
+            ("Zeztz", "keyboard shortcuts take over: Space starts or pauses, S skips, R resets, as long as this window has focus."),
+        ]:
+            bullet(f"{name} — {what}")
+        body(
+            "One more hero, Saber, actually lives in the progress-bar "
+            "list above instead -- its bookmark-ribbon shape uses the "
+            "exact same picture-drawing code Fourze and Build already do."
+        )
+
         # --- Strict Camera Monitoring ------------------------------------ #
-        heading("4. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
+        heading("5. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
         body(
             "A separate extra, nothing to do with heroes: turn it on in "
             "the Blocking tab, and Lock In peeks at your webcam every "
