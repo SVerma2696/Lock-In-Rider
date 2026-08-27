@@ -1545,21 +1545,30 @@ class LockInApp(ctk.CTk):
 
         def restore(event=None) -> None:
             self._hide_ghost_widget()
-            self.deiconify()
-
-        widget.bind("<Button-1>", restore)
-        self._ghost_time_label.bind("<Button-1>", restore)
 
         def start_drag(event) -> None:
             widget._drag_start = (event.x, event.y)
+            widget._dragged = False
 
         def do_drag(event) -> None:
-            x = widget.winfo_x() + event.x - widget._drag_start[0]
-            y = widget.winfo_y() + event.y - widget._drag_start[1]
+            dx = event.x - widget._drag_start[0]
+            dy = event.y - widget._drag_start[1]
+            if abs(dx) > 3 or abs(dy) > 3:
+                widget._dragged = True
+            x = widget.winfo_x() + dx
+            y = widget.winfo_y() + dy
             widget.geometry(f"+{x}+{y}")
 
-        widget.bind("<ButtonPress-1>", start_drag, add="+")
+        def end_click_or_drag(event) -> None:
+            if not getattr(widget, "_dragged", False):
+                restore()
+
+        widget.bind("<ButtonPress-1>", start_drag)
         widget.bind("<B1-Motion>", do_drag)
+        widget.bind("<ButtonRelease-1>", end_click_or_drag)
+        self._ghost_time_label.bind("<ButtonPress-1>", start_drag)
+        self._ghost_time_label.bind("<B1-Motion>", do_drag)
+        self._ghost_time_label.bind("<ButtonRelease-1>", end_click_or_drag)
 
         self._ghost_widget = widget
         self.iconify()
@@ -1571,6 +1580,7 @@ class LockInApp(ctk.CTk):
             except Exception:
                 pass
             self._ghost_widget = None
+        self.deiconify()
 
     def _refresh_ghost_widget(self) -> None:
         if self._ghost_widget is None:
