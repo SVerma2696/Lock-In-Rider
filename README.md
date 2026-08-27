@@ -414,9 +414,9 @@ fastest-drawing look in the app. Your actual Rider and Wording choices
 are never overwritten; turning Standard Mode back off restores both
 instantly.
 
-### Tier 1: 9 Riders with their own gimmick
+### Tier 1: 10 Riders with their own gimmick
 
-On top of the era/color system above, 9 Riders each get their own extra
+On top of the era/color system above, 10 Riders each get their own extra
 treatment during a focus block:
 
 - **Kamen Rider (1971)** — the progress bar becomes a 4-bladed windmill,
@@ -437,6 +437,9 @@ treatment during a focus block:
   for this Rider.
 - **Drive** — the progress bar appears to lag behind early on, then
   visibly speeds up and catches up right near the end.
+- **Saber** — the progress bar becomes a bookmark ribbon hanging from
+  the top, filling in as the block goes on -- like marking how far
+  you've read.
 
 Every other Rider keeps the plain progress bar. See
 `docs/superpowers/specs/2026-08-10-tier1-rider-progress-variants-design.md`
