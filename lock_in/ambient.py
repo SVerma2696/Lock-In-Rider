@@ -1,21 +1,25 @@
 """
 ambient.py
 ==========
-Hibiki's one gimmick: a soft ambient sound loop that plays for as long
-as a focus block runs, and stops the instant it doesn't. Same OS-glue-
-only shape as notifier.py and monitor.py -- this file makes no
-decisions about WHETHER to play beyond "is Hibiki selected, is
-Standard Mode off, is sound turned on" -- everything else about WHEN
-lives in ui.py, calling start_if_applicable()/stop() at the same
-phase-transition points the camera-monitoring feature's
-resume()/pause() already use.
+Hibiki's one gimmick: a soft ambient sound loop that starts the instant
+a Hibiki focus block begins. Same OS-glue-only shape as notifier.py and
+monitor.py -- this file makes no decisions about WHETHER to play beyond
+"is Hibiki selected, is Standard Mode off, is sound turned on" --
+everything else about WHEN lives in ui.py, calling
+start_if_applicable()/stop() at the same phase-transition points the
+camera-monitoring feature's resume()/pause() already use.
 
 No new dependency. Windows uses winsound (already in the standard
-library) with its own loop flag. macOS/Linux keep re-invoking whatever
-sound-playing program notifier.py already detected on this machine --
-not a perfectly seamless loop, but close enough for ambient background
-texture, and consistent with this app's existing "Windows first-class,
-Mac/Linux best-effort" treatment of sound.
+library) with its own loop flag, so stop() there is immediate. macOS/
+Linux keep re-invoking whatever sound-playing program notifier.py
+already detected on this machine, each invocation blocking on the full
+~20s clip -- so stop() there just signals the background thread to
+wind down; it can't interrupt a track already mid-playback, meaning
+audio may keep going for up to ~20-25 seconds after a break starts
+before it actually cuts off. Not a perfectly seamless loop or an
+instant stop, but close enough for ambient background texture, and
+consistent with this app's existing "Windows first-class, Mac/Linux
+best-effort" treatment of sound.
 """
 
 from __future__ import annotations
