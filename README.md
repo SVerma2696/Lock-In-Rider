@@ -96,9 +96,10 @@ writes correctly even if its own install folder is read-only.
   Reiwa era), each pulling its accent colors from that Rider's real suit
   colors and re-tinting the header, every tab panel, the progress bar,
   and a themed background pattern — not just a couple of small accents.
-  **9 of those Riders go further still** — a custom-shaped progress bar,
-  a color or timing behavior change, or a chrome-level effect around
-  the timer, unique to that Rider.
+  **26 of those Riders go further still** — a custom-shaped progress bar,
+  a color or timing behavior change, sound and display effects, keyboard
+  controls, or a chrome-level effect around the timer, unique to that Rider.
+  These powers are spread across four tiers.
 * A **Standard Mode** switch (Settings tab) strips every Rider's color,
   art, and gimmick for a plain, fast, distraction-free look — your
   actual Rider pick is remembered and comes right back the moment you
@@ -141,7 +142,7 @@ source.
 
 Once it's open, the app's own **Help tab** has a full, plain-language
 walkthrough of every feature — including exactly how to turn on each
-of the 14 Kamen Riders' special extra powers (Tier 1/2/3 below). Start
+of the 26 Kamen Riders' special extra powers (Tiers 1/2/3/4 below). Start
 there before this README if you just want to use the app.
 
 *(Optional step 4: turn on the [Claude fallback](#claude-fallback-optional-off-by-default)
@@ -484,6 +485,30 @@ Five more Riders change actual behavior, not just looks:
 See `docs/superpowers/specs/2026-08-11-tier3-enforcement-interaction-design.md`
 for the full design, and `docs/superpowers/plans/2026-08-11-tier3-enforcement-interaction.md`
 for the implementation plan.
+
+### Tier 4: Alternate display modes
+
+Nine more Riders each change how the app looks, sounds, or acts during a focus
+block — completely separate from the Tier 1 progress-bar gimmicks above:
+
+- **Black RX** — makes breaks wait for you to press Start instead of starting
+  on their own.
+- **Ryuki** — the whole window flips left-to-right during breaks and flips back
+  when focus starts again.
+- **Kabuto** — the timer digits hide while you focus; hover to peek at the
+  real time.
+- **Ex-Aid** — the timer switches to a pixel font and the alert sound becomes
+  an 8-bit jingle.
+- **Hibiki** — soft ambient background sound plays for the whole focus block.
+- **Zero-One** — the timer changes into a row of dashboard cards instead of
+  centered digits.
+- **Ghost** — the main window hides and a small floating clock stays on top of
+  everything; click it to bring the full window back.
+- **Zeztz** — keyboard shortcuts take over: Space to start/pause, S to skip,
+  R to reset.
+
+One more, Saber, joins the Tier 1 progress-bar list instead — its
+bookmark-ribbon shape uses the same drawing code as Fourze and Build.
 
 ### Look and feel
 
