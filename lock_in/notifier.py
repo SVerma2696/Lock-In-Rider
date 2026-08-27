@@ -81,21 +81,19 @@ _WINDOWS_CHIME_TONES = {
     "Showa": [(440, 200), (440, 200)],
     "Heisei": [(880, 140), (1175, 220)],
     "Reiwa": [(1200, 80), (1500, 80), (1800, 120)],
+    "ExAid": [(1046, 60), (1318, 60), (1568, 60), (2093, 90)],
 }
 _WINDOWS_ALERT_TONES = {
     "Showa": [(440, 180), (330, 180), (440, 220)],
     "Heisei": [(1000, 110), (760, 110), (1000, 160)],
     "Reiwa": [(1800, 70), (1400, 70), (1800, 70), (2200, 120)],
+    "ExAid": [(1568, 50), (1244, 50), (1568, 50), (2093, 50), (1568, 90)],
 }
-_WINDOWS_CHIME_TONES["ExAid"] = [(1046, 60), (1318, 60), (1568, 60), (2093, 90)]
-_WINDOWS_ALERT_TONES["ExAid"] = [(1568, 50), (1244, 50), (1568, 50), (2093, 50), (1568, 90)]
 
 # These are all sound files that already come with macOS, so no extra
 # download is needed — just a different built-in sound per era.
-_MAC_CHIME_SOUND = {"Showa": "Basso", "Heisei": "Ping", "Reiwa": "Glass"}
-_MAC_ALERT_SOUND = {"Showa": "Funk", "Heisei": "Sosumi", "Reiwa": "Hero"}
-_MAC_CHIME_SOUND["ExAid"] = "Tink"
-_MAC_ALERT_SOUND["ExAid"] = "Ping"
+_MAC_CHIME_SOUND = {"Showa": "Basso", "Heisei": "Ping", "Reiwa": "Glass", "ExAid": "Tink"}
+_MAC_ALERT_SOUND = {"Showa": "Funk", "Heisei": "Sosumi", "Reiwa": "Hero", "ExAid": "Ping"}
 
 # A couple of common sound files that ship on most Linux desktops, most
 # fitting first. We use whichever one of these actually exists on this
@@ -104,14 +102,14 @@ _LINUX_CHIME_CANDIDATES = {
     "Showa": ["bell.oga", "dialog-warning.oga"],
     "Heisei": ["dialog-warning.oga", "bell.oga"],
     "Reiwa": ["message.oga", "complete.oga", "bell.oga"],
+    "ExAid": ["message.oga", "bell.oga"],
 }
 _LINUX_ALERT_CANDIDATES = {
     "Showa": ["dialog-warning.oga", "bell.oga"],
     "Heisei": ["dialog-warning.oga", "bell.oga"],
     "Reiwa": ["complete.oga", "message.oga", "bell.oga"],
+    "ExAid": ["complete.oga", "bell.oga"],
 }
-_LINUX_CHIME_CANDIDATES["ExAid"] = ["message.oga", "bell.oga"]
-_LINUX_ALERT_CANDIDATES["ExAid"] = ["complete.oga", "bell.oga"]
 _LINUX_SOUND_DIR = "/usr/share/sounds/freedesktop/stereo"
 
 

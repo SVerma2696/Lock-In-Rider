@@ -129,6 +129,16 @@ def _flip_anchor_or_sticky(value):
     return "".join({"w": "e", "e": "w"}.get(c, c) for c in value)
 
 
+def _flip_asymmetric_padding(value):
+    """A 2-tuple padx/ipadx like (10, 0) means (left, right) -- when
+    `side` flips, the padding has to swap ends too, or the gap ends up
+    on the wrong edge of the mirrored row. A single number (equal
+    padding on both sides) is unaffected either way."""
+    if isinstance(value, tuple) and len(value) == 2:
+        return (value[1], value[0])
+    return value
+
+
 def flip_pack_kwargs(mirrored: bool, kwargs: dict) -> dict:
     """Given the kwargs you were about to pass to .pack(), return the
     kwargs to actually use -- flipped if `mirrored` is True, exactly
@@ -140,6 +150,10 @@ def flip_pack_kwargs(mirrored: bool, kwargs: dict) -> dict:
         result["side"] = _flip_side(result["side"])
     if "anchor" in result:
         result["anchor"] = _flip_anchor_or_sticky(result["anchor"])
+    if "padx" in result:
+        result["padx"] = _flip_asymmetric_padding(result["padx"])
+    if "ipadx" in result:
+        result["ipadx"] = _flip_asymmetric_padding(result["ipadx"])
     return result
 
 
@@ -239,7 +253,13 @@ class LockInApp(ctk.CTk):
         # otherwise it would stay one fixed size and leave a bare edge.
         self.bind("<Configure>", self._on_window_resized)
 
-        self._mirror_managed_widgets: list = []
+        # Keyed by str(widget) (Tk's own widget path) instead of a plain
+        # list -- re-registering the same widget (e.g. a Settings tab
+        # rebuild) replaces its old entry instead of piling up a
+        # duplicate, so this self-heals during normal operation instead
+        # of growing without bound across a long session.
+        self._mirror_managed_widgets: dict = {}
+        self._dashboard_built = False
 
         self._build_header()
         self._build_divider()
@@ -589,24 +609,43 @@ class LockInApp(ctk.CTk):
     def _mpack(self, widget, **kwargs) -> None:
         flipped = flip_pack_kwargs(self._is_mirrored, kwargs)
         widget.pack(**flipped)
-        self._mirror_managed_widgets.append(("pack", widget, None, kwargs))
+        self._mirror_managed_widgets[str(widget)] = ("pack", widget, None, kwargs)
 
     def _mplace(self, widget, **kwargs) -> None:
         flipped = flip_place_kwargs(self._is_mirrored, kwargs)
         widget.place(**flipped)
-        self._mirror_managed_widgets.append(("place", widget, None, kwargs))
+        self._mirror_managed_widgets[str(widget)] = ("place", widget, None, kwargs)
 
     def _mgrid(self, widget, total_columns: int, **kwargs) -> None:
         flipped = flip_grid_kwargs(self._is_mirrored, total_columns, kwargs)
         widget.grid(**flipped)
-        self._mirror_managed_widgets.append(("grid", widget, total_columns, kwargs))
+        self._mirror_managed_widgets[str(widget)] = ("grid", widget, total_columns, kwargs)
 
     def _sync_mirror_layout(self) -> None:
         """Re-applies every registered widget's geometry against the
         CURRENT mirror state. Call this whenever the phase crosses into
         or out of a break -- that's the only moment anything should
-        actually flip."""
-        for manager, widget, total_columns, kwargs in self._mirror_managed_widgets:
+        actually flip.
+
+        Only Ryuki ever needs this at all -- for every other Rider it's
+        a no-op, on purpose, so it never has a chance to disturb
+        whatever some OTHER feature has already pack_forget()-ten (the
+        Tier 1 shape Riders' plain progress bar, Amazon's normal header
+        content, etc.)."""
+        if self.current_tier4_effect != "mirror_flip":
+            return
+        dead_keys = []
+        for key, (manager, widget, total_columns, kwargs) in self._mirror_managed_widgets.items():
+            if not widget.winfo_exists():
+                # Destroyed since it was registered (e.g. a rebuilt
+                # Settings tab) -- drop it so the registry doesn't pin a
+                # dead widget reference forever.
+                dead_keys.append(key)
+                continue
+            if not widget.winfo_manager():
+                # Deliberately hidden by another feature (pack_forget()
+                # / place_forget()) -- don't resurrect it.
+                continue
             try:
                 if manager == "pack":
                     widget.pack_configure(**flip_pack_kwargs(self._is_mirrored, kwargs))
@@ -615,9 +654,11 @@ class LockInApp(ctk.CTk):
                 else:
                     widget.grid_configure(**flip_grid_kwargs(self._is_mirrored, total_columns, kwargs))
             except Exception:
-                # A widget that's been destroyed since it was registered
-                # (e.g. a rebuilt Settings tab) shouldn't crash the sync.
+                # Belt-and-braces: any other Tk error re-applying this
+                # widget's geometry shouldn't crash the sync.
                 pass
+        for key in dead_keys:
+            del self._mirror_managed_widgets[key]
 
     # ================================================================== #
     # Building the pieces you see on screen
@@ -1061,7 +1102,7 @@ class LockInApp(ctk.CTk):
         )
 
         # --- Tier 4 ------------------------------------------------------ #
-        heading("4. Nine more heroes have their own display trick", COLOR_ENFORCE_ACCENT)
+        heading("4. Eight more heroes have their own display trick", COLOR_ENFORCE_ACCENT)
         body(
             "A separate batch, nothing to do with the progress-bar heroes "
             "above: turn one of these Riders on and something about how "
@@ -1600,13 +1641,19 @@ class LockInApp(ctk.CTk):
         self.iconify()
 
     def _hide_ghost_widget(self) -> None:
+        # This is called unconditionally on every phase transition, for
+        # every Rider -- not just Ghost. Only deiconify when this call is
+        # actually undoing a ghost-widget hide; otherwise it would force
+        # open a window YOU minimized by hand, for any non-Ghost Rider.
+        had_widget = self._ghost_widget is not None
         if self._ghost_widget is not None:
             try:
                 self._ghost_widget.destroy()
             except Exception:
                 pass
             self._ghost_widget = None
-        self.deiconify()
+        if had_widget:
+            self.deiconify()
 
     def _refresh_ghost_widget(self) -> None:
         if self._ghost_widget is None:
@@ -1654,6 +1701,11 @@ class LockInApp(ctk.CTk):
             self.camera_watcher.pause()
             self._close_lockdown()
             self._hide_ghost_widget()
+            # _on_skip() only ever dispatches PHASE_STARTED (it never
+            # calls _on_phase_ended(), which is where ambient.stop()
+            # normally lives) -- this branch is what's supposed to
+            # compensate for that, same as the two lines above it.
+            self.ambient.stop()
 
         if phase is not Phase.IDLE:
             label = label_for(phase, self._effective_terminology())
@@ -1719,6 +1771,7 @@ class LockInApp(ctk.CTk):
         else:
             self.monitor.pause()
             self.camera_watcher.pause()
+            self.ambient.stop()
 
         self._refresh_timer_widgets()
 
@@ -1843,6 +1896,18 @@ class LockInApp(ctk.CTk):
         # to call for every other Rider too -- it's a no-op unless
         # current_tier3_effect is "zero_ui".
         self._sync_zero_ui_visibility()
+        # Same reconciliation, for the two pieces of Tier 4 state that
+        # live outside _apply_rider_theme()'s reach: switching away from
+        # Hibiki mid-focus would otherwise leave its ambient loop playing
+        # under the new Rider, and switching to/from Ryuki mid-break (or
+        # while mirrored) would leave the header half-mirrored -- tabs
+        # rebuilt against the new state, but the background/divider
+        # still in the old orientation until the next phase transition.
+        self.ambient.stop()
+        if self.session.phase is Phase.FOCUS and self.session.is_running:
+            self.ambient.start_if_applicable()
+        self._sync_mirror_layout()
+        self._sync_mirror_divider()
 
     def _on_standard_mode_toggled(self) -> None:
         """Called when you flip the Standard Mode switch in Settings."""
@@ -1881,6 +1946,18 @@ class LockInApp(ctk.CTk):
             self.current_tier3_effect == "zero_ui" and self.session.phase is Phase.FOCUS
         )
         self.config_obj.save()
+        # Same reconciliation as _on_rider_theme_change(): Standard Mode
+        # silences Hibiki's ambient loop and Ryuki's mirror alike (via the
+        # theme-substitution intercept inside _apply_rider_theme()), but
+        # neither the ambient loop already playing nor the header/divider's
+        # current orientation update on their own when that intercept
+        # flips mid-block -- re-derive both right now instead of leaving
+        # them stuck until the next phase transition.
+        self.ambient.stop()
+        if self.session.phase is Phase.FOCUS and self.session.is_running:
+            self.ambient.start_if_applicable()
+        self._sync_mirror_layout()
+        self._sync_mirror_divider()
 
     def _on_terminology_switch_toggled(self) -> None:
         """Called when you click the Wording switch itself."""
@@ -1908,6 +1985,12 @@ class LockInApp(ctk.CTk):
 
     def _rebuild_tabs(self) -> None:
         """Throws away and redraws the tabs, keeping whichever one was open."""
+        # Zero-One's dashboard cards read colors (like the Rider accent)
+        # that a theme/appearance change may have just altered, but
+        # their frame is never destroyed and rebuilt on its own --
+        # clearing this flag forces _refresh_timer_widgets() to rebuild
+        # their contents fresh instead of leaving them stale.
+        self._dashboard_built = False
         try:
             current = self.tabs.get()
         except Exception:
@@ -2395,22 +2478,36 @@ class LockInApp(ctk.CTk):
         self.streak_label.configure(text=streak_text, text_color=COLOR_LOOK_ACCENT)
 
         if self.current_tier4_effect == "dashboard_cards":
-            if not self._dashboard_cards_frame.winfo_ismapped():
+            # Cards render INSTEAD OF the centered timer stack, not
+            # alongside it -- same whole-header swap Amazon's zero-UI
+            # reskin already does.
+            if self.normal_header_content.winfo_manager():
+                self.normal_header_content.pack_forget()
+            if not self._dashboard_built:
                 for child in self._dashboard_cards_frame.winfo_children():
                     child.destroy()
                 self._build_dashboard_cards(self._dashboard_cards_frame)
                 self._mpack(self._dashboard_cards_frame, fill="x")
+                self._dashboard_built = True
             self._dashboard_status_value.configure(
                 text=label_for(phase, self._effective_terminology()))
             self._dashboard_time_value.configure(text=self.session.format_remaining())
             self._dashboard_streak_value.configure(text=str(self.session.completed_focus_blocks))
             self._dashboard_profile_value.configure(text=self._driver_label_text())
-        elif self._dashboard_cards_frame.winfo_ismapped():
+        elif self._dashboard_built:
+            # winfo_ismapped() would also read False -- and thrash this
+            # branch every tick -- while the window is simply minimized,
+            # not just when the cards are actually pack_forget()-ten. A
+            # plain flag isn't fooled by that.
             self._dashboard_cards_frame.pack_forget()
+            self._dashboard_built = False
+            if not self.normal_header_content.winfo_manager():
+                self._mpack(self.normal_header_content, before=self.controls)
 
         # The title bar also shows a tiny timer, so it's visible even when
         # this window is hidden behind others.
-        self.title(f"{self.session.format_remaining()} · {label} — Lock In")
+        title_time = "--:--" if hide_kabuto_digits else self.session.format_remaining()
+        self.title(f"{title_time} · {label} — Lock In")
         self._sync_camera_indicator()
         self._refresh_ghost_widget()
 

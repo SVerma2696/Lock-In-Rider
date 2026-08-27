@@ -62,7 +62,12 @@ def load_pixel_font() -> str:
     """
     global _PIXEL_FONT_LOADED
     if sys.platform != "win32" or _PIXEL_FONT_LOADED:
-        return "Press Start 2P" if _PIXEL_FONT_LOADED else "Menlo"
+        if _PIXEL_FONT_LOADED:
+            return "Press Start 2P"
+        # "Menlo" only exists on macOS -- on Linux, Tk would silently
+        # substitute its own default proportional font instead, which
+        # isn't the monospace fallback this docstring promises.
+        return "Menlo" if sys.platform == "darwin" else "DejaVu Sans Mono"
     font_path = Path(__file__).parent / "assets" / "press_start_2p.ttf"
     try:
         import ctypes

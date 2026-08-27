@@ -31,6 +31,23 @@ def test_pack_other_kwargs_pass_through_untouched():
     assert result == {"side": "right", "pady": 6, "fill": "x"}
 
 
+def test_pack_asymmetric_padx_tuple_reverses_when_mirrored():
+    assert flip_pack_kwargs(True, {"padx": (10, 0)}) == {"padx": (0, 10)}
+    assert flip_pack_kwargs(True, {"padx": (0, 8)}) == {"padx": (8, 0)}
+
+
+def test_pack_asymmetric_ipadx_tuple_reverses_when_mirrored():
+    assert flip_pack_kwargs(True, {"ipadx": (4, 2)}) == {"ipadx": (2, 4)}
+
+
+def test_pack_symmetric_padx_number_is_unchanged_when_mirrored():
+    assert flip_pack_kwargs(True, {"padx": 6}) == {"padx": 6}
+
+
+def test_pack_padx_tuple_unchanged_when_not_mirrored():
+    assert flip_pack_kwargs(False, {"padx": (10, 0)}) == {"padx": (10, 0)}
+
+
 def test_place_relx_mirrors_around_the_center_when_mirrored():
     assert flip_place_kwargs(True, {"relx": 0.18}) == {"relx": 0.82}
 

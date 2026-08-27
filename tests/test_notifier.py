@@ -37,8 +37,15 @@ def test_era_falls_back_for_an_unrecognised_rider_name():
     assert make_notifier("Not A Real Rider")._sound_key() == RIDER_THEMES[DEFAULT_RIDER_THEME].era
 
 
+# "ExAid" isn't a real Kamen Rider era (Ex-Aid's own era is Heisei) --
+# it's the synthetic key _sound_key() returns when Ex-Aid's chiptune
+# gimmick is active, so every sound table needs an entry for it too,
+# alongside the three real eras.
+_ALL_SOUND_KEYS = ("Showa", "Heisei", "Reiwa", "ExAid")
+
+
 def test_every_era_has_windows_tones():
-    for era in ("Showa", "Heisei", "Reiwa"):
+    for era in _ALL_SOUND_KEYS:
         assert era in _WINDOWS_CHIME_TONES
         assert era in _WINDOWS_ALERT_TONES
         assert _WINDOWS_CHIME_TONES[era]     # non-empty list of (freq, ms) tones
@@ -46,13 +53,13 @@ def test_every_era_has_windows_tones():
 
 
 def test_every_era_has_mac_sounds():
-    for era in ("Showa", "Heisei", "Reiwa"):
+    for era in _ALL_SOUND_KEYS:
         assert era in _MAC_CHIME_SOUND
         assert era in _MAC_ALERT_SOUND
 
 
 def test_every_era_has_linux_sound_candidates():
-    for era in ("Showa", "Heisei", "Reiwa"):
+    for era in _ALL_SOUND_KEYS:
         assert era in _LINUX_CHIME_CANDIDATES
         assert era in _LINUX_ALERT_CANDIDATES
         assert _LINUX_CHIME_CANDIDATES[era]
@@ -61,10 +68,10 @@ def test_every_era_has_linux_sound_candidates():
 
 def test_eras_sound_different_from_each_other():
     """The whole point is that they're not all the same beep pattern."""
-    assert len({tuple(_WINDOWS_CHIME_TONES[e]) for e in ("Showa", "Heisei", "Reiwa")}) == 3
-    assert len({tuple(_WINDOWS_ALERT_TONES[e]) for e in ("Showa", "Heisei", "Reiwa")}) == 3
-    assert len({_MAC_CHIME_SOUND[e] for e in ("Showa", "Heisei", "Reiwa")}) == 3
-    assert len({_MAC_ALERT_SOUND[e] for e in ("Showa", "Heisei", "Reiwa")}) == 3
+    assert len({tuple(_WINDOWS_CHIME_TONES[e]) for e in _ALL_SOUND_KEYS}) == 4
+    assert len({tuple(_WINDOWS_ALERT_TONES[e]) for e in _ALL_SOUND_KEYS}) == 4
+    assert len({_MAC_CHIME_SOUND[e] for e in _ALL_SOUND_KEYS}) == 4
+    assert len({_MAC_ALERT_SOUND[e] for e in _ALL_SOUND_KEYS}) == 4
 
 
 def test_default_era_is_heisei():

@@ -1,5 +1,5 @@
 from lock_in.config import Config
-from lock_in.session import DEFAULT_TERMINOLOGY, Phase, label_for, PomodoroSession
+from lock_in.session import DEFAULT_TERMINOLOGY, Event, Phase, label_for, PomodoroSession
 
 
 def test_phase_labels_are_serious_tokusatsu_tone():
@@ -59,6 +59,10 @@ def test_blackrx_manual_breaks_prevents_auto_starting_the_next_break():
     # Drive the clock to the exact end time - this tick triggers _advance()
     clock_value[0] = 60.0
     events = session.tick()
+
+    # _advance() always reports the focus block ending, then the break
+    # being entered -- regardless of whether that break auto-starts.
+    assert events == [Event.PHASE_ENDED, Event.PHASE_STARTED]
 
     # At this point, we should have entered the break phase without auto-starting
     assert session.phase == Phase.SHORT_BREAK

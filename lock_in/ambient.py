@@ -29,6 +29,7 @@ import sys
 import threading
 from pathlib import Path
 
+from .notifier import _HAS_APLAY, _HAS_PAPLAY
 from .rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES
 
 IS_WINDOWS = sys.platform == "win32"
@@ -62,6 +63,13 @@ class AmbientPlayer:
             return
         if not self.config.effective_sound_enabled():
             return
+        # Without this guard, calling start_if_applicable() a second time
+        # without an intervening stop() would spawn a second loop thread,
+        # and un-signal a stop a prior thread might still be winding down
+        # from. Windows isn't affected -- winsound.PlaySound replaces
+        # whatever's playing in place instead of layering a new one.
+        if self._loop_thread is not None and self._loop_thread.is_alive():
+            return
         self._play_loop()
 
     def stop(self) -> None:
@@ -78,7 +86,14 @@ class AmbientPlayer:
                     _winsound.SND_FILENAME | _winsound.SND_LOOP | _winsound.SND_ASYNC,
                 )
                 return
-            player = "afplay" if IS_MACOS else "paplay"
+            if IS_MACOS:
+                player = "afplay"
+            elif _HAS_PAPLAY:
+                player = "paplay"
+            elif _HAS_APLAY:
+                player = "aplay"
+            else:
+                return
             self._stop_event.clear()
             self._loop_thread = threading.Thread(
                 target=self._repeat_subprocess, args=(player,), daemon=True,
