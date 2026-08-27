@@ -1027,6 +1027,7 @@ class LockInApp(ctk.CTk):
             ("Agito", "the progress bar's color starts dim and slowly wakes up brighter."),
             ("Black", "dark mode text gets extra bold and easy to read."),
             ("Drive", "the progress bar starts slow, then speeds up and catches up near the end."),
+            ("Saber", "the progress bar becomes a bookmark ribbon that fills in as you go."),
         ]:
             bullet(f"{name} — {what}")
 
