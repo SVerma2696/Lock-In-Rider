@@ -392,7 +392,7 @@ class LockInApp(ctk.CTk):
         # mirror-flip, hidden-timer, dashboard-cards, ghost-widget, and
         # hotkey code later in this file.
         self.current_tier4_effect = theme.tier4_effect
-        if self.current_tier4_effect == "pixel_font":
+        if self.current_tier4_effect == "chiptune_alert":
             self._active_display_font = load_pixel_font()
         else:
             self._active_display_font = DISPLAY_FONT
