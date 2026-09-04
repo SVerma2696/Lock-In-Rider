@@ -198,6 +198,12 @@ def build_task_picker_entries(open_tasks: List[Task]) -> "tuple[List[str], dict]
     counter suffix appended to its displayed label -- the id mapping is
     otherwise untouched, and TaskStore itself is never involved.
 
+    That generated suffix can itself collide with a DIFFERENT open task's
+    literal name (nothing stops you naming a task "Reading (1)" by hand
+    alongside two tasks both called "Reading"), so every label is checked
+    against the ones already handed out and the counter keeps climbing
+    until it lands on one nobody is using.
+
     Kept free of Tk (like flip_pack_kwargs et al. above) so it can be
     unit tested directly without a live LockInApp/Tk instance."""
     name_counts: dict = {}
@@ -210,9 +216,18 @@ def build_task_picker_entries(open_tasks: List[Task]) -> "tuple[List[str], dict]
     for t in open_tasks:
         if name_counts[t.name] > 1:
             seen_so_far[t.name] = seen_so_far.get(t.name, 0) + 1
-            label = f"{t.name} ({seen_so_far[t.name]})"
+            counter = seen_so_far[t.name]
+            label = f"{t.name} ({counter})"
         else:
+            counter = 0
             label = t.name
+        # Whether the label came out of the suffix branch or is a plain
+        # name, it only goes in the map once it's provably unused --
+        # otherwise the later task would silently overwrite the earlier
+        # one's entry and the dropdown would resolve to the wrong id.
+        while label in task_menu_ids:
+            counter += 1
+            label = f"{t.name} ({counter})"
         task_menu_ids[label] = t.id
         values.append(label)
     return values, task_menu_ids
@@ -797,10 +812,18 @@ class LockInApp(ctk.CTk):
         )
         self._mpack(self.driver_label, pady=(2, 0))
 
-        task_row = ctk.CTkFrame(self.normal_header_content, fg_color="transparent")
-        self._mpack(task_row, pady=(6, 0))
+        # Deliberately a child of `header`, NOT of normal_header_content:
+        # Zero-One's dashboard-card reskin swaps normal_header_content out
+        # wholesale, and the current-task picker is real functionality, not
+        # part of the centered-timer arrangement the cards replace. Keeping
+        # it one level up means it survives that swap. (Amazon's zero-UI is
+        # the one deliberate exception -- see _sync_zero_ui_visibility,
+        # which hides this row along with everything else on purpose.)
+        # Packed just below normal_header_content and just above the
+        # progress bar, exactly where it used to sit inside it.
+        self.task_row = ctk.CTkFrame(header, fg_color="transparent")
         self.current_task_menu = ctk.CTkOptionMenu(
-            task_row, values=["No task"], width=220,
+            self.task_row, values=["No task"], width=220,
             command=self._on_current_task_selected,
         )
         self._mpack(self.current_task_menu, side="left")
@@ -823,11 +846,14 @@ class LockInApp(ctk.CTk):
 
         self.controls = ctk.CTkFrame(header, fg_color="transparent")
         self._mpack(self.controls)
-        # normal_header_content was created earlier in this method (before
-        # the progress bar), but wasn't packed yet until now -- pack() needs
-        # self.controls to already be managed for `before=` to place it
-        # correctly, right where it visually belongs: above the progress bar.
-        self._mpack(self.normal_header_content, before=self.progress)
+        # normal_header_content and task_row were created earlier in this
+        # method (before the progress bar), but weren't packed yet until
+        # now -- pack() needs self.controls to already be managed for
+        # `before=` to place them correctly, right where they visually
+        # belong: above the progress bar. task_row goes in first so the
+        # final stack reads content, picker, progress, controls.
+        self._mpack(self.task_row, pady=(6, 0), before=self.progress)
+        self._mpack(self.normal_header_content, before=self.task_row)
 
         # Zero-One's dashboard-card reskin -- same values as
         # normal_header_content, just arranged as bordered cards.
@@ -1924,17 +1950,34 @@ class LockInApp(ctk.CTk):
         else:
             elapsed = self._focus_block_planned_seconds - self.session.remaining_seconds
             duration = max(0, elapsed)
-        self.history.record(SessionRecord(
-            start=self._focus_block_start.isoformat(timespec="seconds"),
-            end=now.isoformat(timespec="seconds"),
-            duration_seconds=duration,
-            task_id=self.current_task_id,
-            completed=completed,
-        ))
+            if duration == 0:
+                # Entering FOCUS and then immediately skipping/resetting
+                # it without ever pressing Start isn't a session you
+                # worked -- nothing counted down. Logging it would put a
+                # junk zero-second row into the aggregates every
+                # history-reading feature downstream starts from. Still
+                # clear the snapshot so the next FOCUS entry starts clean.
+                self._focus_block_start = None
+                return
+        try:
+            self.history.record(SessionRecord(
+                start=self._focus_block_start.isoformat(timespec="seconds"),
+                end=now.isoformat(timespec="seconds"),
+                duration_seconds=duration,
+                task_id=self.current_task_id,
+                completed=completed,
+            ))
+        except OSError:
+            # A disk failure (full disk, permissions, AV lock, cloud-sync
+            # conflict) must never propagate out of here: callers run
+            # this immediately before critical cleanup (monitor/ambient/
+            # camera teardown, session.reset()/skip()), and a raise would
+            # leave the app stranded mid-transition. Only OSError is
+            # swallowed -- a genuine bug still surfaces normally.
+            pass
         self._focus_block_start = None
 
     def _on_phase_ended(self) -> None:
-        self._log_focus_block_if_any(completed=True)
         self.monitor.pause()
         self.ambient.stop()
         self.camera_watcher.pause()
@@ -1947,8 +1990,14 @@ class LockInApp(ctk.CTk):
             self.config_obj.zero_grace_mode = False
         # Saving right when a phase ends is a natural, safe checkpoint — if
         # the app were to crash, you'd only lose at most one block's worth
-        # of training data, never more.
+        # of training data, never more. Writing history here too (rather
+        # than as the first line of this method) keeps every disk write in
+        # this method at the END, after the monitor/ambient/camera/lockdown
+        # teardown above has already run -- so a failing write can never
+        # strand the app mid-transition. Nothing above touches the two
+        # values this log reads (_focus_block_start / _planned_seconds).
         self.observations.save()
+        self._log_focus_block_if_any(completed=True)
 
         self._sync_mirror_layout()
         self._sync_mirror_divider()
@@ -1976,8 +2025,27 @@ class LockInApp(ctk.CTk):
         # so we check and update things ourselves here.
         if not was_running and self.session.is_running:
             if self.session.phase is Phase.FOCUS:
+                # `Config.auto_start_focus` defaults to False, so a FOCUS
+                # phase is normally ENTERED (which is when
+                # _on_phase_started() takes its snapshot) and then just
+                # sits paused until you actually press Start -- possibly
+                # minutes later. History buckets by `start`, so re-snapshot
+                # it here, at the real "began working" moment.
+                # Only when nothing has counted down yet: remaining ==
+                # planned means this block has never actually run, so this
+                # is the first Start, not a resume from a mid-block pause
+                # (whose original start time must be preserved).
+                if self.session.remaining_seconds >= self._focus_block_planned_seconds:
+                    self._focus_block_start = datetime.now()
                 if self.current_task_id is not None:
-                    self.tasks.set_status(self.current_task_id, TaskStatus.IN_PROGRESS)
+                    try:
+                        self.tasks.set_status(self.current_task_id, TaskStatus.IN_PROGRESS)
+                    except OSError:
+                        # set_status() writes tasks.json immediately. A disk
+                        # failure there must not stop the monitor/camera
+                        # from being resumed below, which would leave the
+                        # app running a focus block with nothing watching.
+                        pass
                     self._render_tasks()
                 self.monitor.resume()
                 if self.config_obj.camera_monitoring_enabled:
@@ -2720,7 +2788,14 @@ class LockInApp(ctk.CTk):
             self._dashboard_cards_frame.pack_forget()
             self._dashboard_built = False
             if not self.normal_header_content.winfo_manager():
-                self._mpack(self.normal_header_content, before=self.controls)
+                # Anchor on task_row (which stays packed right through the
+                # card swap) so the timer stack lands back ABOVE the
+                # picker and progress bar rather than between them.
+                # task_row is only ever unpacked by Amazon's zero-UI, and
+                # pack(before=) needs a currently-managed sibling, so fall
+                # back to controls in that case -- _sync_zero_ui_visibility
+                # re-stacks everything itself on the way out anyway.
+                self._mpack(self.normal_header_content, before=self._header_stack_anchor())
 
         # The title bar also shows a tiny timer, so it's visible even when
         # this window is hidden behind others.
@@ -2755,6 +2830,13 @@ class LockInApp(ctk.CTk):
             )
             self.progress_shape.configure(image=self._progress_shape_image)
 
+    def _header_stack_anchor(self):
+        """Whichever widget normal_header_content should be packed
+        immediately before. Normally that's the current-task picker row;
+        while Amazon's zero-UI has the picker hidden, the button row --
+        which is never unpacked -- is the only safe target."""
+        return self.task_row if self.task_row.winfo_manager() else self.controls
+
     def _sync_progress_widget_visibility(self) -> None:
         """
         Show whichever ONE of the two progress widgets this Rider
@@ -2787,6 +2869,11 @@ class LockInApp(ctk.CTk):
 
         if active:
             self.normal_header_content.pack_forget()
+            # The current-task picker is a sibling of normal_header_content
+            # now (so Zero-One's card swap can't take it away), so hiding
+            # the normal header means hiding it explicitly too -- Amazon's
+            # gimmick is showing nothing but the draining field.
+            self.task_row.pack_forget()
             self.progress.pack_forget()
             self.progress_shape.pack_forget()
             self._timer_glow_label.place_forget()
@@ -2808,6 +2895,10 @@ class LockInApp(ctk.CTk):
                 # them in the right order: content, then progress, then
                 # controls.
                 self._mpack(self.normal_header_content, before=self.controls)
+                # Packed after normal_header_content and before the
+                # progress widget below, which rebuilds the usual stack:
+                # content, picker, progress, controls.
+                self._mpack(self.task_row, pady=(6, 0), before=self.controls)
                 self._mplace(self._timer_glow_label, relx=0.5, rely=0.33, anchor="center")
                 self._mpack(self.tabs, fill="both", expand=True, padx=20, pady=(0, 16), after=self._divider_label)
                 self._sync_progress_widget_visibility()

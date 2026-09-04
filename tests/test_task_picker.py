@@ -73,6 +73,26 @@ def test_duplicate_names_do_not_disambiguate_an_unrelated_third_name(store):
     assert task_menu_ids["Emails"] == t3.id
 
 
+def test_generated_suffix_does_not_collide_with_a_literal_task_name(store):
+    """Regression test: the auto-generated "(1)" suffix can land on a
+    label another open task already owns literally -- nothing stops you
+    naming a task "Reading (1)" by hand next to two called "Reading".
+    Before this fix the later one silently overwrote the earlier one in
+    the label -> id map, so one dropdown entry resolved to the wrong
+    task id (and the other task was unreachable)."""
+    t1 = store.add("Reading")
+    t2 = store.add("Reading")
+    t3 = store.add("Reading (1)")
+
+    values, task_menu_ids = build_task_picker_entries(store.open())
+
+    # Every dropdown entry is distinct...
+    assert len(set(values)) == len(values)
+    # ...and all three tasks are still reachable, each by its own label.
+    assert len(task_menu_ids) == 3
+    assert set(task_menu_ids.values()) == {t1.id, t2.id, t3.id}
+
+
 def test_a_completed_task_is_excluded_and_does_not_affect_disambiguation(store):
     """open() already excludes done tasks (Task 1's contract) -- confirm
     a completed same-named task drops out of the picker entirely rather
