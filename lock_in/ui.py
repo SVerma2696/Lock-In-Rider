@@ -41,8 +41,10 @@ from PIL import ImageOps, ImageTk
 
 from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 from .claude_fallback import ClaudeFallback
-from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, app_data_dir
+from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, LOG_PATH, app_data_dir
 from .observations import ObservationStore
+from .tasks import TaskStatus, TaskStore
+from .history import HistoryStore, SessionRecord
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
 from .ambient import AmbientPlayer
@@ -208,6 +210,13 @@ class LockInApp(ctk.CTk):
         self._kabuto_revealed = False
         self.model = NaiveBayesClassifier.load(MODEL_PATH)
         self.observations = ObservationStore(OBSERVATIONS_PATH)
+        self.tasks = TaskStore(TASKS_PATH)
+        self.history = HistoryStore(LOG_PATH)
+        # The task selected in the Home header's "current task" picker --
+        # None means an untagged block, exactly like today's behavior
+        # with no task system at all. Never saved to config.json; it's
+        # meant to change often and doesn't need to survive a restart.
+        self.current_task_id: Optional[str] = None
         self.claude = ClaudeFallback(self.config_obj)
         self.enforcer = Enforcer(self.config_obj)
         self.camera_enforcer = CameraEnforcer(self.config_obj)
