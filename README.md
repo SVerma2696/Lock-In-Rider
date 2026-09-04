@@ -1,14 +1,30 @@
 # Lock In 🎭⏱️
 
-A Pomodoro timer that notices when you've drifted onto Discord and does
-something about it — Henshin into a focus block, and Lock In makes
-leaving it a deliberate decision, not an absent-minded one. It's also a
-from-scratch Naive Bayes classifier, a 38-way runtime theming engine, and
-a cross-platform desktop app, built to learn all three.
+**In one sentence:** Lock In is a work timer that notices when you drift
+off to Discord or YouTube during a focus block, and gently — then not so
+gently — nudges you back to work.
+
+You pick how long you want to focus for, hit Start, and get to work. If
+you open something distracting, Lock In notices and says something about
+it. Ignore it for too long and it gets louder, then it minimizes the
+distracting window for you, then (if you've turned on "hard mode") it
+covers your whole screen until you get back to work. It's built so
+leaving a focus block is always something you *decide* to do, not
+something that just quietly happens.
+
+Under the hood it's also a hand-built "is this study or is this a
+distraction" learning system (no external AI library, so you can read
+every line of how it decides), a 38-theme costume-changer for the app's
+whole look, and a program that works the same way on Windows, Mac, and
+Linux — three things the author built this project to learn by doing.
 
 ---
 
 ## 📂 Project Structure
+
+Just want to use the app? You don't need to read this part — skip ahead
+to [Releases](#-releases) to download it. This map is for anyone curious
+about how the code is organized, file by file.
 
 ```
 Lock In/
@@ -82,38 +98,39 @@ writes correctly even if its own install folder is read-only.
 
 ## ⚙️ Features
 
-* Runs a configurable **Pomodoro cycle** (focus / short break / long
-  break) with pause, skip, and a streak counter.
-* **Blocks distracting apps during focus** using an allow list, a block
-  list, and an escalating enforcement ladder — toast, then toast+sound,
-  then window minimize, then a full-screen lockdown — switchable between
-  a gentle "soft mode" and an immediate "hard mode".
-* Learns your habits with a **from-scratch Naive Bayes classifier**
-  trained on window titles and process names, correctable in one click
-  from the Activity tab, with instant online updates and zero external
-  ML dependencies.
-* Switches between **38 Kamen Rider color themes** (Showa / Heisei /
-  Reiwa era), each pulling its accent colors from that Rider's real suit
-  colors and re-tinting the header, every tab panel, the progress bar,
-  and a themed background pattern — not just a couple of small accents.
-  **26 of those Riders go further still** — a custom-shaped progress bar,
-  a color or timing behavior change, sound and display effects, keyboard
-  controls, or a chrome-level effect around the timer, unique to that Rider.
-  These powers are spread across four tiers.
-* A **Standard Mode** switch (Settings tab) strips every Rider's color,
-  art, and gimmick for a plain, fast, distraction-free look — your
-  actual Rider pick is remembered and comes right back the moment you
-  turn it back off.
-* Toggles between **Professional and Tokusatsu wording** app-wide, so
-  the exact same install reads as a plain productivity tool or a fully
-  Kamen-Rider-flavored one, your choice.
-* Optional **Claude API fallback** for the rare window the local model
-  can't confidently classify — off by default, and even when on, sends
-  only a window title, never a screenshot or any other context.
-* Fully **cross-platform** (Windows / macOS / Linux), with
-  platform-appropriate window detection, minimizing, notifications, and
-  sounds, and graceful feature-detection fallbacks anywhere a capability
-  isn't available.
+* **A timer that works in cycles** — focus for a while, then a short
+  break, then eventually a longer break. You can pause, skip, and it
+  keeps count of your streak.
+* **Notices distracting apps and does something about it.** You tell it
+  what's always allowed and what's always blocked, and it also learns on
+  its own over time. First it's just a gentle notification. Keep
+  ignoring it and it gets louder, then it minimizes the window for you,
+  then — if you've turned on "hard mode" — it covers your whole screen
+  until you're back on track.
+* **Learns your habits.** It watches which windows you open while
+  focusing and slowly learns what counts as "working" for *you*
+  specifically, not some generic list. You can correct it with one click
+  any time it gets something wrong, and it learns from that instantly.
+  No outside AI service is needed for this part — it's small enough to
+  read and understand the whole thing yourself.
+* **38 Kamen Rider costume changes.** Pick a Rider from the classic TV
+  show and the whole app repaints itself in that Rider's colors — not
+  just an accent color, but the header, every tab, the progress bar, and
+  the background. **26 of those Riders unlock an extra surprise on top**
+  — a differently-shaped progress bar, a special sound, a screen effect,
+  or a new keyboard shortcut, unique to that Rider.
+* **A plain, no-costume mode** if you'd rather skip all of that — one
+  switch turns every color and effect off for a fast, simple look, and
+  turning it back off brings your Rider pick right back.
+* **Two ways of talking to you** — plain, ordinary words, or the
+  Kamen-Rider-flavored version — pick whichever one you like, any time.
+* **An optional second opinion from Claude** (Anthropic's AI) for the
+  rare case its own model genuinely can't decide. Off unless you turn it
+  on, and even then it only ever sees a window's title — never a
+  screenshot or anything else about what you're doing.
+* **Works the same way on Windows, Mac, and Linux** — it detects your
+  windows, minimizes them, and plays sounds a little differently on each
+  one under the hood, so it just works wherever you run it.
 
 ---
 
@@ -225,6 +242,13 @@ windows — but it's worth checking directly if you're not sure.
 
 ## 🔌 System Integrations (Data Flow)
 
+This section is for developers who want to see exactly how the pieces
+talk to each other. In plain words: the app watches what window is in
+front, asks "should this be allowed?", and if the answer is no, it warns
+you and eventually acts. Separately, everything it sees gets saved so
+the model can learn from it later. The diagrams below spell out exactly
+which file does which step.
+
 ### Enforcement loop
 ```
 Foreground window (title + process) -> judge() [lock_in/enforcer.py] -> Verdict
@@ -253,28 +277,35 @@ test that pins this down.
 
 ## 📘 Concepts Demonstrated
 
-* **From-scratch Naive Bayes classification** — Laplace smoothing,
-  log-space scoring to avoid float underflow, and a per-token
-  `explain()` method, with no ML framework dependency at all.
-* **Thread-safe GUI architecture** — a daemon polling thread that only
-  ever does `queue.put()`; all judging, enforcement, and widget updates
-  happen on the Tk main thread via an `after()` heartbeat.
-* **Cross-platform OS integration** — Win32 (`pywin32`) window
-  detection/minimizing, macOS AppleScript automation, Linux
-  `xdotool`/X11 — each with honest, tested fallback behavior when a
-  capability isn't available, rather than a silent no-op.
-* **Runtime-generated UI art** — glow, background patterns, divider
-  strips, and app-icon padding are all rendered on the fly with Pillow,
-  not shipped as static image assets.
-* **A composable theming system** — 38 palettes × 2 wording voices × 3
-  tokusatsu eras, built from a handful of small color-math primitives
-  (`lighten`, `darken`, perceptual-brightness-based text-color
-  selection) instead of hand-picked per combination.
-* **Test-driven development throughout** — the pure-logic modules
-  (`session.py`, `enforcer.py`, `classifier.py`, `rider_themes.py`) are
-  fully unit-tested with no display server; GUI changes are verified by
-  programmatically driving the real CustomTkinter app and inspecting
-  rendered screenshots.
+This section is a quick tour of the interesting engineering ideas inside
+the app, for anyone reading the code rather than just using it:
+
+* **A "study or distraction" guesser built completely from scratch** —
+  no AI library, just counting words and doing the math by hand
+  (Naive Bayes with Laplace smoothing), plus a way to ask it *why* it
+  guessed what it guessed, one word at a time.
+* **A window that never freezes.** The part that watches for your
+  active window runs on its own background thread and does one simple
+  job; the part that decides things and updates what you see always
+  happens on the main thread, on a steady heartbeat — so the two never
+  step on each other.
+* **The same features, three different operating systems.** Windows,
+  macOS, and Linux each need their own way to find the active window,
+  minimize it, and play a sound — and if a machine is missing what it
+  needs for one of those, the app says so honestly instead of silently
+  doing nothing.
+* **All the art is drawn, not shipped as pictures.** The glow, the
+  background patterns, the little divider lines, even the padding around
+  the app icon — all of it is generated by code every time, using a
+  drawing library called Pillow.
+* **One small color toolkit powers 38 themes.** Instead of hand-picking
+  colors for every Rider/voice/era combination one by one, a handful of
+  tiny color-math building blocks (lighten this, darken that, pick
+  readable text automatically) combine to produce all of them.
+* **Tests written alongside the code, not after.** The parts with no
+  on-screen window are fully covered by fast, automatic tests. The
+  visual parts are checked by actually running the real app and looking
+  at what it draws.
 
 ---
 
@@ -371,8 +402,16 @@ time it misfires during something that mattered.
 
 ## The model
 
-`classifier.py` is a multinomial Naive Bayes classifier over the active window
-title plus process name, with Laplace smoothing.
+**In plain words:** imagine you'd read the titles of a hundred windows
+someone had open, half while they were studying and half while they were
+goofing off. Pretty quickly you'd notice patterns — "lecture," "pdf," and
+"docs" show up a lot in the studying pile; "chat," "stream," and "clip"
+show up a lot in the other one. That's basically all this does: it
+counts which words show up in which pile, and uses those counts to guess
+about a brand new window it's never seen before. `classifier.py` is that
+idea written out in code (technically: a multinomial Naive Bayes
+classifier over the active window title plus process name, with Laplace
+smoothing so a word it's never seen doesn't break the math).
 
 **Why titles instead of screenshots.** The original idea was to train a vision
 model on screen captures. Titles win on all three axes that matter:
@@ -422,6 +461,9 @@ quietly falls back to professional rather than crashing.
 ---
 
 ## Kamen Rider theme
+
+**In plain words:** pick a superhero, and the whole app changes color to
+match their costume — not just a small accent, the *whole thing*.
 
 Settings → "Kamen Rider theme" (called "Color theme" when Wording is set
 to Professional) picks from all 38 Rider series (Showa, Heisei, and Reiwa
@@ -736,6 +778,11 @@ real load — they're exact matches and need no training at all.
 
 ## Claude fallback (optional, off by default)
 
+**In plain words:** for the rare window the built-in guesser truly can't
+decide about, you can (optionally) let it ask Claude, an AI from
+Anthropic, for a second opinion — sending nothing but the window's
+title, never a picture of your screen.
+
 A fourth tier, behind everything else:
 
 ```
@@ -806,14 +853,23 @@ accidentally widen it.
 
 ### Why it's split this way
 
-The five "pure logic" modules import nothing outside the standard library. No
-tkinter, no Win32, no network. That's what makes the unit test suite (run
-`pytest` to see the current count) run in a fraction of a second with no
-display server — and it means the escalation policy, the model,
-and the state machine can all be reasoned about without booting a GUI.
-`claude_fallback.py` sits just outside that boundary — it needs the `anthropic`
-package and, when enabled, the network — but its own tests never make a real
-call; a fake client swapped into `_client` exercises every branch offline.
+**In plain words:** the "thinking" parts of the app (should this be
+blocked? how much time is left? was that a distraction?) are kept
+completely separate from the "doing" parts (showing a window, playing a
+sound, talking to Windows/Mac/Linux). That way the thinking parts can be
+tested in a fraction of a second without ever opening a window, and
+nothing about *what decision gets made* depends on *which computer it's
+running on*.
+
+More precisely: the five "pure logic" modules import nothing outside the
+standard library. No tkinter, no Win32, no network. That's what makes the
+unit test suite (run `pytest` to see the current count) run in a fraction
+of a second with no display server — and it means the escalation policy,
+the model, and the state machine can all be reasoned about without
+booting a GUI. `claude_fallback.py` sits just outside that boundary — it
+needs the `anthropic` package and, when enabled, the network — but its
+own tests never make a real call; a fake client swapped into `_client`
+exercises every branch offline.
 
 Everything platform-specific is pushed into `monitor.py`, `notifier.py`, and
 `ui.py`, which are deliberately thin: they perform actions and marshal data, but
