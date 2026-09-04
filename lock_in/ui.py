@@ -184,6 +184,40 @@ def flip_grid_kwargs(mirrored: bool, total_columns: int, kwargs: dict) -> dict:
     return result
 
 
+def build_task_picker_entries(open_tasks: List[Task]) -> "tuple[List[str], dict]":
+    """Turns a list of open tasks into (dropdown values, label -> id map)
+    for the current-task picker.
+
+    `TaskStore.add()` has no uniqueness check on `name`, so two open
+    tasks can legitimately share the same display name (e.g. "Reading"
+    typed twice for two different sessions). A dict keyed by name alone
+    would silently collapse those into whichever one was inserted last,
+    so picking either one from the dropdown would resolve to the wrong
+    task id. To keep the label -> id lookup unambiguous, a name that
+    collides among the currently-open tasks gets a "(2)", "(3)", ...
+    counter suffix appended to its displayed label -- the id mapping is
+    otherwise untouched, and TaskStore itself is never involved.
+
+    Kept free of Tk (like flip_pack_kwargs et al. above) so it can be
+    unit tested directly without a live LockInApp/Tk instance."""
+    name_counts: dict = {}
+    for t in open_tasks:
+        name_counts[t.name] = name_counts.get(t.name, 0) + 1
+
+    seen_so_far: dict = {}
+    task_menu_ids: dict = {}
+    values = ["No task"]
+    for t in open_tasks:
+        if name_counts[t.name] > 1:
+            seen_so_far[t.name] = seen_so_far.get(t.name, 0) + 1
+            label = f"{t.name} ({seen_so_far[t.name]})"
+        else:
+            label = t.name
+        task_menu_ids[label] = t.id
+        values.append(label)
+    return values, task_menu_ids
+
+
 class LockInApp(ctk.CTk):
     """The main app window — everything you see lives inside this."""
 
@@ -844,10 +878,13 @@ class LockInApp(ctk.CTk):
     def _refresh_current_task_picker(self) -> None:
         """Rebuilds the dropdown's options from the current open-task
         list. Called after any add/complete in the Tasks tab (Task 4),
-        so a newly-added task shows up here without restarting the app."""
+        so a newly-added task shows up here without restarting the app.
+        Label -> id mapping (including collision-safe disambiguation
+        when two open tasks share a name) is delegated to
+        build_task_picker_entries() so that logic stays unit-testable
+        without a live Tk instance."""
         open_tasks = self.tasks.open()
-        self._task_menu_ids = {t.name: t.id for t in open_tasks}
-        values = ["No task"] + [t.name for t in open_tasks]
+        values, self._task_menu_ids = build_task_picker_entries(open_tasks)
         self.current_task_menu.configure(values=values)
 
         if self.current_task_id not in {t.id for t in open_tasks}:
