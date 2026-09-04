@@ -60,6 +60,7 @@ CONFIG_PATH = app_data_dir() / "config.json"
 MODEL_PATH = app_data_dir() / "model.json"
 LOG_PATH = app_data_dir() / "sessions.jsonl"
 OBSERVATIONS_PATH = app_data_dir() / "observations.jsonl"
+TASKS_PATH = app_data_dir() / "tasks.json"
 
 
 # --------------------------------------------------------------------------- #
