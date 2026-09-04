@@ -59,36 +59,6 @@ def check_dependencies() -> list[str]:
     return warnings
 
 
-def _set_dpi_awareness_on_windows() -> None:
-    """
-    Tell Windows this app draws its own pixels correctly at any monitor's
-    zoom level, instead of asking Windows to stretch a cached bitmap of
-    the window for it.
-
-    Without this, dragging the window to a monitor with a different
-    display-scaling percentage (or resizing across that boundary) can
-    leave the window visually corrupted -- parts of whatever's behind it
-    show through, because Windows is scaling an old snapshot instead of
-    letting the app repaint itself. This has to run before any window is
-    created to take effect, so it's the very first thing main() does.
-    """
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        # PROCESS_PER_MONITOR_DPI_AWARE -- correct on every monitor at
-        # once, not just whichever one the app happened to start on.
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:
-        try:
-            # Windows 7 and earlier don't ship shcore.dll at all -- this
-            # older, coarser API (Vista+) is still far better than
-            # nothing, even though it can't track a per-monitor change.
-            ctypes.windll.user32.SetProcessDPIAware()
-        except Exception:
-            pass
-
-
 def _detach_from_python_exe_on_windows() -> None:
     """
     Tell Windows this is its own app, not just "python.exe running a script".
@@ -110,7 +80,6 @@ def _detach_from_python_exe_on_windows() -> None:
 
 
 def main() -> None:
-    _set_dpi_awareness_on_windows()
     _detach_from_python_exe_on_windows()
 
     for warning in check_dependencies():
