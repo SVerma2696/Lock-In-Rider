@@ -99,7 +99,20 @@ class TaskStore:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return
-        for item in raw.get("tasks", []):
+        # Valid JSON of the wrong SHAPE is just as broken as invalid JSON,
+        # and it used to be worse: a root of `[]` or `5` made raw.get()
+        # raise AttributeError straight out of LockInApp.__init__, so the
+        # app wouldn't open at all. Same for a `null` or `"hello"` sitting
+        # in the tasks list. "A missing or broken file just means 'start
+        # empty'" has to mean this too.
+        if not isinstance(raw, dict):
+            return
+        entries = raw.get("tasks", [])
+        if not isinstance(entries, list):
+            return
+        for item in entries:
+            if not isinstance(item, dict):
+                continue
             try:
                 # Build subtasks defensively, skipping any malformed entries.
                 subtasks = []

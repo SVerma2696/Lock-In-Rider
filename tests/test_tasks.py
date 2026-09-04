@@ -174,6 +174,66 @@ def test_malformed_subtask_entry_is_skipped_and_task_is_kept(tmp_path):
     assert tasks[1].subtasks[0].text == "Good subtask"
 
 
+@pytest.mark.parametrize("root", ["[]", "5", '"hello"', "null", "true"])
+def test_non_dict_root_starts_fresh_instead_of_crashing(tmp_path, root):
+    """Regression test: valid JSON of the wrong SHAPE used to raise an
+    uncaught AttributeError out of load() (raw.get() on a list/int),
+    which crashed LockInApp.__init__ -- the app simply wouldn't open.
+    The module's promise is 'a missing or broken file just means start
+    empty', so a non-dict root has to land there too."""
+    path = tmp_path / "tasks.json"
+    path.write_text(root, encoding="utf-8")
+    store = TaskStore(path)  # must not raise
+    assert store.all() == []
+
+
+def test_non_dict_task_entry_is_skipped_and_valid_tasks_are_kept(tmp_path):
+    """Regression test: a null/string/number sitting in the tasks list
+    used to raise AttributeError from item.get(), losing every other
+    task with it (and crashing startup). The junk entries are skipped;
+    the real tasks around them survive."""
+    import json
+
+    path = tmp_path / "tasks.json"
+    payload = {
+        "tasks": [
+            None,
+            {
+                "id": "task1",
+                "name": "Valid task",
+                "subtasks": [],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+            },
+            "hello",
+            42,
+            {
+                "id": "task2",
+                "name": "Second valid task",
+                "subtasks": [],
+                "status": "in_progress",
+                "created_at": "2024-01-01T11:00:00",
+                "completed_at": None,
+            },
+        ]
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    store = TaskStore(path)  # must not raise
+    tasks = store.all()
+    assert [t.name for t in tasks] == ["Valid task", "Second valid task"]
+    assert tasks[1].status == TaskStatus.IN_PROGRESS
+
+
+def test_non_list_tasks_value_starts_fresh_instead_of_crashing(tmp_path):
+    """Same family: {"tasks": 5} would blow up iterating an int."""
+    path = tmp_path / "tasks.json"
+    path.write_text('{"tasks": 5}', encoding="utf-8")
+    store = TaskStore(path)  # must not raise
+    assert store.all() == []
+
+
 def test_starting_a_focus_block_on_a_task_flips_it_to_in_progress(store):
     """Mirrors what ui.py's _on_toggle does: set_status(..., IN_PROGRESS)
     is called when a task is picked and Start is pressed. This test
