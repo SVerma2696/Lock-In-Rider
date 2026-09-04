@@ -126,3 +126,49 @@ def test_corrupted_file_starts_fresh(tmp_path):
 def test_missing_file_starts_empty(tmp_path):
     store = TaskStore(tmp_path / "does_not_exist.json")
     assert store.all() == []
+
+
+def test_malformed_subtask_entry_is_skipped_and_task_is_kept(tmp_path):
+    """Regression test: a malformed subtask entry should not crash load()
+    or cause the parent task to be lost. The malformed subtask is skipped,
+    but the task itself and its valid subtasks are preserved."""
+    import json
+
+    path = tmp_path / "tasks.json"
+    # Write a valid task plus one task with a malformed subtask (missing "text").
+    payload = {
+        "tasks": [
+            {
+                "id": "task1",
+                "name": "Valid task",
+                "subtasks": [{"id": "sub1", "text": "Good subtask", "done": False}],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+            },
+            {
+                "id": "task2",
+                "name": "Task with malformed subtask",
+                "subtasks": [
+                    {"id": "sub2", "text": "Good subtask", "done": False},
+                    {"id": "sub3"},  # Missing "text" -- malformed
+                ],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+            },
+        ]
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    # TaskStore should load successfully without raising,
+    # skipping the malformed subtask but keeping the task.
+    store = TaskStore(path)
+    tasks = store.all()
+    assert len(tasks) == 2
+    assert tasks[0].name == "Valid task"
+    assert len(tasks[0].subtasks) == 1
+    assert tasks[1].name == "Task with malformed subtask"
+    # Only the good subtask is kept; the malformed one is skipped.
+    assert len(tasks[1].subtasks) == 1
+    assert tasks[1].subtasks[0].text == "Good subtask"

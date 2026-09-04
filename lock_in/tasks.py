@@ -101,7 +101,22 @@ class TaskStore:
             return
         for item in raw.get("tasks", []):
             try:
-                subtasks = [Subtask(**s) for s in item.get("subtasks", [])]
+                # Build subtasks defensively, skipping any malformed entries.
+                subtasks = []
+                for s in item.get("subtasks", []):
+                    try:
+                        subtask = Subtask(
+                            id=s.get("id", ""),
+                            text=s.get("text", ""),
+                            done=s.get("done", False),
+                        )
+                        # Only add valid subtasks (with non-empty id and text).
+                        if subtask.id and subtask.text:
+                            subtasks.append(subtask)
+                    except (TypeError, AttributeError):
+                        # Skip malformed subtask entries.
+                        continue
+
                 task = Task(
                     id=item["id"],
                     name=item["name"],
@@ -111,7 +126,7 @@ class TaskStore:
                     completed_at=item.get("completed_at"),
                 )
                 self._tasks[task.id] = task
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, TypeError):
                 # One broken entry shouldn't cost you every other task.
                 continue
 
