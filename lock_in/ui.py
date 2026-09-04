@@ -43,7 +43,7 @@ from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 from .claude_fallback import ClaudeFallback
 from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, LOG_PATH, app_data_dir
 from .observations import ObservationStore
-from .tasks import TaskStatus, TaskStore
+from .tasks import Task, TaskStatus, TaskStore
 from .history import HistoryStore, SessionRecord
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
@@ -851,9 +851,10 @@ class LockInApp(ctk.CTk):
         )
         self._mpack(self.tabs, fill="both", expand=True, padx=20, pady=(0, 16))
 
-        for name in ("Blocking", "Activity", "Settings", "Help"):
+        for name in ("Tasks", "Blocking", "Activity", "Settings", "Help"):
             self.tabs.add(name)
 
+        self._build_tasks_tab(self.tabs.tab("Tasks"))
         self._build_blocking_tab(self.tabs.tab("Blocking"))
         self._build_activity_tab(self.tabs.tab("Activity"))
         self._build_settings_tab(self.tabs.tab("Settings"))
@@ -950,6 +951,106 @@ class LockInApp(ctk.CTk):
 
         self._mpack(ctk.CTkButton(frame, text="Save lists",
                       command=self._save_lists), anchor="w", pady=14)
+
+    # ------------------------------------------------------------------ #
+    def _build_tasks_tab(self, parent) -> None:
+        frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        self._mpack(frame, fill="both", expand=True)
+
+        add_row = ctk.CTkFrame(frame, fg_color="transparent")
+        self._mpack(add_row, fill="x", pady=(0, 12))
+        self.new_task_entry = ctk.CTkEntry(add_row, placeholder_text="Add a task...")
+        self._mpack(self.new_task_entry, side="left", fill="x", expand=True, padx=(0, 8))
+        self.new_task_entry.bind("<Return>", lambda e: self._on_add_task())
+        self._mpack(ctk.CTkButton(add_row, text="Add", width=60, command=self._on_add_task), side="left")
+
+        self.tasks_list_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self._mpack(self.tasks_list_frame, fill="both", expand=True)
+
+        self._render_tasks()
+
+    def _on_add_task(self) -> None:
+        name = self.new_task_entry.get().strip()
+        if not name:
+            return
+        self.tasks.add(name)
+        self.new_task_entry.delete(0, "end")
+        self._render_tasks()
+        self._refresh_current_task_picker()
+
+    def _render_tasks(self) -> None:
+        """Redraws the whole task list from scratch -- same pattern
+        _render_activity() already uses for the Activity tab."""
+        for child in self.tasks_list_frame.winfo_children():
+            child.destroy()
+
+        open_tasks = self.tasks.open()
+        done_tasks = self.tasks.done()
+
+        if not open_tasks and not done_tasks:
+            self._mpack(ctk.CTkLabel(self.tasks_list_frame, text="No tasks yet.",
+                         text_color=COLOR_IDLE), anchor="w", pady=20)
+            return
+
+        for task in open_tasks:
+            self._render_one_task(task)
+
+        if done_tasks:
+            self._mpack(ctk.CTkLabel(
+                self.tasks_list_frame, text=f"Done ({len(done_tasks)})",
+                text_color=COLOR_IDLE, font=ctk.CTkFont(size=11, weight="bold"),
+            ), anchor="w", pady=(14, 4))
+            for task in done_tasks:
+                self._render_one_task(task)
+
+    def _render_one_task(self, task: Task) -> None:
+        row = ctk.CTkFrame(self.tasks_list_frame, fg_color="transparent")
+        self._mpack(row, fill="x", pady=4)
+
+        header_row = ctk.CTkFrame(row, fg_color="transparent")
+        self._mpack(header_row, fill="x")
+
+        status_text = {"todo": "○", "in_progress": "◐", "done": "●"}[task.status.value]
+        self._mpack(ctk.CTkLabel(header_row, text=status_text, width=20), side="left")
+        self._mpack(ctk.CTkLabel(header_row, text=task.name, anchor="w"),
+                     side="left", fill="x", expand=True)
+
+        if task.status != TaskStatus.DONE:
+            self._mpack(ctk.CTkButton(
+                header_row, text="Done", width=50, height=24,
+                command=lambda t=task: self._on_complete_task(t.id),
+            ), side="right")
+
+        for subtask in task.subtasks:
+            sub_row = ctk.CTkFrame(row, fg_color="transparent")
+            self._mpack(sub_row, fill="x", padx=(28, 0))
+            var = ctk.BooleanVar(value=subtask.done)
+            self._mpack(ctk.CTkCheckBox(
+                sub_row, text=subtask.text, variable=var,
+                command=lambda t=task, s=subtask: self._on_toggle_subtask(t.id, s.id),
+            ), side="left", anchor="w", pady=2)
+
+        add_sub_row = ctk.CTkFrame(row, fg_color="transparent")
+        self._mpack(add_sub_row, fill="x", padx=(28, 0), pady=(2, 0))
+        entry = ctk.CTkEntry(add_sub_row, placeholder_text="Add a step...", height=26)
+        self._mpack(entry, side="left", fill="x", expand=True)
+        entry.bind("<Return>", lambda e, t=task, ent=entry: self._on_add_subtask(t.id, ent))
+
+    def _on_complete_task(self, task_id: str) -> None:
+        self.tasks.complete(task_id)
+        self._render_tasks()
+        self._refresh_current_task_picker()
+
+    def _on_toggle_subtask(self, task_id: str, subtask_id: str) -> None:
+        self.tasks.toggle_subtask(task_id, subtask_id)
+        self._render_tasks()
+
+    def _on_add_subtask(self, task_id: str, entry) -> None:
+        text = entry.get().strip()
+        if not text:
+            return
+        self.tasks.add_subtask(task_id, text)
+        self._render_tasks()
 
     # ------------------------------------------------------------------ #
     def _build_activity_tab(self, parent) -> None:
