@@ -273,6 +273,7 @@ class LockInApp(ctk.CTk):
         self._build_header()
         self._build_divider()
         self._build_tabs()
+        self._refresh_current_task_picker()
 
         self.bind_all("<space>", self._on_zeztz_space)
         self.bind_all("s", self._on_zeztz_skip)
@@ -754,6 +755,14 @@ class LockInApp(ctk.CTk):
         )
         self._mpack(self.driver_label, pady=(2, 0))
 
+        task_row = ctk.CTkFrame(self.normal_header_content, fg_color="transparent")
+        self._mpack(task_row, pady=(6, 0))
+        self.current_task_menu = ctk.CTkOptionMenu(
+            task_row, values=["No task"], width=220,
+            command=self._on_current_task_selected,
+        )
+        self._mpack(self.current_task_menu, side="left")
+
         self.progress = ctk.CTkProgressBar(header, height=8, corner_radius=4)
         self.progress.set(0)
         self._mpack(self.progress, fill="x", pady=(12, 14))
@@ -831,6 +840,25 @@ class LockInApp(ctk.CTk):
             header, text="", font=ctk.CTkFont(size=11), text_color=COLOR_ENFORCE_ACCENT,
         )
         self._mpack(self.camera_indicator_label, pady=(4, 0))
+
+    def _refresh_current_task_picker(self) -> None:
+        """Rebuilds the dropdown's options from the current open-task
+        list. Called after any add/complete in the Tasks tab (Task 4),
+        so a newly-added task shows up here without restarting the app."""
+        open_tasks = self.tasks.open()
+        self._task_menu_ids = {t.name: t.id for t in open_tasks}
+        values = ["No task"] + [t.name for t in open_tasks]
+        self.current_task_menu.configure(values=values)
+
+        if self.current_task_id not in {t.id for t in open_tasks}:
+            # The selected task was completed or deleted out from under
+            # the picker -- fall back to "No task" rather than pointing
+            # at a task that's no longer open.
+            self.current_task_id = None
+            self.current_task_menu.set("No task")
+
+    def _on_current_task_selected(self, name: str) -> None:
+        self.current_task_id = self._task_menu_ids.get(name)  # None for "No task"
 
     def _build_divider(self) -> None:
         """
@@ -1875,6 +1903,9 @@ class LockInApp(ctk.CTk):
         # so we check and update things ourselves here.
         if not was_running and self.session.is_running:
             if self.session.phase is Phase.FOCUS:
+                if self.current_task_id is not None:
+                    self.tasks.set_status(self.current_task_id, TaskStatus.IN_PROGRESS)
+                    self._render_tasks()
                 self.monitor.resume()
                 if self.config_obj.camera_monitoring_enabled:
                     self.camera_watcher.resume()

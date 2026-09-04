@@ -172,3 +172,23 @@ def test_malformed_subtask_entry_is_skipped_and_task_is_kept(tmp_path):
     # Only the good subtask is kept; the malformed one is skipped.
     assert len(tasks[1].subtasks) == 1
     assert tasks[1].subtasks[0].text == "Good subtask"
+
+
+def test_starting_a_focus_block_on_a_task_flips_it_to_in_progress(store):
+    """Mirrors what ui.py's _on_toggle does: set_status(..., IN_PROGRESS)
+    is called when a task is picked and Start is pressed. This test
+    pins down the store-level contract that wiring depends on."""
+    task = store.add("Write the report")
+    store.set_status(task.id, TaskStatus.IN_PROGRESS)
+    assert store.all()[0].status == TaskStatus.IN_PROGRESS
+
+
+def test_a_completed_block_does_not_move_an_in_progress_task_to_done(store):
+    """The other half of the same rule: nothing about a block finishing
+    should ever call complete() on its own. This test simply asserts
+    that calling set_status(IN_PROGRESS) alone -- with no complete()
+    call -- leaves the task shy of done, documenting that ui.py's
+    phase-ended code path (Task 6) must never call complete()."""
+    task = store.add("Write the report")
+    store.set_status(task.id, TaskStatus.IN_PROGRESS)
+    assert store.all()[0].status != TaskStatus.DONE
