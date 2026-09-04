@@ -251,6 +251,14 @@ class LockInApp(ctk.CTk):
         # with no task system at all. Never saved to config.json; it's
         # meant to change often and doesn't need to survive a restart.
         self.current_task_id: Optional[str] = None
+        # Set the instant a FOCUS phase begins, cleared once it's logged
+        # to history (whether it finished naturally, was skipped, or was
+        # reset). None means "no focus block is currently being timed" --
+        # used to tell a FOCUS phase ending from a BREAK phase ending,
+        # since by the time _on_phase_ended() runs, self.session.phase
+        # has already moved on to whatever comes next.
+        self._focus_block_start: Optional[datetime] = None
+        self._focus_block_planned_seconds: int = 0
         self.claude = ClaudeFallback(self.config_obj)
         self.enforcer = Enforcer(self.config_obj)
         self.camera_enforcer = CameraEnforcer(self.config_obj)
@@ -1845,6 +1853,10 @@ class LockInApp(ctk.CTk):
         self.camera_enforcer.reset()
         phase = self.session.phase
 
+        if phase is Phase.FOCUS:
+            self._focus_block_start = datetime.now()
+            self._focus_block_planned_seconds = self.session.total_seconds
+
         if phase is Phase.FOCUS and self.current_tier3_effect == "stealth_mute":
             # Ninja Stealth: get out of the way the moment focus starts.
             # iconify() is Tkinter's own cross-platform minimize -- no
@@ -1898,7 +1910,31 @@ class LockInApp(ctk.CTk):
         self._sync_mirror_layout()
         self._sync_mirror_divider()
 
+    def _log_focus_block_if_any(self, completed: bool) -> None:
+        """Writes one history entry for the focus block currently being
+        timed, if there is one -- called from _on_phase_ended (natural
+        completion), _on_skip, and _on_reset (both cut it short).
+        A no-op when no focus block is in progress (e.g. a break just
+        ended, or Reset was pressed while idle)."""
+        if self._focus_block_start is None:
+            return
+        now = datetime.now()
+        if completed:
+            duration = self._focus_block_planned_seconds
+        else:
+            elapsed = self._focus_block_planned_seconds - self.session.remaining_seconds
+            duration = max(0, elapsed)
+        self.history.record(SessionRecord(
+            start=self._focus_block_start.isoformat(timespec="seconds"),
+            end=now.isoformat(timespec="seconds"),
+            duration_seconds=duration,
+            task_id=self.current_task_id,
+            completed=completed,
+        ))
+        self._focus_block_start = None
+
     def _on_phase_ended(self) -> None:
+        self._log_focus_block_if_any(completed=True)
         self.monitor.pause()
         self.ambient.stop()
         self.camera_watcher.pause()
@@ -2002,12 +2038,16 @@ class LockInApp(ctk.CTk):
         self._mpack(ctk.CTkButton(overlay, text=begin_word, width=200, command=submit), pady=20)
 
     def _on_skip(self) -> None:
+        was_focus = self.session.phase is Phase.FOCUS
+        if was_focus:
+            self._log_focus_block_if_any(completed=False)
         for event in self.session.skip():
             if event is Event.PHASE_STARTED:
                 self._on_phase_started()
         self._refresh_timer_widgets()
 
     def _on_reset(self) -> None:
+        self._log_focus_block_if_any(completed=False)
         self.session.reset()
         self.enforcer.reset()
         self.camera_enforcer.reset()
