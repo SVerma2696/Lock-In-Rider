@@ -20,11 +20,106 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## 🚀 Releases
+
+Don't want to install anything? Every tagged version (`vX.Y.Z`) is built
+automatically for Windows, macOS, and Linux by a robot
+([`.github/workflows/release.yml`](.github/workflows/release.yml)) and
+published here:
+
+**➡️ [Download the latest release](https://github.com/SVerma2696/lock-in/releases/latest)**
+
+Pick the file for your computer, download it, unzip/extract it (it comes
+as a `.zip` on Windows/macOS or a `.tar.gz` on Linux), then open the app
+inside. No Python, no `pip install`, no commands — just double-click it.
+
+Your computer will probably show a warning the very first time you open
+it. That's normal, not a sign anything is wrong — here's exactly what
+each one means and the one-time click to get past it:
+
+**Windows: "Windows protected your PC"**
+This shows up because the app isn't signed with a paid certificate (those
+cost money every year, and this is a free personal project) — it doesn't
+mean the app is unsafe. Click **More info**, then **Run anyway**. It only
+asks once per download.
+
+**macOS: "cannot be opened because it is from an unidentified developer"**
+Same idea as the Windows warning, macOS's version of it. Instead of
+double-clicking, **right-click (or Control-click) the app → Open →
+Open**. If that doesn't show an "Open" button, go to **System Settings
+→ Privacy & Security**, scroll down, and click **Open Anyway** next to
+the app's name. Also only asks once.
+
+**Linux: "Permission denied"**
+The downloaded file isn't marked as "allowed to run" yet — a normal
+Linux safety default for any new file, not specific to this app. In a
+terminal, in the folder where you extracted it:
+```bash
+chmod +x "Lock In"
+./"Lock In"
+```
+
+**My antivirus flagged it / a red warning popped up**
+This is a well-known false alarm that affects a lot of small, free apps
+packaged the way this one is (a tool called PyInstaller, which bundles
+Python and this app's code into one file) — antivirus tools sometimes
+flag *how* an app was packaged, not anything it actually does. You don't
+have to take that on faith: every release is built automatically, in the
+open, straight from this exact source code by
+[`.github/workflows/release.yml`](.github/workflows/release.yml) — a
+script anyone can read line by line — and every single change to this
+project runs the full automated test suite on Windows, macOS, and Linux
+before it's ever allowed to reach a release
+([`.github/workflows/tests.yml`](.github/workflows/tests.yml)).
+
+Want to see everything it can do, peek at how the code is organized, or
+run it from source and make your own changes? Keep reading below.
+
+---
+
+## ⚙️ Features
+
+* **A timer that works in cycles** — focus for a while, then a short
+  break, then eventually a longer break. You can pause, skip, and it
+  keeps count of your streak.
+* **Notices distracting apps and does something about it.** You tell it
+  what's always allowed and what's always blocked, and it also learns on
+  its own over time. First it's just a gentle notification. Keep
+  ignoring it and it gets louder, then it minimizes the window for you,
+  then — if you've turned on "hard mode" — it covers your whole screen
+  until you're back on track.
+* **Learns your habits.** It watches which windows you open while
+  focusing and slowly learns what counts as "working" for *you*
+  specifically, not some generic list. You can correct it with one click
+  any time it gets something wrong, and it learns from that instantly.
+  No outside AI service is needed for this part — it's small enough to
+  read and understand the whole thing yourself.
+* **38 Kamen Rider costume changes.** Pick a Rider from the classic TV
+  show and the whole app repaints itself in that Rider's colors — not
+  just an accent color, but the header, every tab, the progress bar, and
+  the background. **26 of those Riders unlock an extra surprise on top**
+  — a differently-shaped progress bar, a special sound, a screen effect,
+  or a new keyboard shortcut, unique to that Rider.
+* **A plain, no-costume mode** if you'd rather skip all of that — one
+  switch turns every color and effect off for a fast, simple look, and
+  turning it back off brings your Rider pick right back.
+* **Two ways of talking to you** — plain, ordinary words, or the
+  Kamen-Rider-flavored version — pick whichever one you like, any time.
+* **An optional second opinion from Claude** (Anthropic's AI) for the
+  rare case its own model genuinely can't decide. Off unless you turn it
+  on, and even then it only ever sees a window's title — never a
+  screenshot or anything else about what you're doing.
+* **Works the same way on Windows, Mac, and Linux** — it detects your
+  windows, minimizes them, and plays sounds a little differently on each
+  one under the hood, so it just works wherever you run it.
+
+---
+
 ## 📂 Project Structure
 
-Just want to use the app? You don't need to read this part — skip ahead
-to [Releases](#-releases) to download it. This map is for anyone curious
-about how the code is organized, file by file.
+Already got the app from [Releases](#-releases) above? You can skip this
+part — it's just a map of the code, file by file, for anyone curious how
+it's organized under the hood.
 
 ```
 Lock In/
@@ -93,101 +188,6 @@ Lock In/
 Runtime data lives outside the project, in `%APPDATA%\Lock In\` (see
 [Config](#-config) below) — deliberately, so a PyInstaller build still
 writes correctly even if its own install folder is read-only.
-
----
-
-## ⚙️ Features
-
-* **A timer that works in cycles** — focus for a while, then a short
-  break, then eventually a longer break. You can pause, skip, and it
-  keeps count of your streak.
-* **Notices distracting apps and does something about it.** You tell it
-  what's always allowed and what's always blocked, and it also learns on
-  its own over time. First it's just a gentle notification. Keep
-  ignoring it and it gets louder, then it minimizes the window for you,
-  then — if you've turned on "hard mode" — it covers your whole screen
-  until you're back on track.
-* **Learns your habits.** It watches which windows you open while
-  focusing and slowly learns what counts as "working" for *you*
-  specifically, not some generic list. You can correct it with one click
-  any time it gets something wrong, and it learns from that instantly.
-  No outside AI service is needed for this part — it's small enough to
-  read and understand the whole thing yourself.
-* **38 Kamen Rider costume changes.** Pick a Rider from the classic TV
-  show and the whole app repaints itself in that Rider's colors — not
-  just an accent color, but the header, every tab, the progress bar, and
-  the background. **26 of those Riders unlock an extra surprise on top**
-  — a differently-shaped progress bar, a special sound, a screen effect,
-  or a new keyboard shortcut, unique to that Rider.
-* **A plain, no-costume mode** if you'd rather skip all of that — one
-  switch turns every color and effect off for a fast, simple look, and
-  turning it back off brings your Rider pick right back.
-* **Two ways of talking to you** — plain, ordinary words, or the
-  Kamen-Rider-flavored version — pick whichever one you like, any time.
-* **An optional second opinion from Claude** (Anthropic's AI) for the
-  rare case its own model genuinely can't decide. Off unless you turn it
-  on, and even then it only ever sees a window's title — never a
-  screenshot or anything else about what you're doing.
-* **Works the same way on Windows, Mac, and Linux** — it detects your
-  windows, minimizes them, and plays sounds a little differently on each
-  one under the hood, so it just works wherever you run it.
-
----
-
-## 🚀 Releases
-
-Don't want to install anything? Every tagged version (`vX.Y.Z`) is built
-automatically for Windows, macOS, and Linux by a robot
-([`.github/workflows/release.yml`](.github/workflows/release.yml)) and
-published here:
-
-**➡️ [Download the latest release](https://github.com/SVerma2696/lock-in/releases/latest)**
-
-Pick the file for your computer, download it, unzip/extract it (it comes
-as a `.zip` on Windows/macOS or a `.tar.gz` on Linux), then open the app
-inside. No Python, no `pip install`, no commands — just double-click it.
-
-Your computer will probably show a warning the very first time you open
-it. That's normal, not a sign anything is wrong — here's exactly what
-each one means and the one-time click to get past it:
-
-**Windows: "Windows protected your PC"**
-This shows up because the app isn't signed with a paid certificate (those
-cost money every year, and this is a free personal project) — it doesn't
-mean the app is unsafe. Click **More info**, then **Run anyway**. It only
-asks once per download.
-
-**macOS: "cannot be opened because it is from an unidentified developer"**
-Same idea as the Windows warning, macOS's version of it. Instead of
-double-clicking, **right-click (or Control-click) the app → Open →
-Open**. If that doesn't show an "Open" button, go to **System Settings
-→ Privacy & Security**, scroll down, and click **Open Anyway** next to
-the app's name. Also only asks once.
-
-**Linux: "Permission denied"**
-The downloaded file isn't marked as "allowed to run" yet — a normal
-Linux safety default for any new file, not specific to this app. In a
-terminal, in the folder where you extracted it:
-```bash
-chmod +x "Lock In"
-./"Lock In"
-```
-
-**My antivirus flagged it / a red warning popped up**
-This is a well-known false alarm that affects a lot of small, free apps
-packaged the way this one is (a tool called PyInstaller, which bundles
-Python and this app's code into one file) — antivirus tools sometimes
-flag *how* an app was packaged, not anything it actually does. You don't
-have to take that on faith: every release is built automatically, in the
-open, straight from this exact source code by
-[`.github/workflows/release.yml`](.github/workflows/release.yml) — a
-script anyone can read line by line — and every single change to this
-project runs the full automated test suite on Windows, macOS, and Linux
-before it's ever allowed to reach a release
-([`.github/workflows/tests.yml`](.github/workflows/tests.yml)).
-
-Want to run it from Python source instead, or make your own changes to
-the code? Keep reading below.
 
 ---
 
