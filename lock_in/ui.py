@@ -725,12 +725,31 @@ class LockInApp(ctk.CTk):
                 # / place_forget()) -- don't resurrect it.
                 continue
             try:
+                # Deliberately .pack()/.place()/.grid() here, NOT the
+                # _configure() variants. They're equivalent re-apply calls
+                # for an ordinary widget already under that manager -- but
+                # CTkScrollableFrame overrides .pack()/.place()/.grid() to
+                # delegate to its internal _parent_frame (the actual
+                # widget lives embedded in its own scrolling canvas, via
+                # canvas.create_window(), reported as winfo_manager()
+                # "canvas") while leaving pack_configure()/etc. un-
+                # overridden. Calling the _configure() form directly on
+                # one of those literally starts pack-managing the inner,
+                # canvas-embedded widget itself -- confirmed by testing
+                # against the real widget: its winfo_manager() flips from
+                # "canvas" to "pack" the instant pack_configure() is
+                # called on it, corrupting both its layout and the
+                # canvas's own scroll tracking. The five CTkScrollableFrame
+                # tabs (Tasks/Blocking/Activity/Settings/Help) are all
+                # registered here via _mpack, so this bit the whole app,
+                # not just one tab, and only once Ryuki's mirror actually
+                # ran this method for the first time.
                 if manager == "pack":
-                    widget.pack_configure(**flip_pack_kwargs(self._is_mirrored, kwargs))
+                    widget.pack(**flip_pack_kwargs(self._is_mirrored, kwargs))
                 elif manager == "place":
-                    widget.place_configure(**flip_place_kwargs(self._is_mirrored, kwargs))
+                    widget.place(**flip_place_kwargs(self._is_mirrored, kwargs))
                 else:
-                    widget.grid_configure(**flip_grid_kwargs(self._is_mirrored, total_columns, kwargs))
+                    widget.grid(**flip_grid_kwargs(self._is_mirrored, total_columns, kwargs))
             except Exception:
                 # Belt-and-braces: any other Tk error re-applying this
                 # widget's geometry shouldn't crash the sync.
