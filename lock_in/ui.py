@@ -39,6 +39,17 @@ from typing import List, Optional
 import customtkinter as ctk
 from PIL import ImageOps, ImageTk
 
+# customtkinter's own automatic per-monitor DPI handling briefly makes the
+# whole window ~85% transparent (window.attributes("-alpha", 0.15)) every
+# time it detects the window moved to a monitor with different display
+# scaling, while it rescales every widget/image/font -- by the library's
+# own design, not a bug here. This trades that flash away: the window
+# renders at a fixed pixel size instead of automatically adjusting per
+# monitor, so it can look too small/large on a monitor whose scaling
+# differs from the one the app started on. Must run before any CTk
+# window is created, so it's placed immediately after the import.
+ctk.deactivate_automatic_dpi_awareness()
+
 from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 from .claude_fallback import ClaudeFallback
 from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, LOG_PATH, app_data_dir
