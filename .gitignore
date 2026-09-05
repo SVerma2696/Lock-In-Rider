@@ -50,6 +50,8 @@ graphify-out/
 config.json
 model.json
 observations.jsonl
+tasks.json
+sessions.jsonl
 lockin_training_data.csv
 app_icon.ico
 app_icon_square.png

@@ -82,6 +82,10 @@ run it from source and make your own changes? Keep reading below.
 * **A timer that works in cycles** — focus for a while, then a short
   break, then eventually a longer break. You can pause, skip, and it
   keeps count of your streak.
+* **A simple task list.** Jot down what you're working on, break it into
+  smaller checklist steps, and pick one before you hit Start — the app
+  remembers it and quietly keeps a record of every focus block you
+  actually finish, so you can look back later at what you got done.
 * **Notices distracting apps and does something about it.** You tell it
   what's always allowed and what's always blocked, and it also learns on
   its own over time. First it's just a gentle notification. Keep
@@ -141,6 +145,10 @@ Lock In/
 │   │                           Enforcer() runs the strike/escalation ladder.
 │   ├── observations.py         Records every window seen during focus and tracks
 │   │                           which have been labelled. Backs train.py.
+│   ├── tasks.py                 The task list: add/edit/complete tasks and their
+│   │                           checklist subtasks, saved as tasks.json.
+│   ├── history.py               An append-only log of every completed, skipped, or
+│   │                           reset focus block, saved as sessions.jsonl.
 │   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
@@ -164,6 +172,8 @@ Lock In/
 │   │                           per-era and per-wording notification copy,
 │   │                           cross-platform process matching.
 │   ├── test_observations.py    De-duplication, labelling, JSONL round-trip.
+│   ├── test_tasks.py            Add/edit/complete tasks and subtasks, JSON round-trip.
+│   ├── test_history.py          Recording, filtering by day/task, JSONL round-trip.
 │   ├── test_claude_fallback.py Caching, async lookup, failure handling — no
 │   │                           real network calls, a fake client stands in.
 │   ├── test_rider_themes.py    Palette completeness, color validity, dark-mode
@@ -438,6 +448,37 @@ uses the new model.
 
 If you *do* want pixels later, the seam is clean: swap in anything that returns
 `(label, confidence)` from `judge()` and nothing downstream changes.
+
+---
+
+## Tasks & session history
+
+**In plain words:** a simple to-do list lives right in the app now.
+Write down what you're working on, break it into smaller steps if you
+want, pick it from a dropdown above the Start button, and the app quietly
+keeps a diary of every focus block you actually finish.
+
+- **Adding a task.** The Tasks tab has a plain text box — type a name,
+  hit Add. Click into a task to add smaller checklist steps under it,
+  and check them off as you go.
+- **Picking what you're working on.** A dropdown above the Start button
+  lists your open tasks. Pick one before you start a block, or leave it
+  on "No task" — the timer works exactly the same either way.
+- **Starting a block marks a task in-progress, automatically.** Finishing
+  one does *not* mark it done — that's always your own click on the
+  task's own checkbox. A real piece of work is often more than one
+  25-minute block, so "a timer finished" and "the task is finished" are
+  kept as two separate facts on purpose. Nothing about ending a block,
+  skipping it, or resetting it will ever quietly mark a task done for you.
+- **The diary.** Every focus block that finishes, gets skipped, or gets
+  reset is written down — how long it ran, whether it finished naturally,
+  and which task (if any) it was for. This is the raw material a handful
+  of future features (a daily-hours view, a timeline, simple stats) will
+  read from — nothing reads it yet, but the record is already being kept
+  so nothing is lost while those get built.
+
+Nothing here is sent anywhere; both files stay on your machine right
+next to `config.json` (see [Config](#-config) below).
 
 ---
 
@@ -951,6 +992,8 @@ Settings, the trained model, and your training data all live in
 | `config.json` | Every setting, pretty-printed and hand-editable |
 | `model.json` | The trained classifier — plain counts, worth opening once |
 | `observations.jsonl` | Windows seen during focus, one JSON object per line |
+| `tasks.json` | Your task list and their checklist subtasks |
+| `sessions.jsonl` | A log of every completed, skipped, or reset focus block |
 
 Deleting any of them regenerates it. Deleting `model.json` costs you nothing if
 your labels are still in `observations.jsonl` — just run `python train.py
@@ -992,6 +1035,10 @@ use — never the key itself.
 - If the camera stops working partway through a focus block (unplugged,
   grabbed by another app), monitoring just quietly stops until the next
   focus block, instead of trying to fix itself right away.
+- **Tasks can't be deleted or un-marked done from the app yet** — once
+  something is checked off, hiding it again means editing `tasks.json`
+  by hand. Past entries in the session diary (`sessions.jsonl`) can't be
+  edited from the app either. Both are on the list for later.
 
 ---
 
