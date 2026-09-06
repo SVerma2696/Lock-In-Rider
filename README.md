@@ -27,7 +27,7 @@ automatically for Windows, macOS, and Linux by a robot
 ([`.github/workflows/release.yml`](.github/workflows/release.yml)) and
 published here:
 
-**➡️ [Download the latest release](https://github.com/SVerma2696/lock-in/releases/latest)**
+**➡️ [Download the latest release](https://github.com/SVerma2696/Lock-In-Rider/releases/latest)**
 
 Pick the file for your computer, download it, unzip/extract it (it comes
 as a `.zip` on Windows/macOS or a `.tar.gz` on Linux), then open the app
@@ -205,8 +205,8 @@ writes correctly even if its own install folder is read-only.
 
 ### 1. Clone this repository
 ```bat
-git clone https://github.com/SVerma2696/lock-in.git
-cd lock-in
+git clone https://github.com/SVerma2696/Lock-In-Rider.git
+cd Lock-In-Rider
 ```
 
 ### 2. Install dependencies
@@ -464,18 +464,18 @@ keeps a diary of every focus block you actually finish.
 - **Picking what you're working on.** A dropdown above the Start button
   lists your open tasks. Pick one before you start a block, or leave it
   on "No task" — the timer works exactly the same either way.
-- **Starting a block marks a task in-progress, automatically.** Finishing
-  one does *not* mark it done — that's always your own click on the
-  task's own checkbox. A real piece of work is often more than one
-  25-minute block, so "a timer finished" and "the task is finished" are
-  kept as two separate facts on purpose. Nothing about ending a block,
-  skipping it, or resetting it will ever quietly mark a task done for you.
-- **The diary.** Every focus block that finishes, gets skipped, or gets
-  reset is written down — how long it ran, whether it finished naturally,
-  and which task (if any) it was for. This is the raw material a handful
-  of future features (a daily-hours view, a timeline, simple stats) will
-  read from — nothing reads it yet, but the record is already being kept
-  so nothing is lost while those get built.
+- **Hitting Start marks your task "in progress" on its own.** But the
+  app never ticks a task *done* for you — that's always your own click
+  on its checkbox. One job usually takes more than one timer, so "the
+  timer ran out" and "the job is finished" are kept as two separate
+  facts on purpose. Ending a block, skipping it, or resetting it never
+  checks anything off.
+- **The diary.** Every focus block gets written down the moment it ends
+  — whether it finished, was skipped, or was reset — along with how long
+  it ran and which task (if any) it was for. Nothing shows this to you
+  yet. Later features (an "hours today" view, a timeline, simple stats)
+  will read from it, so the app keeps the record now and loses nothing
+  while those get built.
 
 Nothing here is sent anywhere; both files stay on your machine right
 next to `config.json` (see [Config](#-config) below).
