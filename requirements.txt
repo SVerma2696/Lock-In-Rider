@@ -4,7 +4,7 @@ customtkinter>=5.2.2
 # This one draws the soft glow/gradient pictures behind the timer and the
 # Henshin button, and the faint background pattern. The app needs it to
 # work at all now too.
-Pillow>=10.0.0
+Pillow>=12.3.0
 
 # This lets the app look at your webcam and recognize a phone in frame,
 # for the opt-in "Strict Camera Monitoring" switch in the Blocking tab.
