@@ -5,6 +5,7 @@ from lock_in.visuals import (
     make_background_texture,
     make_flat_fill,
     make_glow,
+    make_hours_chart,
     make_panel_divider,
 )
 
@@ -164,6 +165,63 @@ def test_panel_divider_is_not_blank():
     # that, or there's nothing actually visible.
     _, max_alpha = image.getchannel("A").getextrema()
     assert max_alpha > 0
+
+
+def test_make_hours_chart_returns_the_requested_size():
+    image = make_hours_chart(
+        280, 100, [("2026-01-01", 100), ("2026-01-02", 100)],
+        "#ff0000", "#00ff00", dark=False,
+    )
+    assert image.size == (280, 100)
+    assert image.mode == "RGBA"
+
+
+def test_make_hours_chart_handles_an_empty_list_without_crashing():
+    image = make_hours_chart(100, 50, [], "#ff0000", "#00ff00", dark=True)
+    assert image.size == (100, 50)
+
+
+def test_make_hours_chart_handles_all_zero_days_without_dividing_by_zero():
+    day_values = [("2026-01-01", 0), ("2026-01-02", 0), ("2026-01-03", 0)]
+    image = make_hours_chart(150, 60, day_values, "#ff0000", "#00ff00", dark=False)
+    assert image.size == (150, 60)
+
+
+def test_make_hours_chart_last_bar_uses_secondary_color():
+    """The last entry is 'today' -- it should stand out in `secondary`,
+    every earlier bar stays in `primary`. Both entries here have equal
+    seconds, so both bars are the same (near-full) height, which makes
+    picking an unambiguous sample point inside each bar's middle easy."""
+    day_values = [("2026-01-01", 100), ("2026-01-02", 100)]
+    image = make_hours_chart(280, 100, day_values, "#ff0000", "#00ff00", dark=False)
+    first_bar_pixel = image.getpixel((69, 40))     # inside the left (primary) bar
+    today_bar_pixel = image.getpixel((210, 40))    # inside the right (today) bar
+    assert first_bar_pixel[:3] == (0xff, 0x00, 0x00)
+    assert today_bar_pixel[:3] == (0x00, 0xff, 0x00)
+
+
+def test_make_hours_chart_light_and_dark_renders_differ():
+    day_values = [("2026-01-01", 100), ("2026-01-02", 200)]
+    light = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=False)
+    dark = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True)
+    assert light.tobytes() != dark.tobytes()
+
+
+def test_make_hours_chart_default_era_matches_showa():
+    day_values = [("2026-01-01", 100), ("2026-01-02", 200)]
+    default = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True)
+    showa = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Showa")
+    assert default.tobytes() == showa.tobytes()
+
+
+def test_make_hours_chart_each_era_looks_different():
+    day_values = [("2026-01-01", 100), ("2026-01-02", 200)]
+    showa = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Showa")
+    heisei = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Heisei")
+    reiwa = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Reiwa")
+    assert showa.tobytes() != heisei.tobytes()
+    assert heisei.tobytes() != reiwa.tobytes()
+    assert showa.tobytes() != reiwa.tobytes()
 
 
 # ===================================================================== #

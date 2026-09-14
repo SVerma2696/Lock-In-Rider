@@ -653,6 +653,21 @@ block — completely separate from the Tier 1 progress-bar gimmicks above:
 One more, Saber, joins the Tier 1 progress-bar list instead — its
 bookmark-ribbon shape uses the same drawing code as Fourze and Build.
 
+### Tier 5: Riders that read your own history
+
+A new kind of Rider gimmick, separate from every tier above: picking one
+of these Riders adds a whole new tab next to Help, built from your own
+tasks and past focus blocks instead of just changing colors, sounds, or
+behavior.
+
+- **V3** — adds an "Hours" tab: a big number showing how long you've
+  focused today, plus a simple bar chart of the last 14 days. Every
+  block counts toward it, whether you finished it, skipped it, or reset
+  it early.
+
+More Riders will read your tasks and history this way over time — V3 is
+the first of ten planned.
+
 ### Look and feel
 
 `lock_in/visuals.py` generates the app's art at runtime with Pillow, tinted

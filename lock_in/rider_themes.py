@@ -119,6 +119,13 @@ class RiderTheme:
     # ui.py, notifier.py, and ambient.py all read this to decide what
     # display/audio/input behavior this Rider needs.
     tier4_effect: str = "none"
+    # "none" for every Rider except V3, the first of Tier 5's 10
+    # history/task-reading Riders (see
+    # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md).
+    # ui.py reads this to decide whether a 6th tab exists at all, and
+    # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
+    # that fills that tab in.
+    tier5_effect: str = "none"
 
     @property
     def primary_pair(self) -> tuple[str, str]:
@@ -208,6 +215,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider V3 (1973)": RiderTheme(
         "Showa", 1973, ("#225c25", "#4caf50"), ("#a83225", "#d94436"),
+        tier5_effect="hours_tab",
     ),
     "Kamen Rider X (1974)": RiderTheme(
         "Showa", 1974, ("#90a4ae", "#cfd8dc"), ("#0f4a8f", "#42a5f5"),

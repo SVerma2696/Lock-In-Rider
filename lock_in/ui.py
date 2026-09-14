@@ -56,6 +56,7 @@ from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, LOG_PATH,
 from .observations import ObservationStore
 from .tasks import Task, TaskStatus, TaskStore
 from .history import HistoryStore, SessionRecord
+from .tier5 import TIER5_BUILDERS
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
 from .ambient import AmbientPlayer
@@ -128,6 +129,10 @@ PROGRESS_SHAPE_HEIGHT = 48
 # on purpose -- it's meant to dominate the header, not sit in a thin strip.
 ZERO_UI_WIDTH = 340
 ZERO_UI_HEIGHT = 120
+
+# Tier 5's dynamic 6th tab: effect string (RiderTheme.tier5_effect) ->
+# what the tab is called. Grows one entry per Rider as each one ships.
+_TIER5_TAB_LABELS = {"hours_tab": "Hours"}
 
 
 def _flip_side(side):
@@ -493,6 +498,14 @@ class LockInApp(ctk.CTk):
         # mirror-flip, hidden-timer, dashboard-cards, ghost-widget, and
         # hotkey code later in this file.
         self.current_tier4_effect = theme.tier4_effect
+        # Which Tier 5 gimmick (if any) this Rider has -- read by
+        # _build_tabs() to decide whether a 6th tab exists at all.
+        self.current_tier5_effect = theme.tier5_effect
+        # The resolved RiderTheme itself (after ZX's desaturation, if
+        # that applied above) -- _build_tier5_tab() needs the actual
+        # theme object, not just the derived colors already unpacked
+        # onto self above.
+        self._current_rider_theme = theme
         if self.current_tier4_effect == "chiptune_alert":
             self._active_display_font = load_pixel_font()
         else:
@@ -982,12 +995,30 @@ class LockInApp(ctk.CTk):
 
         for name in ("Tasks", "Blocking", "Activity", "Settings", "Help"):
             self.tabs.add(name)
+        if self.current_tier5_effect != "none":
+            self.tabs.add(_TIER5_TAB_LABELS[self.current_tier5_effect])
 
         self._build_tasks_tab(self.tabs.tab("Tasks"))
         self._build_blocking_tab(self.tabs.tab("Blocking"))
         self._build_activity_tab(self.tabs.tab("Activity"))
         self._build_settings_tab(self.tabs.tab("Settings"))
         self._build_help_tab(self.tabs.tab("Help"))
+        if self.current_tier5_effect != "none":
+            self._build_tier5_tab()
+
+    def _build_tier5_tab(self) -> None:
+        """Fills in whichever Tier 5 tab `_build_tabs()` just added, by
+        looking up this Rider's builder in TIER5_BUILDERS. Safe to call
+        again later (e.g. from _on_phase_ended) to refresh the tab's
+        content in place without rebuilding the other five tabs."""
+        label = _TIER5_TAB_LABELS[self.current_tier5_effect]
+        frame = self.tabs.tab(label)
+        for child in frame.winfo_children():
+            child.destroy()
+        TIER5_BUILDERS[self.current_tier5_effect](
+            frame, history=self.history, tasks=self.tasks,
+            theme=self._current_rider_theme, appearance_mode=ctk.get_appearance_mode(),
+        )
 
     # ------------------------------------------------------------------ #
     def _build_blocking_tab(self, parent) -> None:
@@ -1365,8 +1396,26 @@ class LockInApp(ctk.CTk):
             "exact same picture-drawing code Fourze and Build already do."
         )
 
+        # --- Tier 5 -------------------------------------------------------- #
+        heading("5. One hero reads your own history", COLOR_ENFORCE_ACCENT)
+        body(
+            "Something new, separate from the display tricks above: pick "
+            "this hero and an extra tab appears next to Help, built from "
+            "your own past focus blocks instead of just changing colors "
+            "or sounds."
+        )
+        bullet(
+            "V3 — an \"Hours\" tab appears, showing how long you've "
+            "focused today plus a bar chart of the last 14 days. Every "
+            "block counts toward it, finished or not."
+        )
+        body(
+            "More heroes will get a tab like this over time -- V3 is "
+            "just the first."
+        )
+
         # --- Strict Camera Monitoring ------------------------------------ #
-        heading("5. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
+        heading("6. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
         body(
             "A separate extra, nothing to do with heroes: turn it on in "
             "the Blocking tab, and Lock In peeks at your webcam every "
@@ -2028,6 +2077,12 @@ class LockInApp(ctk.CTk):
         # values this log reads (_focus_block_start / _planned_seconds).
         self.observations.save()
         self._log_focus_block_if_any(completed=True)
+
+        # V3's Hours tab (and any later Tier 5 Rider reading history)
+        # should show this block the moment it's over, not wait for the
+        # next Rider change. A no-op for every Rider without a Tier 5 tab.
+        if self.current_tier5_effect != "none":
+            self._build_tier5_tab()
 
         self._sync_mirror_layout()
         self._sync_mirror_divider()

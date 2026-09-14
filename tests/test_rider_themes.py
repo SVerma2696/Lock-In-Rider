@@ -280,3 +280,21 @@ def test_saber_is_a_tier1_bookmark_shape_not_a_tier4_effect():
     saber = RIDER_THEMES["Kamen Rider Saber (2020)"]
     assert saber.tier1_effect == "bookmark"
     assert saber.tier4_effect == "none"
+
+
+def test_tier5_effect_defaults_to_none():
+    from lock_in.rider_themes import RiderTheme
+    theme = RiderTheme("Heisei", 2000, ("#000000", "#ffffff"), ("#111111", "#eeeeee"))
+    assert theme.tier5_effect == "none"
+
+
+def test_v3_has_the_hours_tab_tier5_effect():
+    from lock_in.rider_themes import RIDER_THEMES
+    assert RIDER_THEMES["Kamen Rider V3 (1973)"].tier5_effect == "hours_tab"
+    tier5_riders = {n for n, t in RIDER_THEMES.items() if t.tier5_effect != "none"}
+    assert tier5_riders == {"Kamen Rider V3 (1973)"}
+
+
+def test_standard_theme_has_no_tier5_effect():
+    from lock_in.rider_themes import STANDARD_THEME
+    assert STANDARD_THEME.tier5_effect == "none"

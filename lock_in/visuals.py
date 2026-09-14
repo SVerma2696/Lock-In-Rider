@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import random
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -302,6 +303,63 @@ def _draw_circuit_divider(draw: ImageDraw.ImageDraw, width: int, height: int, co
     node_step = 40
     for i, x in enumerate(range(0, width, node_step)):
         draw.rectangle([x - 3, mid - 3, x + 3, mid + 3], fill=colors[(i + 1) % 2])
+
+
+def make_hours_chart(
+    width: int, height: int, day_values: list[tuple[str, int]],
+    primary: str, secondary: str, dark: bool, era: str = "Showa",
+) -> Image.Image:
+    """
+    Draw a simple bar chart: one bar per day, oldest on the left,
+    tallest bar for whichever day has the most focused time. The LAST
+    entry (today) is drawn in `secondary` instead of `primary`, so it
+    stands out from the history behind it.
+
+    `day_values` is `(iso_day, seconds)` pairs, already zero-filled by
+    the caller for any day with no focus blocks -- this function never
+    has to guess about a missing day, only draw what it's given.
+
+    The era accent along the baseline reuses `make_panel_divider()`
+    instead of duplicating its three per-era drawing helpers -- same
+    ticks/facets/circuit-nodes look the panel gap already has.
+    """
+    LABEL_MARGIN = 16
+    BAR_GAP = 4
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    if not day_values:
+        return image
+
+    draw = ImageDraw.Draw(image, "RGBA")
+    plot_height = height - LABEL_MARGIN
+    r1, g1, b1 = _hex_to_rgb(primary)
+    r2, g2, b2 = _hex_to_rgb(secondary)
+    bar_color = (r1, g1, b1, 255)
+    today_color = (r2, g2, b2, 255)
+    label_color = (190, 190, 190, 220) if dark else (90, 90, 90, 220)
+
+    count = len(day_values)
+    max_secs = max(secs for _, secs in day_values) or 1
+    bar_width = (width - BAR_GAP * (count - 1)) / count
+
+    for index, (iso_day, secs) in enumerate(day_values):
+        x0 = round(index * (bar_width + BAR_GAP))
+        x1 = round(x0 + bar_width)
+        bar_height = plot_height * secs / max_secs
+        if bar_height > 0:
+            y0 = round(plot_height - bar_height)
+            color = today_color if index == count - 1 else bar_color
+            draw.rectangle([x0, y0, x1, plot_height], fill=color)
+
+        letter = date.fromisoformat(iso_day).strftime("%a")[0]
+        bbox = draw.textbbox((0, 0), letter)
+        letter_width = bbox[2] - bbox[0]
+        text_x = (x0 + x1) / 2 - letter_width / 2
+        draw.text((text_x, plot_height + 5), letter, fill=label_color)
+
+    accent = make_panel_divider(width, 8, primary, secondary, era=era)
+    image.alpha_composite(accent, (0, max(plot_height - 4, 0)))
+
+    return image
 
 
 def load_app_icon() -> Optional[Image.Image]:
