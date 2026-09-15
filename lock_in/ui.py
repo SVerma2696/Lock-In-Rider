@@ -132,7 +132,9 @@ ZERO_UI_HEIGHT = 120
 
 # Tier 5's dynamic 6th tab: effect string (RiderTheme.tier5_effect) ->
 # what the tab is called. Grows one entry per Rider as each one ships.
-_TIER5_TAB_LABELS = {"hours_tab": "Hours"}
+_TIER5_TAB_LABELS = {
+    "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
+}
 
 
 def _flip_side(side):
@@ -1397,21 +1399,31 @@ class LockInApp(ctk.CTk):
         )
 
         # --- Tier 5 -------------------------------------------------------- #
-        heading("5. One hero reads your own history", COLOR_ENFORCE_ACCENT)
+        heading("5. Some heroes read your own history", COLOR_ENFORCE_ACCENT)
         body(
             "Something new, separate from the display tricks above: pick "
-            "this hero and an extra tab appears next to Help, built from "
-            "your own past focus blocks instead of just changing colors "
-            "or sounds."
+            "one of these heroes and an extra tab appears next to Help, "
+            "built from your own past focus blocks instead of just "
+            "changing colors or sounds."
         )
         bullet(
             "V3 — an \"Hours\" tab appears, showing how long you've "
             "focused today plus a bar chart of the last 14 days. Every "
             "block counts toward it, finished or not."
         )
+        bullet(
+            "Den-O — a \"Timeline\" tab appears, listing one day's focus "
+            "blocks at a time (earliest first), with buttons to flip a "
+            "day forward or back. Each one shows its time, how long it "
+            "ran, and which task it was for."
+        )
+        bullet(
+            "Decade — an \"Analytics\" tab appears: a 30-day version of "
+            "V3's bar chart, plus your top 10 tasks by total time spent."
+        )
         body(
-            "More heroes will get a tab like this over time -- V3 is "
-            "just the first."
+            "More heroes will get a tab like this over time -- these "
+            "three are just the first."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #

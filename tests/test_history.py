@@ -67,6 +67,40 @@ def test_total_seconds_by_day_sums_same_day_records(store):
     assert totals["2026-09-05"] == 300
 
 
+def test_earliest_date_is_none_for_an_empty_store(store):
+    assert store.earliest_date() is None
+
+
+def test_earliest_date_is_the_only_day_with_one_record(store):
+    store.record(_record(datetime(2026, 9, 4, 9, 0, 0), 1500))
+    assert store.earliest_date() == date(2026, 9, 4)
+
+
+def test_earliest_date_is_the_minimum_across_out_of_order_records(store):
+    store.record(_record(datetime(2026, 9, 10, 9, 0, 0), 1500))
+    store.record(_record(datetime(2026, 9, 4, 9, 0, 0), 1500))
+    store.record(_record(datetime(2026, 9, 7, 9, 0, 0), 1500))
+    assert store.earliest_date() == date(2026, 9, 4)
+
+
+def test_total_seconds_by_task_is_empty_for_an_empty_store(store):
+    assert store.total_seconds_by_task() == {}
+
+
+def test_total_seconds_by_task_sums_records_for_the_same_task(store):
+    store.record(_record(datetime(2026, 9, 4, 9, 0, 0), 1500, task_id="abc123"))
+    store.record(_record(datetime(2026, 9, 5, 9, 0, 0), 900, task_id="abc123"))
+    assert store.total_seconds_by_task() == {"abc123": 2400}
+
+
+def test_total_seconds_by_task_keeps_different_tasks_and_untagged_time_separate(store):
+    store.record(_record(datetime(2026, 9, 4, 9, 0, 0), 1500, task_id="abc123"))
+    store.record(_record(datetime(2026, 9, 4, 10, 0, 0), 600, task_id="other"))
+    store.record(_record(datetime(2026, 9, 4, 11, 0, 0), 300, task_id=None))
+    totals = store.total_seconds_by_task()
+    assert totals == {"abc123": 1500, "other": 600, None: 300}
+
+
 def test_a_skipped_block_is_recorded_as_not_completed(store):
     record = _record(datetime(2026, 9, 4, 9, 0, 0), 400, completed=False)
     store.record(record)

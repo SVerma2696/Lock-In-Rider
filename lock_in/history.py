@@ -79,6 +79,23 @@ class HistoryStore:
     def for_task(self, task_id: str) -> List[SessionRecord]:
         return [r for r in self._records if r.task_id == task_id]
 
+    def earliest_date(self) -> Optional[date]:
+        """The calendar day of the very first record ever logged, or
+        None if nothing has been logged yet -- backs how far back Den-O's
+        Prev-day button can go."""
+        if not self._records:
+            return None
+        return min(datetime.fromisoformat(r.start).date() for r in self._records)
+
+    def total_seconds_by_task(self) -> Dict[Optional[str], int]:
+        """{'abc123': 1500, None: 900, ...} -- total focused seconds per
+        task_id, with None holding every untagged block's time. The
+        aggregate Decade's "Top tasks" ranking reads from."""
+        totals: Dict[Optional[str], int] = {}
+        for r in self._records:
+            totals[r.task_id] = totals.get(r.task_id, 0) + r.duration_seconds
+        return totals
+
     def total_seconds_by_day(self) -> Dict[str, int]:
         """{'2026-09-04': 2400, ...} -- the one aggregate every history-
         reading Rider downstream (V3, Decade, Den-O) will start from."""

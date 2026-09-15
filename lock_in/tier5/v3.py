@@ -6,41 +6,23 @@ you've focused today, plus a 14-day bar chart. The first, and smallest,
 of Tier 5's 10 Riders -- see
 docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md.
 
-Two plain functions do the shaping (`last_14_days`, `_format_hm`) --
-tested with no Tk, no display server, same as every pure-logic module
-in this codebase. `build()` is the only Tk-dependent piece; it's
-screenshot-verified in the running app instead, matching how every
-other tab in ui.py is verified.
+V3's own pure function, `last_14_days()`, generalized into
+`tier5/_shared.py`'s `last_n_days()` once Decade also needed a windowed
+day-list, the same way duration formatting (`format_hm()`) moved there
+once Den-O needed it. Nothing V3-specific is left to unit-test right
+now -- see `tests/test_tier5_v3.py`. `build()` is the only Tk-dependent
+piece; it's screenshot-verified in the running app instead, matching
+how every other tab in ui.py is verified.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 import customtkinter as ctk
 
 from .. import visuals
-
-
-def last_14_days(totals: dict[str, int], today: date) -> list[tuple[date, int]]:
-    """14 entries, oldest -> newest, ending on `today`. A day absent
-    from `totals` (no focus blocks that day) contributes 0 seconds --
-    the chart always has 14 bars, even on a brand new install."""
-    return [
-        (day, totals.get(day.isoformat(), 0))
-        for day in (today - timedelta(days=offset) for offset in range(13, -1, -1))
-    ]
-
-
-def _format_hm(seconds: int) -> str:
-    """3900 -> '1h 5m'; 600 -> '10m'; 0 -> '0m'. Hours are only shown at
-    all once there's at least one -- an under-an-hour total never shows
-    a redundant '0h'."""
-    hours, remainder = divmod(seconds, 3600)
-    minutes = remainder // 60
-    if hours:
-        return f"{hours}h {minutes}m"
-    return f"{minutes}m"
+from ._shared import format_hm, last_n_days
 
 
 def build(parent, *, history, tasks, theme, appearance_mode) -> None:
@@ -62,7 +44,7 @@ def build(parent, *, history, tasks, theme, appearance_mode) -> None:
     headline_seconds = totals.get(today.isoformat(), 0)
 
     ctk.CTkLabel(
-        frame, text=_format_hm(headline_seconds), text_color=theme.primary_text_pair,
+        frame, text=format_hm(headline_seconds), text_color=theme.primary_text_pair,
         font=ctk.CTkFont(family=visuals.display_font_family(), size=32, weight="bold"),
     ).pack(anchor="w", pady=(4, 0))
     ctk.CTkLabel(
@@ -76,7 +58,7 @@ def build(parent, *, history, tasks, theme, appearance_mode) -> None:
         ).pack(anchor="w", pady=8)
         return
 
-    day_values = [(day.isoformat(), secs) for day, secs in last_14_days(totals, today)]
+    day_values = [(day.isoformat(), secs) for day, secs in last_n_days(totals, today, 14)]
     light_image = visuals.make_hours_chart(
         440, 200, day_values, theme.primary[0], theme.secondary[0],
         dark=False, era=theme.era,

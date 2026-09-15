@@ -664,9 +664,16 @@ behavior.
   focused today, plus a simple bar chart of the last 14 days. Every
   block counts toward it, whether you finished it, skipped it, or reset
   it early.
+- **Den-O** — adds a "Timeline" tab: one day's focus blocks at a time,
+  earliest first, with buttons to flip a day forward or back. Each block
+  shows its time, how long it ran, whether it finished naturally or got
+  cut short, and which task (if any) it was for.
+- **Decade** — adds an "Analytics" tab: a 30-day version of V3's bar
+  chart, plus your top 10 tasks ranked by how much total time you've
+  spent on each.
 
-More Riders will read your tasks and history this way over time — V3 is
-the first of ten planned.
+More Riders will read your tasks and history this way over time — these
+three are just the first of ten planned.
 
 ### Look and feel
 

@@ -12,8 +12,10 @@ already-large LockInApp.
 TIER5_BUILDERS grows one entry per Rider as each one is built.
 """
 
-from . import v3
+from . import decade, den_o, v3
 
 TIER5_BUILDERS = {
     "hours_tab": v3.build,
+    "timeline_view": den_o.build,
+    "analytics_dashboard": decade.build,
 }

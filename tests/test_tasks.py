@@ -116,6 +116,15 @@ def test_done_returns_only_completed_tasks(store):
     assert [t.id for t in store.done()] == [t2.id]
 
 
+def test_get_returns_the_matching_task(store):
+    task = store.add("Write the Tier 5 spec")
+    assert store.get(task.id) is task
+
+
+def test_get_returns_none_for_an_unknown_id(store):
+    assert store.get("does-not-exist") is None
+
+
 def test_corrupted_file_starts_fresh(tmp_path):
     path = tmp_path / "tasks.json"
     path.write_text("{ not valid json", encoding="utf-8")

@@ -213,6 +213,9 @@ class TaskStore:
     def all(self) -> List[Task]:
         return list(self._tasks.values())
 
+    def get(self, task_id: str) -> Optional[Task]:
+        return self._tasks.get(task_id)
+
     def open(self) -> List[Task]:
         """Todo + in_progress tasks -- what the Tasks tab shows above the fold."""
         return [t for t in self._tasks.values() if t.status != TaskStatus.DONE]

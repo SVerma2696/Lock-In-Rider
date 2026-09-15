@@ -272,12 +272,14 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Den-O (2007)": RiderTheme(
         "Heisei", 2007, ("#9c1e1e", "#ef5350"), ("#90a4ae", "#eceff1"),
+        tier5_effect="timeline_view",
     ),
     "Kamen Rider Kiva (2008)": RiderTheme(
         "Heisei", 2008, ("#660000", "#d32f2f"), ("#d49e15", "#ffca28"), tier1_effect="night_overlay",
     ),
     "Kamen Rider Decade (2009)": RiderTheme(
         "Heisei", 2009, ("#9e1447", "#f06292"), ("#1a1a1a", "#757575"),
+        tier5_effect="analytics_dashboard",
     ),
     "Kamen Rider W (2009)": RiderTheme(
         "Heisei", 2009, ("#225c25", "#4caf50"), ("#111111", "#616161"),
