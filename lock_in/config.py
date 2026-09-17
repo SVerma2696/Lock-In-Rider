@@ -187,6 +187,12 @@ class Config:
     # the model let slide, not only the ones it wrongly flagged.
     record_observations: bool = True
 
+    # Auto-update: on by default. When it's on, the app quietly asks
+    # GitHub once per launch whether a newer release exists -- nothing
+    # about you or your machine is sent, just "what's your latest
+    # version?". Turning this off stops that check from ever happening.
+    check_for_updates: bool = True
+
     # --- Claude fallback (an optional helper) -------------------------------- #
     # Off unless you turn it on. When it's on, and the local model is UNSURE
     # about a window (below claude_confidence_floor), that one window title

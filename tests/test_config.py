@@ -108,3 +108,7 @@ def test_turning_blackrx_manual_breaks_off_restores_the_real_setting():
     assert config.effective_auto_start_breaks() is False
     config.blackrx_manual_breaks = False
     assert config.effective_auto_start_breaks() is True
+
+
+def test_check_for_updates_defaults_to_on():
+    assert Config().check_for_updates is True

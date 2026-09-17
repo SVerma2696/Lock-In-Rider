@@ -30,10 +30,15 @@ What the window looks like
 from __future__ import annotations
 
 import dataclasses
+import os
 import queue
+import shutil
 import sys
+import tempfile
+import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 import customtkinter as ctk
@@ -56,6 +61,8 @@ from .config import Config, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, LOG_PATH,
 from .observations import ObservationStore
 from .tasks import Task, TaskStatus, TaskStore
 from .history import HistoryStore, SessionRecord
+from . import __version__, update_apply, update_fetch, updater
+from .updater import UpdateInfo
 from .tier5 import TIER5_BUILDERS
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
@@ -316,6 +323,11 @@ class LockInApp(ctk.CTk):
         self._lockdown_window: Optional[ctk.CTkToplevel] = None
         self._ghost_widget: Optional[ctk.CTkToplevel] = None
         self._banner_after_id: Optional[str] = None
+        self._update_queue: "queue.Queue[tuple]" = queue.Queue()
+        # (UpdateInfo, Optional[Path]) once the background check finds
+        # something -- Path is None exactly when running from source
+        # (see _start_update_check), which has no file to swap.
+        self._pending_update: Optional[tuple] = None
 
         # ---------------- The window frame ------------------------------ #
         ctk.set_appearance_mode(self.config_obj.appearance)
@@ -363,6 +375,7 @@ class LockInApp(ctk.CTk):
         # and visible first — a banner on a window that isn't on screen yet
         # would just be missed.
         self.after(400, self._warn_if_app_detection_unavailable)
+        self.after(2000, self._start_update_check)
 
     def _set_app_icon(self) -> None:
         """
@@ -686,6 +699,136 @@ class LockInApp(ctk.CTk):
                 "high", duration_ms=20000,
             )
 
+    def _start_update_check(self) -> None:
+        """Kicks off the one-per-launch background check for a newer
+        release. Runs entirely off the main thread -- fetching from
+        GitHub, and (only for the packaged app) downloading and
+        unpacking the update -- so it can never freeze the window."""
+        if not self.config_obj.check_for_updates:
+            return
+
+        def run() -> None:
+            # One catch-all around the whole thread body, on purpose:
+            # this is the single place in the feature meant to swallow
+            # everything. An unhandled exception here would be completely
+            # invisible in a frozen --windowed build (no console), and a
+            # raw traceback when run from source -- both worse than
+            # "no update this time," which is the documented contract.
+            try:
+                release_data = update_fetch.fetch_latest_release()
+                if release_data is None:
+                    return
+                info = updater.check_for_update(__version__, release_data, sys.platform)
+                if info is None:
+                    return
+
+                extracted_path: Optional[Path] = None
+                if getattr(sys, "frozen", False):
+                    temp_dir = Path(tempfile.mkdtemp(prefix="lockin_update_"))
+                    archive_path = temp_dir / info.asset_name
+                    if not update_fetch.download_file(info.download_url, archive_path):
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                        return
+                    extracted_path = update_apply.extract_archive(
+                        archive_path, temp_dir, sys.platform)
+                    if extracted_path is None:
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                        return
+                    # The archive has done its job; only the unpacked app
+                    # is needed from here on, and it can be a long wait
+                    # before "Restart now" is clicked. Keep temp_dir
+                    # itself -- extracted_path lives inside it.
+                    archive_path.unlink(missing_ok=True)
+
+                self._update_queue.put((info, extracted_path))
+            except Exception:
+                return
+
+        threading.Thread(target=run, daemon=True, name="update-check").start()
+
+    def _drain_update_queue(self) -> None:
+        """The background update check (started once at launch) reports
+        back here, on the main thread."""
+        try:
+            info, extracted_path = self._update_queue.get_nowait()
+        except queue.Empty:
+            return
+        self._show_update_ready_frame(info, extracted_path)
+
+    def _show_update_ready_frame(self, info: UpdateInfo, extracted_path: Optional[Path]) -> None:
+        """Reveals the persistent header notice built in _build_header().
+        extracted_path is None exactly when running from source (see
+        _start_update_check) -- there's no file to swap in that case,
+        so the restart button is hidden and the text points at the
+        Releases page instead."""
+        self._pending_update = (info, extracted_path)
+        if extracted_path is None:
+            self.update_label.configure(
+                text=f"Lock In v{info.version} is available — see the Releases page.")
+            self.update_restart_button.pack_forget()
+        else:
+            self.update_label.configure(text=f"Update ready — v{info.version}")
+            self._mpack(self.update_restart_button, side="right", padx=(0, 10), pady=8)
+        # Anchored on a direct child of `header`, NOT on phase_label.
+        # Tk resolves pack(before=...) against the OTHER widget's own
+        # parent, and phase_label's parent is normal_header_content --
+        # so anchoring on it quietly packed this notice INSIDE
+        # normal_header_content, which Zero-One's dashboard-card reskin
+        # and Amazon's zero-UI mode both pack_forget() wholesale. The
+        # notice (and its Restart button) went invisible and unreachable,
+        # silently. normal_header_content IS a direct child of `header`,
+        # so it puts the notice at the top of the header where it
+        # belongs -- but it's also the very thing those two reskins
+        # unpack, and pack(before=) needs a currently-managed sibling.
+        # self.controls is the always-packed fallback, same pattern as
+        # _header_stack_anchor() and _sync_zero_ui_visibility() already
+        # use for exactly this reason.
+        anchor = (self.normal_header_content
+                  if self.normal_header_content.winfo_manager() else self.controls)
+        self._mpack(self.update_frame, fill="x", pady=(0, 10), before=anchor)
+
+    def _on_restart_update_clicked(self) -> None:
+        """Runs the file swap and reopens the app -- but only when doing
+        so can't cut off an active focus block or the lockdown screen.
+        Clicking during either of those is a no-op with an explanation,
+        never a forced interruption. Re-checked here, at click time, not
+        just when the notice first appeared -- a focus block could have
+        started in between."""
+        if self._pending_update is None:
+            return
+        info, extracted_path = self._pending_update
+        if extracted_path is None:
+            return  # no button should be visible in this case; guard anyway
+
+        if self.session.phase is Phase.FOCUS or self._lockdown_window is not None:
+            self._show_banner("Finish your focus block first.", "normal")
+            return
+
+        # Re-checked at click time, not just at download time: the
+        # unpacked update sits in the OS temp folder from launch until
+        # this button is clicked, which the persistent notice
+        # deliberately allows to be hours later -- plenty of room for a
+        # temp-file cleaner to have swept it away. Without this the
+        # relauncher script would run against a file that no longer
+        # exists. (The script guards this too; this is the half that can
+        # actually tell you what happened.) exists() never raises, even
+        # if the whole temp directory is gone.
+        if not extracted_path.exists():
+            self._show_banner(
+                "That update is no longer available — it'll be checked "
+                "again next time you open the app.", "normal")
+            self._pending_update = None
+            self.update_frame.pack_forget()
+            return
+
+        current_path = update_apply.current_app_path(sys.platform)
+        script_path = update_apply.write_relauncher_script(
+            extracted_path.parent, current_path, extracted_path,
+            pid=os.getpid(), platform=sys.platform,
+        )
+        update_apply.launch_relauncher_and_quit(script_path, sys.platform)
+        self._on_close()
+
     # ------------------------------------------------------------------ #
     # Ryuki's mirror mechanism -- see flip_pack_kwargs/flip_place_kwargs/
     # flip_grid_kwargs above for the actual flipping logic. These three
@@ -813,6 +956,29 @@ class LockInApp(ctk.CTk):
             header, text="", corner_radius=8, height=44,
             font=ctk.CTkFont(size=13), wraplength=480, justify="left",
         )
+
+        # A persistent "a new version is ready" notice -- unlike self.banner
+        # above, this stays up until you act on it (or the app restarts
+        # itself), since a one-time toast could easily be missed and
+        # staying visible is the whole point. Starts hidden;
+        # _show_update_ready_frame reveals it.
+        # Bordered on purpose: fg_color matches the header panel it sits
+        # in, so without an outline it reads as plain floating text
+        # rather than a notice. COLOR_LOOK_ACCENT is the file's existing
+        # "notable, not urgent" accent.
+        self.update_frame = ctk.CTkFrame(
+            header, fg_color=self.color_surface, corner_radius=8,
+            border_width=1, border_color=COLOR_LOOK_ACCENT,
+        )
+        self.update_label = ctk.CTkLabel(
+            self.update_frame, text="", font=ctk.CTkFont(size=12), anchor="w",
+        )
+        self._mpack(self.update_label, side="left", padx=(10, 6), pady=8, fill="x", expand=True)
+        self.update_restart_button = ctk.CTkButton(
+            self.update_frame, text="Restart now", width=110,
+            command=self._on_restart_update_clicked,
+        )
+        self._mpack(self.update_restart_button, side="right", padx=(0, 10), pady=8)
 
         # A soft glow sits right behind the timer digits. It has to be
         # made before EVERY other label in this header, including the
@@ -1441,6 +1607,10 @@ class LockInApp(ctk.CTk):
             "on when those words are showing."
         )
 
+        # --- Version ------------------------------------------------ #
+        heading("7. Version", COLOR_IDLE)
+        body(f"You're running Lock In v{__version__}.")
+
     # ------------------------------------------------------------------ #
     def _build_settings_tab(self, parent) -> None:
         frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
@@ -1495,6 +1665,11 @@ class LockInApp(ctk.CTk):
         self.toast_var = ctk.BooleanVar(value=self.config_obj.toast_enabled)
         self._mpack(ctk.CTkSwitch(frame, text="Desktop notifications", variable=self.toast_var,
                       progress_color=COLOR_LOOK_ACCENT,
+                      command=self._save_from_widgets), anchor="w", pady=4)
+
+        self.check_updates_var = ctk.BooleanVar(value=self.config_obj.check_for_updates)
+        self._mpack(ctk.CTkSwitch(frame, text="Automatically check for updates",
+                      variable=self.check_updates_var, progress_color=COLOR_LOOK_ACCENT,
                       command=self._save_from_widgets), anchor="w", pady=4)
 
         row = ctk.CTkFrame(frame, fg_color="transparent")
@@ -1621,6 +1796,7 @@ class LockInApp(ctk.CTk):
             self._drain_camera_queue()
             self._drain_claude_queue()
             self._drain_banner_queue()
+            self._drain_update_queue()
             self._refresh_timer_widgets()
         finally:
             # This "finally" makes sure we always schedule the next loop,
@@ -2265,6 +2441,10 @@ class LockInApp(ctk.CTk):
         self.driver_label.configure(text=self._driver_label_text(), text_color=self.color_driver_text)
         self.start_button.configure(fg_color=self.color_rider_accent, text_color=self.color_button_text)
         self.header_frame.configure(fg_color=self.color_surface)
+        # The update notice sits inside the header and is meant to blend
+        # into it, so it has to follow the same surface color -- otherwise
+        # a Rider switch leaves it showing the old theme's background.
+        self.update_frame.configure(fg_color=self.color_surface)
         self._sync_progress_widget_visibility()
         self._refresh_timer_widgets()
         # Rebuilding the tabs is how the tab panels themselves (and the
@@ -2303,6 +2483,9 @@ class LockInApp(ctk.CTk):
             text_color=self.color_button_text,
         )
         self.header_frame.configure(fg_color=self.color_surface)
+        # Same reason as in _on_rider_theme_change(): Standard Mode also
+        # changes the surface color, and the notice has to track it.
+        self.update_frame.configure(fg_color=self.color_surface)
         self._sync_progress_widget_visibility()
         self._refresh_timer_widgets()
         # Same reason _on_rider_theme_change() rebuilds the tabs: the tab
@@ -2563,6 +2746,7 @@ class LockInApp(ctk.CTk):
             c.auto_start_focus = self.autofocus_var.get()
             c.sound_enabled = self.sound_var.get()
             c.toast_enabled = self.toast_var.get()
+            c.check_for_updates = self.check_updates_var.get()
         c.save()
 
     def _save_lists(self) -> None:

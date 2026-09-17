@@ -55,3 +55,9 @@ sessions.jsonl
 lockin_training_data.csv
 app_icon.ico
 app_icon_square.png
+
+# Safety net for the auto-updater's temp files, in case anything ever
+# runs from inside this folder during manual testing -- the real thing
+# always downloads and unpacks in the OS temp folder, never this one.
+*.old
+lockin_update_tmp/

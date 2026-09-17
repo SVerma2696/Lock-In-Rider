@@ -77,6 +77,32 @@ run it from source and make your own changes? Keep reading below.
 
 ---
 
+## 🔄 Auto-Update
+
+**In plain words:** the app quietly checks once when it opens whether a
+newer version exists. If it does, a small notice appears at the top
+telling you which version is ready, with a button next to it to restart.
+Click that button whenever you're ready — never while you're
+mid-focus-block, it simply won't do anything until you finish — and the
+app closes, swaps itself for the new version, and reopens, same as if
+you'd downloaded it by hand.
+
+- Only checks when you're online; if it can't reach GitHub, nothing
+  happens and the app works exactly as it did before.
+- The only thing it asks GitHub is "what's your newest release?" —
+  nothing about you or your machine is sent.
+- Once it finds a newer version, it also quietly downloads it in the
+  background, before you click anything — worth knowing if you're on a
+  slow or metered connection. (Turn the setting off below if you'd
+  rather it didn't.)
+- Turn it off anytime: Settings tab → "Automatically check for
+  updates."
+- Only works for the app downloaded from Releases. Running it from
+  source (`python main.py`)? Use `git pull` instead — you'll still see
+  a small "update available" note, just without the restart button.
+
+---
+
 ## ⚙️ Features
 
 * **A timer that works in cycles** — focus for a while, then a short
@@ -152,6 +178,8 @@ Lock In/
 │   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
+│   ├── updater.py               Pure version-compare/asset-pick logic for
+│   │                           auto-update (no network, no filesystem).
 │   ├── assets/
 │   │   └── app_icon.png         The app's own picture — window/taskbar icon
 │   │                           and notification icon.
@@ -161,6 +189,10 @@ Lock In/
 │   │                           Win32 backend, macOS (osascript), Linux (xdotool).
 │   ├── notifier.py             Toasts and sounds: winotify/winsound (Windows),
 │   │                           osascript/afplay (macOS), notify-send/paplay (Linux).
+│   ├── update_fetch.py          The one network call in auto-update: asks GitHub
+│   │                           for the latest release, downloads the matching file.
+│   ├── update_apply.py          Unpacks the downloaded release and writes/launches
+│   │                           the per-OS relaunch script that swaps files.
 │   └── ui.py                   CustomTkinter front end. The only module that
 │                               imports tkinter.
 │
@@ -330,6 +362,8 @@ the app, for anyone reading the code rather than just using it:
   `paplay`/`aplay` (all optional, install via your package manager)
 * Optional: the `anthropic` SDK + an API key, only if you turn on the
   [Claude fallback](#claude-fallback-optional-off-by-default)
+* Auto-update needs no new dependency — it's built entirely from the
+  standard library already required to run Python at all.
 
 ---
 
@@ -1061,6 +1095,9 @@ use — never the key itself.
   something is checked off, hiding it again means editing `tasks.json`
   by hand. Past entries in the session diary (`sessions.jsonl`) can't be
   edited from the app either. Both are on the list for later.
+- **Auto-update only replaces the downloaded app** — a source checkout
+  (`python main.py`) shows the same "update available" note but needs
+  `git pull` instead of a restart button.
 
 ---
 
