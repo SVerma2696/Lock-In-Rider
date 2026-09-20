@@ -1,7 +1,11 @@
 from datetime import date
 
+from lock_in.history import SessionRecord
 from lock_in.tasks import TaskStore
-from lock_in.tier5._shared import format_hm, last_n_days, resolve_task_name
+from lock_in.tier5._shared import (
+    format_day_heading, format_hm, format_time_range, last_n_days,
+    resolve_task_name, sorted_blocks,
+)
 
 
 def test_format_hm_zero_seconds():
@@ -71,3 +75,26 @@ def test_resolve_task_name_returns_the_real_name(tmp_path):
 def test_resolve_task_name_is_deleted_task_for_a_dangling_id(tmp_path):
     tasks = TaskStore(tmp_path / "tasks.json")
     assert resolve_task_name("no-such-id", tasks) == "Deleted task"
+
+
+def _rec(start, end):
+    return SessionRecord(start=start, end=end, duration_seconds=1, task_id=None, completed=True)
+
+
+def test_sorted_blocks_orders_earliest_first():
+    late = _rec("2026-09-14T14:00:00", "2026-09-14T14:10:00")
+    early = _rec("2026-09-14T09:00:00", "2026-09-14T09:10:00")
+    assert sorted_blocks([late, early]) == [early, late]
+
+
+def test_sorted_blocks_handles_an_empty_list():
+    assert sorted_blocks([]) == []
+
+
+def test_format_time_range_formats_hh_mm():
+    result = format_time_range("2026-09-14T09:00:00", "2026-09-14T09:25:00")
+    assert result == "09:00–09:25"
+
+
+def test_format_day_heading_matches_expected_string():
+    assert format_day_heading(date(2026, 9, 12)) == "Saturday, September 12"

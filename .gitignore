@@ -31,18 +31,6 @@ lock_in_icon.icns
 .DS_Store
 Thumbs.db
 
-# Local copies of this repo that Claude Code makes on your own machine
-# while working on a branch (a "worktree") -- these live only on your
-# computer and were never meant to be checked in. Without this line,
-# one of them could accidentally get committed as a giant duplicate
-# copy of the whole project.
-.claude/worktrees/
-
-# Output from the /graphify tool (knowledge-graph explorer) -- a local
-# helper for browsing this codebase, not part of the app. Regenerates
-# on demand, so there's nothing here worth checking in.
-graphify-out/
-
 # App data (settings, trained model, training data) — this lives in
 # %APPDATA%\Lock In\ on Windows, not in this project folder, so it
 # normally won't show up here. This is just a safety net in case any

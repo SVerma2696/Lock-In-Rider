@@ -288,12 +288,14 @@ def test_tier5_effect_defaults_to_none():
     assert theme.tier5_effect == "none"
 
 
-def test_exactly_these_three_riders_have_a_tier5_effect():
+def test_exactly_these_five_riders_have_a_tier5_effect():
     from lock_in.rider_themes import RIDER_THEMES
     expected = {
         "Kamen Rider V3 (1973)": "hours_tab",
         "Kamen Rider Den-O (2007)": "timeline_view",
         "Kamen Rider Decade (2009)": "analytics_dashboard",
+        "Kamen Rider Zi-O (2018)": "history_editor",
+        "Kamen Rider Blade (2004)": "kanban_board",
     }
     for name, effect in expected.items():
         assert RIDER_THEMES[name].tier5_effect == effect, name

@@ -173,8 +173,9 @@ Lock In/
 │   │                           which have been labelled. Backs train.py.
 │   ├── tasks.py                 The task list: add/edit/complete tasks and their
 │   │                           checklist subtasks, saved as tasks.json.
-│   ├── history.py               An append-only log of every completed, skipped, or
-│   │                           reset focus block, saved as sessions.jsonl.
+│   ├── history.py               The diary of every completed, skipped, or reset
+│   │                           focus block, saved as sessions.jsonl. Each block
+│   │                           has its own id so Zi-O can fix or delete it.
 │   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
@@ -205,7 +206,8 @@ Lock In/
 │   │                           cross-platform process matching.
 │   ├── test_observations.py    De-duplication, labelling, JSONL round-trip.
 │   ├── test_tasks.py            Add/edit/complete tasks and subtasks, JSON round-trip.
-│   ├── test_history.py          Recording, filtering by day/task, JSONL round-trip.
+│   ├── test_history.py          Recording, filtering by day/task, JSONL round-trip,
+│   │                           block ids, and changing/deleting a block.
 │   ├── test_claude_fallback.py Caching, async lookup, failure handling — no
 │   │                           real network calls, a fake client stands in.
 │   ├── test_rider_themes.py    Palette completeness, color validity, dark-mode
@@ -705,9 +707,20 @@ behavior.
 - **Decade** — adds an "Analytics" tab: a 30-day version of V3's bar
   chart, plus your top 10 tasks ranked by how much total time you've
   spent on each.
+- **Zi-O** — adds a "History" tab. It shows the same day-by-day list as
+  Den-O, but now you can fix mistakes. Every block has a little menu for
+  picking a different task, and a Delete button. Delete asks you to tap
+  twice ("Delete", then "Really delete?") so you can't do it by
+  accident, and there's no pop-up. Only the task can change; when the
+  block started, when it ended and how long it was stay exactly as the
+  timer measured them.
+- **Blade** — adds a "Board" tab: your tasks as three columns, To Do, In
+  Progress and Done, like sticky notes on a wall. Each note has a small
+  arrow button that moves it one column over. It shows the same tasks as
+  the Tasks tab, so a move on the Board shows up there too.
 
 More Riders will read your tasks and history this way over time — these
-three are just the first of ten planned.
+five are just the first of ten planned.
 
 ### Look and feel
 
@@ -1093,8 +1106,14 @@ use — never the key itself.
   focus block, instead of trying to fix itself right away.
 - **Tasks can't be deleted or un-marked done from the app yet** — once
   something is checked off, hiding it again means editing `tasks.json`
-  by hand. Past entries in the session diary (`sessions.jsonl`) can't be
-  edited from the app either. Both are on the list for later.
+  by hand. That's on the list for later.
+- **Fixing the session diary only works with Zi-O picked** — the History
+  tab can change a block's task or delete it, but it can't change when a
+  block started or how long it was. Once you delete a block there's no
+  undo.
+- **The Board can only move a task forward** — the arrow on a Blade Board
+  note goes To Do → In Progress → Done. There's no dragging, and no arrow
+  to send a note back.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
   `git pull` instead of a restart button.

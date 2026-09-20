@@ -141,6 +141,7 @@ ZERO_UI_HEIGHT = 120
 # what the tab is called. Grows one entry per Rider as each one ships.
 _TIER5_TAB_LABELS = {
     "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
+    "history_editor": "History", "kanban_board": "Board",
 }
 
 
@@ -1587,9 +1588,20 @@ class LockInApp(ctk.CTk):
             "Decade — an \"Analytics\" tab appears: a 30-day version of "
             "V3's bar chart, plus your top 10 tasks by total time spent."
         )
+        bullet(
+            "Zi-O — a \"History\" tab appears. It shows the same day "
+            "list as Den-O, but now you can fix mistakes: pick a "
+            "different task for a block from its menu, or delete the "
+            "block (tap Delete, then tap Really delete? to be sure)."
+        )
+        bullet(
+            "Blade — a \"Board\" tab appears, with your tasks in three "
+            "columns: To Do, In Progress and Done. Tap the little arrow "
+            "on a task to move it one column over."
+        )
         body(
             "More heroes will get a tab like this over time -- these "
-            "three are just the first."
+            "five are just the first."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #

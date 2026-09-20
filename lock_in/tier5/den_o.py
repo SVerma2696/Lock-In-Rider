@@ -1,65 +1,36 @@
 """
 tier5/den_o.py
 ===============
-Kamen Rider Den-O's Tier 5 gimmick: a new "Timeline" tab showing one
-calendar day's focus blocks at a time, chronological, with Prev/Next
-day navigation. The second of Tier 5's 10 Riders -- see
+Kamen Rider Den-O's Tier 5 gimmick: a "Timeline" tab. It shows one day's
+focus blocks at a time, earliest first, with Prev / Next buttons to
+walk through the days. The second of Tier 5's 10 Riders -- see
 docs/superpowers/specs/2026-09-14-tier5-deno-timeline-design.md.
 
-Three plain functions do the shaping (`sorted_blocks`,
-`format_time_range`, `format_day_heading`) -- tested with no Tk, no
-display server, same as every pure-logic module in this codebase.
-(`resolve_task_name` moved to `tier5/_shared.py` once Decade also
-needed it.) `build()` is the only Tk-dependent piece, including the one
-bit of state (which day is currently shown) any Tier 5 Rider has needed
-so far -- it lives entirely in build()'s own closure, never touching
-ui.py. `build()` itself is screenshot-verified in the running app
-instead, matching how every other tab is verified.
+The little helpers that put blocks in order and write out times and day
+names now live in tier5/_shared.py, because Zi-O's History tab needs
+the very same ones (see
+docs/superpowers/specs/2026-09-17-tier5-zi-o-history-editor-design.md).
+So all that's left here is build(), which draws the tab. It remembers
+which day you're looking at inside itself, so ui.py never has to know.
+build() is checked by running the real app, like every other tab.
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import customtkinter as ctk
 
-from ..history import SessionRecord
-from ..tasks import TaskStore
-from ._shared import format_hm, resolve_task_name
+from ._shared import format_day_heading, format_hm, format_time_range, resolve_task_name, sorted_blocks
 
-# Same hex values as ui.py's COLOR_BREAK / COLOR_WARN / COLOR_IDLE --
-# not imported from there, since ui.py imports TIER5_BUILDERS FROM the
-# tier5 package, so a Rider module importing color constants back out
-# of ui.py would be circular. Kept as local constants with this
-# cross-reference so the app's "green = good, amber = caution" language
-# stays visually consistent without a code dependency in either
-# direction.
+# The same colors ui.py uses (COLOR_BREAK / COLOR_WARN / COLOR_IDLE):
+# green = good, amber = careful, gray = quiet. They are copied here
+# instead of imported, because ui.py already imports this package --
+# importing back the other way would make the two files chase each
+# other in a circle.
 _COMPLETED_COLOR = "#2f9e5f"
 _ENDED_EARLY_COLOR = "#e0a800"
 _MUTED_COLOR = "#5a6472"
-
-
-def sorted_blocks(records: list[SessionRecord]) -> list[SessionRecord]:
-    """`records`, earliest-`start`-first. HistoryStore.for_date() filters
-    but doesn't sort -- Den-O sorts explicitly rather than trusting
-    JSONL append order."""
-    return sorted(records, key=lambda r: r.start)
-
-
-def format_time_range(start_iso: str, end_iso: str) -> str:
-    """'2026-09-14T09:00:00', '2026-09-14T09:25:00' -> '09:00-09:25',
-    the same 24-hour %H:%M format the Activity tab already uses."""
-    start = datetime.fromisoformat(start_iso)
-    end = datetime.fromisoformat(end_iso)
-    return f"{start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
-
-
-def format_day_heading(day: date) -> str:
-    """date(2026, 9, 12) -> 'Saturday, September 12'. Built from `.day`
-    instead of a %-d/%#d strftime code -- those are platform-specific
-    (glibc vs. MSVCRT) and this app runs on Windows, macOS, and Linux
-    from one codebase."""
-    return f"{day.strftime('%A, %B')} {day.day}"
 
 
 def build(parent, *, history, tasks, theme, appearance_mode) -> None:

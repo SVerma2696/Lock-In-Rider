@@ -119,8 +119,9 @@ class RiderTheme:
     # ui.py, notifier.py, and ambient.py all read this to decide what
     # display/audio/input behavior this Rider needs.
     tier4_effect: str = "none"
-    # "none" for every Rider except V3, the first of Tier 5's 10
-    # history/task-reading Riders (see
+    # "none" for every Rider except the ones that read your tasks and
+    # history (V3, Den-O, Decade, Zi-O and Blade so far, out of 10
+    # planned -- see
     # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md).
     # ui.py reads this to decide whether a 6th tab exists at all, and
     # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
@@ -261,6 +262,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Blade (2004)": RiderTheme(
         "Heisei", 2004, ("#0f4a8f", "#42a5f5"), ("#78909c", "#b0bec5"),
+        tier5_effect="kanban_board",
     ),
     "Kamen Rider Hibiki (2005)": RiderTheme(
         "Heisei", 2005, ("#310d5e", "#7b1fa2"), ("#9c1e1e", "#ef5350"),
@@ -313,6 +315,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Zi-O (2018)": RiderTheme(
         "Heisei", 2018, ("#1a1a1a", "#757575"), ("#9e1447", "#f06292"),
+        tier5_effect="history_editor",
     ),
     "Kamen Rider Zero-One (2019)": RiderTheme(
         "Reiwa", 2019, ("#77a100", "#c6ff00"), ("#111111", "#616161"),
