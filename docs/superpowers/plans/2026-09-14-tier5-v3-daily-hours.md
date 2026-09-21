@@ -1,7 +1,5 @@
 # Tier 5 Rider #1: V3 Daily Hours Tracker Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** When Kamen Rider V3 (1973) is the picked Rider, a 6th "Hours" tab
 appears showing today's total focused time and a 14-day bar chart, reading
 only the history aggregate `HistoryStore.total_seconds_by_day()` already

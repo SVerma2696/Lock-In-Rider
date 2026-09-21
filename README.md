@@ -87,6 +87,18 @@ mid-focus-block, it simply won't do anything until you finish — and the
 app closes, swaps itself for the new version, and reopens, same as if
 you'd downloaded it by hand.
 
+**Want to ask right now?** Open the Settings tab and press **Check for
+updates now**. The app asks GitHub right then and tells you, in a short
+sentence right under the button, what it found:
+
+- "You already have the newest Lock In" — nothing to do.
+- "Found Lock In v… Press Restart now at the top" — the same notice and
+  Restart button as above just appeared.
+- "Couldn't check just now" — usually no internet. Try again later.
+
+The button works even if you turned the automatic check off. It only
+asks when you press it.
+
 - Only checks when you're online; if it can't reach GitHub, nothing
   happens and the app works exactly as it did before.
 - The only thing it asks GitHub is "what's your newest release?" —
@@ -95,8 +107,9 @@ you'd downloaded it by hand.
   background, before you click anything — worth knowing if you're on a
   slow or metered connection. (Turn the setting off below if you'd
   rather it didn't.)
-- Turn it off anytime: Settings tab → "Automatically check for
-  updates."
+- Turn the automatic check off anytime: Settings tab → "Automatically
+  check for updates." The "Check for updates now" button right under it
+  still works when you want it.
 - Only works for the app downloaded from Releases. Running it from
   source (`python main.py`)? Use `git pull` instead — you'll still see
   a small "update available" note, just without the restart button.
@@ -180,7 +193,9 @@ Lock In/
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
 │   ├── updater.py               Pure version-compare/asset-pick logic for
-│   │                           auto-update (no network, no filesystem).
+│   │                           auto-update, plus the plain-words answer the
+│   │                           "Check for updates now" button shows
+│   │                           (no network, no filesystem).
 │   ├── assets/
 │   │   └── app_icon.png         The app's own picture — window/taskbar icon
 │   │                           and notification icon.

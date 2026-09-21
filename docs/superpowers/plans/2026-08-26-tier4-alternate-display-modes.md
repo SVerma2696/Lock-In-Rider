@@ -1,7 +1,5 @@
 # Tier 4 — Alternate Display Modes Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add nine Riders' worth of Tier 4 "alternate display mode" gimmicks (Black RX, Ryuki, Kabuto, Ex-Aid, Hibiki, Zero-One, Ghost, Zeztz — plus Saber, reclassified into Tier 1) to Lock In.
 
 **Architecture:** A new `tier4_effect: str = "none"` field on `RiderTheme`, dispatched through `ui.py`'s existing `self.current_tier4_effect` attribute (same shape as `current_tier1_effect`/`current_tier3_effect`), silenced for free by Standard Mode's existing kill switch. Each Rider's gimmick is otherwise self-contained: a `Config` read-side override (Black RX), a systemic geometry-wrapper mechanism (Ryuki), a text-swap plus hover binding (Kabuto), extensions to the existing tone-based sound system plus one bundled pixel font (Ex-Aid), one new small OS-glue module (Hibiki's `ambient.py`), a header layout branch (Zero-One), a second floating `Toplevel` (Ghost), and `bind_all()` shortcuts (Zeztz). Saber becomes a tenth Tier 1 progress shape, not a `tier4_effect` at all.

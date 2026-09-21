@@ -1,7 +1,5 @@
 # Auto-Update (v2.5.3) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a background check that notices when a newer Lock In release exists, downloads and unpacks it quietly, and offers a one-click "Restart now" that swaps the old app for the new one and reopens it — without ever interrupting a focus block or the lockdown screen, and without ever breaking the app if anything along the way goes wrong.
 
 **Architecture:** Three new pure-to-thin modules, same tier system the rest of the codebase already uses — `lock_in/updater.py` (pure version-compare/asset-pick logic, stdlib only, fully unit-tested, no network), `lock_in/update_fetch.py` (the one network shell, parallel to `claude_fallback.py`, tested with a fake `urlopen`), and `lock_in/update_apply.py` (the platform shell that unpacks the archive and writes/launches the per-OS relaunch script, parallel to `monitor.py`/`notifier.py`). `ui.py` wires a background thread into the existing `_pump()`/`queue.Queue` cross-thread pattern already used for window/camera/Claude/banner messages, and adds one persistent header notice plus one Settings switch.

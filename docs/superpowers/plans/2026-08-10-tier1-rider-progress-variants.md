@@ -1,7 +1,6 @@
 # Lock In: Tier 1 Rider Progress Variants Implementation Plan
 
-> **Shipped in v2.0.0.** Implemented inline (not via subagent dispatch),
-> with three corrections made along the way, documented in the spec
+> **Shipped in v2.0.0.** Built with three corrections made along the way, documented in the spec
 > (`docs/superpowers/specs/2026-08-10-tier1-rider-progress-variants-design.md`):
 > (1) the progress widget swap was rescoped to touch ONLY the 4 Riders
 > with a real custom shape, using `pack(before=self.controls)` instead
@@ -18,8 +17,6 @@
 > The task bodies below describe the ORIGINAL plan (flat-bar renderer,
 > 6 shapes, all-38-Rider widget swap) and are kept for history — they do
 > not fully match what shipped.
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give 9 specific Kamen Riders (1971, Skyrider, Stronger, Black, Fourze, Build, Drive, Agito, Kiva) their own unique visual treatment during a focus block — a custom-shaped progress indicator, a color-behavior tweak, or a chrome-level background effect — while every other Rider keeps today's plain bar unchanged.
 

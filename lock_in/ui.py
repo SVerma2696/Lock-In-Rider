@@ -329,6 +329,11 @@ class LockInApp(ctk.CTk):
         # something -- Path is None exactly when running from source
         # (see _start_update_check), which has no file to swap.
         self._pending_update: Optional[tuple] = None
+        # True while a check is in flight, so a second one never starts on
+        # top of it; and whether the person clicked "Check for updates
+        # now" (so the finished check should answer out loud).
+        self._update_check_running = False
+        self._update_message_wanted = False
 
         # ---------------- The window frame ------------------------------ #
         ctk.set_appearance_mode(self.config_obj.appearance)
@@ -700,13 +705,23 @@ class LockInApp(ctk.CTk):
                 "high", duration_ms=20000,
             )
 
-    def _start_update_check(self) -> None:
-        """Kicks off the one-per-launch background check for a newer
-        release. Runs entirely off the main thread -- fetching from
-        GitHub, and (only for the packaged app) downloading and
-        unpacking the update -- so it can never freeze the window."""
-        if not self.config_obj.check_for_updates:
+    def _start_update_check(self, manual: bool = False) -> None:
+        """Kicks off a background check for a newer release: once at
+        launch (quiet, and only if the Settings switch is on), and again
+        whenever "Check for updates now" is clicked (always allowed, and
+        it always answers out loud). Runs entirely off the main thread --
+        fetching from GitHub, and (only for the packaged app) downloading
+        and unpacking the update -- so it can never freeze the window."""
+        if manual:
+            # Even if the launch check is still running, the person
+            # asked -- so whichever check finishes next answers them.
+            self._update_message_wanted = True
+            self._set_update_check_busy(True)
+        elif not self.config_obj.check_for_updates:
             return
+        if self._update_check_running:
+            return
+        self._update_check_running = True
 
         def run() -> None:
             # One catch-all around the whole thread body, on purpose:
@@ -715,46 +730,81 @@ class LockInApp(ctk.CTk):
             # invisible in a frozen --windowed build (no console), and a
             # raw traceback when run from source -- both worse than
             # "no update this time," which is the documented contract.
+            # It also always reports back exactly once, so the button
+            # can never get stuck on "Checking...".
+            result = updater.CheckResult(updater.CHECK_FAILED)
+            extracted_path: Optional[Path] = None
             try:
                 release_data = update_fetch.fetch_latest_release()
-                if release_data is None:
-                    return
-                info = updater.check_for_update(__version__, release_data, sys.platform)
-                if info is None:
-                    return
-
-                extracted_path: Optional[Path] = None
-                if getattr(sys, "frozen", False):
+                result = updater.classify_check(__version__, release_data, sys.platform)
+                info = result.info
+                if info is not None and getattr(sys, "frozen", False):
                     temp_dir = Path(tempfile.mkdtemp(prefix="lockin_update_"))
                     archive_path = temp_dir / info.asset_name
                     if not update_fetch.download_file(info.download_url, archive_path):
                         shutil.rmtree(temp_dir, ignore_errors=True)
-                        return
-                    extracted_path = update_apply.extract_archive(
-                        archive_path, temp_dir, sys.platform)
-                    if extracted_path is None:
-                        shutil.rmtree(temp_dir, ignore_errors=True)
-                        return
-                    # The archive has done its job; only the unpacked app
-                    # is needed from here on, and it can be a long wait
-                    # before "Restart now" is clicked. Keep temp_dir
-                    # itself -- extracted_path lives inside it.
-                    archive_path.unlink(missing_ok=True)
-
-                self._update_queue.put((info, extracted_path))
+                        result = updater.CheckResult(
+                            updater.CHECK_DOWNLOAD_FAILED, latest=result.latest)
+                    else:
+                        extracted_path = update_apply.extract_archive(
+                            archive_path, temp_dir, sys.platform)
+                        if extracted_path is None:
+                            shutil.rmtree(temp_dir, ignore_errors=True)
+                            result = updater.CheckResult(
+                                updater.CHECK_DOWNLOAD_FAILED, latest=result.latest)
+                        else:
+                            # The archive has done its job; only the
+                            # unpacked app is needed from here on, and it
+                            # can be a long wait before "Restart now" is
+                            # clicked. Keep temp_dir itself --
+                            # extracted_path lives inside it.
+                            archive_path.unlink(missing_ok=True)
             except Exception:
-                return
+                result = updater.CheckResult(updater.CHECK_FAILED)
+                extracted_path = None
+            self._update_queue.put((result, extracted_path))
 
         threading.Thread(target=run, daemon=True, name="update-check").start()
 
     def _drain_update_queue(self) -> None:
-        """The background update check (started once at launch) reports
-        back here, on the main thread."""
+        """The background update check reports back here, on the main
+        thread. A found update always lights up the header notice; the
+        words next to the button appear only if somebody asked for them
+        (the quiet launch check stays quiet)."""
         try:
-            info, extracted_path = self._update_queue.get_nowait()
+            result, extracted_path = self._update_queue.get_nowait()
         except queue.Empty:
             return
-        self._show_update_ready_frame(info, extracted_path)
+        self._update_check_running = False
+        if result.status == updater.CHECK_AVAILABLE and result.info is not None:
+            self._show_update_ready_frame(result.info, extracted_path)
+        if self._update_message_wanted:
+            self._update_message_wanted = False
+            self._set_update_check_busy(False)
+            self.update_check_status.configure(text=updater.check_message(
+                result, __version__, can_restart=extracted_path is not None))
+
+    def _on_check_updates_clicked(self) -> None:
+        """The "Check for updates now" button. Clicked while a check is
+        already running (the button greys out for its own checks, but the
+        quiet launch check doesn't), it just waits for that one and
+        answers when it finishes -- see _start_update_check."""
+        if self._pending_update is not None:
+            # Already found one earlier this run -- no need to ask again.
+            info, extracted_path = self._pending_update
+            self.update_check_status.configure(text=updater.check_message(
+                updater.CheckResult(updater.CHECK_AVAILABLE, info=info, latest=info.version),
+                __version__, can_restart=extracted_path is not None))
+            return
+        self._start_update_check(manual=True)
+
+    def _set_update_check_busy(self, busy: bool) -> None:
+        """Greys the button out and says "Checking..." while a check runs."""
+        if busy:
+            self.update_check_button.configure(state="disabled", text="Checking…")
+            self.update_check_status.configure(text="")
+        else:
+            self.update_check_button.configure(state="normal", text="Check for updates now")
 
     def _show_update_ready_frame(self, info: UpdateInfo, extracted_path: Optional[Path]) -> None:
         """Reveals the persistent header notice built in _build_header().
@@ -1622,6 +1672,11 @@ class LockInApp(ctk.CTk):
         # --- Version ------------------------------------------------ #
         heading("7. Version", COLOR_IDLE)
         body(f"You're running Lock In v{__version__}.")
+        body(
+            "Want to know if there's a newer Lock In? Open the Settings "
+            "tab and press \"Check for updates now\". It tells you what "
+            "it found in a short sentence right under the button."
+        )
 
     # ------------------------------------------------------------------ #
     def _build_settings_tab(self, parent) -> None:
@@ -1683,6 +1738,18 @@ class LockInApp(ctk.CTk):
         self._mpack(ctk.CTkSwitch(frame, text="Automatically check for updates",
                       variable=self.check_updates_var, progress_color=COLOR_LOOK_ACCENT,
                       command=self._save_from_widgets), anchor="w", pady=4)
+
+        # Works even with the switch above turned off -- it's the "ask
+        # right now, just once" version of the same check.
+        self.update_check_button = ctk.CTkButton(
+            frame, text="Check for updates now", width=170,
+            fg_color="transparent", border_width=2,
+            border_color=COLOR_LOOK_ACCENT, text_color=COLOR_LOOK_ACCENT,
+            command=self._on_check_updates_clicked)
+        self._mpack(self.update_check_button, anchor="w", pady=(4, 2))
+        self.update_check_status = ctk.CTkLabel(
+            frame, text="", justify="left", wraplength=440, anchor="w")
+        self._mpack(self.update_check_status, anchor="w", pady=(0, 4))
 
         row = ctk.CTkFrame(frame, fg_color="transparent")
         self._mpack(row, fill="x", pady=(10, 4))

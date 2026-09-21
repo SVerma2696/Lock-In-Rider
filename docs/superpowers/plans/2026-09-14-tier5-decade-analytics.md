@@ -1,7 +1,5 @@
 # Tier 5 Rider #3: Decade Analytics Dashboard Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** When Kamen Rider Decade (2009) is the picked Rider, an
 "Analytics" tab appears with a 30-day version of V3's bar chart and a
 "Top tasks" ranking (at most 10, by total time spent, descending).

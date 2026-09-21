@@ -1,7 +1,5 @@
 # Lock In: Tier 2 Settings Presets Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Give 3 Riders (Kuuga, Super-1, Gavv) quick-access controls in the Settings tab that adjust the Pomodoro timer's interval lengths — Kuuga and Super-1 as one-click preset buttons, Gavv as a toggle.
 
 **Architecture:** A new pure-data module `lock_in/presets.py` (mirroring `rider_themes.py`'s role) holds the preset tables. `Config` gains one new field (`micro_sprint_mode`) and a priority check inside `phase_seconds()`. In `ui.py`, the preset/toggle rows are built **conditionally inline** inside `_build_settings_tab()` — not as persistent show/hide widgets like Tier 1's progress shape. This is deliberate: `_rebuild_tabs()` already tears down and rebuilds the whole Settings tab from scratch on every Rider change (confirmed by reading the existing `_on_rider_theme_change()`/`_rebuild_tabs()` code), so there is nothing to toggle — the tab just gets rebuilt with only the matching Rider's row present, the same way every other Rider-dependent color in this tab already works.

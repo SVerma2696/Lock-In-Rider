@@ -1,7 +1,5 @@
 # Lock In Rebrand Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Rename FocusLock to "Lock In", reskin its copy with a serious
 tokusatsu (Kamen Rider) tone, add a 38-Rider color-theme toggle, bring
 macOS/Linux to real feature parity with Windows, and add a tag-triggered

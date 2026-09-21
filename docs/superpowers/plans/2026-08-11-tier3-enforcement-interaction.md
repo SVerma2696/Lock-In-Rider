@@ -1,7 +1,5 @@
 # Lock In: Tier 3 Enforcement/Interaction Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Give 5 Riders (X, Amazon, ZX, Gaim, 555) their own enforcement/interaction behavior — a goal-entry gate, zero-UI + zero grace period, stealth monochrome + mute, a visual lock overlay, and a code-entry early-unlock — on top of the existing Tier 1/2 systems.
 
 **Architecture:** A new `RiderTheme.tier3_effect` field (mirrors `tier1_effect`). Two `Config` fields (`zero_grace_mode`, `stealth_mute_mode`) with read-side `effective_*()` methods, replacing the raw attribute reads in `enforcer.py`/`notifier.py` — same non-destructive pattern `micro_sprint_mode` already established. ZX's monochrome reuses `dataclasses.replace()` to swap in desaturated colors before the existing color-derivation pipeline runs. Gaim's dim+padlock reuses the exact `_refresh_background_effect()`/`apply_tier1_background_effect` compositing Stronger/Kiva already built. X's goal-gate and 555's code-entry both reuse the `CTkToplevel` full-screen overlay pattern `_show_lockdown()` already established.

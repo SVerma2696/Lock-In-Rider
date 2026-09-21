@@ -103,3 +103,76 @@ def test_check_for_update_returns_none_when_asset_download_url_is_empty():
         {"name": "LockIn-Windows.zip", "browser_download_url": ""},
     ])
     assert check_for_update("2.5.2", release, "win32") is None
+
+
+# --- classify_check / check_message: what the "Check for updates now" -----
+# --- button needs to tell "up to date" apart from "couldn't check". ------
+
+from lock_in.updater import (
+    CHECK_AVAILABLE, CHECK_DOWNLOAD_FAILED, CHECK_FAILED, CHECK_NO_FILE,
+    CHECK_UP_TO_DATE, CheckResult, check_message, classify_check,
+)
+
+
+def test_classify_check_failed_when_nothing_came_back():
+    """fetch_latest_release() returns None for no internet, timeouts, etc."""
+    assert classify_check("2.5.4", None, "win32") == CheckResult(CHECK_FAILED)
+
+
+def test_classify_check_failed_when_response_has_no_readable_tag():
+    """GitHub's rate-limit answer is valid JSON with no tag_name. That must
+    read as "couldn't check", never as a false "you're up to date"."""
+    result = classify_check("2.5.4", {"message": "API rate limit exceeded"}, "win32")
+    assert result == CheckResult(CHECK_FAILED)
+
+
+def test_classify_check_up_to_date_when_same_version():
+    result = classify_check("2.5.4", _release("v2.5.4"), "win32")
+    assert result == CheckResult(CHECK_UP_TO_DATE)
+
+
+def test_classify_check_up_to_date_when_running_a_newer_build():
+    assert classify_check("2.6.0", _release("v2.5.4"), "win32").status == CHECK_UP_TO_DATE
+
+
+def test_classify_check_available_carries_info_and_version():
+    result = classify_check("2.5.4", _release("v2.5.5"), "win32")
+    assert result.status == CHECK_AVAILABLE
+    assert result.latest == "2.5.5"
+    assert result.info == UpdateInfo(
+        version="2.5.5", asset_name="LockIn-Windows.zip",
+        download_url="http://example.com/win.zip",
+    )
+
+
+def test_classify_check_no_file_when_newer_but_nothing_for_this_computer():
+    result = classify_check("2.5.4", _release("v2.5.5", assets=[]), "win32")
+    assert result == CheckResult(CHECK_NO_FILE, latest="2.5.5")
+
+
+def test_check_message_is_plain_words_for_every_status():
+    for result in (
+        CheckResult(CHECK_FAILED),
+        CheckResult(CHECK_UP_TO_DATE),
+        CheckResult(CHECK_NO_FILE, latest="2.5.5"),
+        CheckResult(CHECK_DOWNLOAD_FAILED, latest="2.5.5"),
+        CheckResult(CHECK_AVAILABLE, latest="2.5.5"),
+    ):
+        assert check_message(result, "2.5.4", can_restart=True)
+
+
+def test_check_message_up_to_date_names_the_current_version():
+    assert "v2.5.4" in check_message(CheckResult(CHECK_UP_TO_DATE), "2.5.4", True)
+
+
+def test_check_message_available_points_to_restart_button_when_it_can():
+    result = CheckResult(CHECK_AVAILABLE, latest="2.5.5")
+    text = check_message(result, "2.5.4", can_restart=True)
+    assert "v2.5.5" in text and "Restart now" in text
+
+
+def test_check_message_available_points_to_releases_page_from_source():
+    """A source checkout has no file to swap, so no Restart button exists."""
+    result = CheckResult(CHECK_AVAILABLE, latest="2.5.5")
+    text = check_message(result, "2.5.4", can_restart=False)
+    assert "v2.5.5" in text and "Releases" in text and "Restart now" not in text

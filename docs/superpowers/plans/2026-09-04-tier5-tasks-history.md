@@ -1,7 +1,5 @@
 # Tier 5 Core: Tasks & Session History Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add the task/session-history data model this codebase doesn't have at all yet, plus one plain "Tasks" tab to make it real and testable end to end — the shared foundation the later Tier 5 Riders (V3, Decade, W, OOO, Den-O, Zi-O, Gotchard, Geats, Blade, MY-TH) will each build on, one at a time, in their own future plans.
 
 **Architecture:** Two new pure-logic modules, same tier as `config.py`/`session.py`/`observations.py` — `lock_in/tasks.py` (mutable, whole-file-JSON `TaskStore`) and `lock_in/history.py` (append-only JSONL `HistoryStore`, reusing the `LOG_PATH` constant already sitting unused in `config.py`). `ui.py` gets a new "Tasks" tab and a current-task picker on the Home header, wired into the existing `_on_phase_started`/`_on_phase_ended`/`_on_skip`/`_on_reset` call sites. `session.py` itself is not modified — it stays exactly as unaware that tasks exist as it already is of windows, blocking, or Claude.

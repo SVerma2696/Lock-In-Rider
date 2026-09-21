@@ -1,7 +1,5 @@
 # Tier 5 Rider #2: Den-O Timeline View Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** When Kamen Rider Den-O (2007) is the picked Rider, a "Timeline"
 tab appears showing one calendar day's focus blocks at a time,
 chronological, with Prev/Next day navigation — reading only

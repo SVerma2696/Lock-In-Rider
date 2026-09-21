@@ -1,7 +1,5 @@
 # Strict Camera Monitoring (opt-in phone detection) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add an opt-in "Strict Camera Monitoring" enforcer that watches the webcam during a focus block and runs the existing WARN/NAG/MINIMIZE/LOCKDOWN escalation ladder against phone sightings, exactly the way it already runs against blocked apps.
 
 **Architecture:** A new `lock_in/camera_enforcer.py` module with three pieces — `PhoneDetector` (wraps one loaded OpenCV DNN network, frame in, phone-seen bool out), `PhoneWatcher` (a background thread, same shape as `monitor.py`'s `ActiveWindowMonitor`, that owns the camera hardware lifecycle and samples every 4s), and `CameraEnforcer` (wraps a second, independent `enforcer.Enforcer` instance, feeding it a synthetic `Verdict` so the whole existing action ladder — including `message_for()` — is reused untouched). `ui.py` wires `PhoneWatcher`'s samples through a `queue.Queue` into `CameraEnforcer`, draining it from the existing `_pump()` tick loop, mirroring exactly how `ActiveWindowMonitor` already feeds `Enforcer`.

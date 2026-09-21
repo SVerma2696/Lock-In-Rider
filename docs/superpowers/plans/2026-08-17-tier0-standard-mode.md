@@ -1,7 +1,5 @@
 # Tier 0: Standard Mode Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a single Settings-tab switch, "Standard Mode," that strips every Kamen Rider's color, art, and Tier 1/2/3 gimmick down to a plain, fast, generic grey-and-blue timer — without touching or forgetting the Rider/Wording you actually have picked.
 
 **Architecture:** `_apply_rider_theme()` in `ui.py` is already the single place every Tier 1/3 gimmick reads its behavior from (`self.current_tier1_effect`, `self.current_tier3_effect`). Standard Mode substitutes a new, real `RiderTheme` instance (`STANDARD_THEME`, `tier1_effect="none"`, `tier3_effect="none"`) for whichever Rider is actually selected — every color, text-contrast pair, and effect flag that method computes falls out of that substitution automatically, with no separate "disable" step required anywhere. The one place that reads `rider_theme` directly instead of going through that method (the Tier 2 preset-button block in Settings) gets one explicit guard. A new `make_flat_fill()` helper replaces the textured Pillow art with a plain solid fill only while Standard Mode is active.

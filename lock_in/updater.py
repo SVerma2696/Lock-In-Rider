@@ -99,3 +99,61 @@ def check_for_update(current_version: str, release_data: dict, platform: str) ->
         asset_name=asset_name,
         download_url=download_url,
     )
+
+
+# The five things a "Check for updates now" click can end up as.
+CHECK_FAILED = "failed"                    # couldn't reach GitHub / unreadable answer
+CHECK_UP_TO_DATE = "up_to_date"            # already on the newest one
+CHECK_NO_FILE = "no_file"                  # newer exists, but not for this computer
+CHECK_DOWNLOAD_FAILED = "download_failed"  # newer exists, the download didn't finish
+CHECK_AVAILABLE = "available"              # newer exists and it's ready
+
+
+@dataclass
+class CheckResult:
+    """How one update check ended -- the button's whole answer."""
+
+    status: str
+    info: Optional[UpdateInfo] = None   # set only when status is CHECK_AVAILABLE
+    latest: Optional[str] = None        # "2.5.5", when a newer version was seen
+
+
+def classify_check(current_version: str, release_data: Optional[dict], platform: str) -> CheckResult:
+    """Same decision as check_for_update, but says WHY when there's nothing
+    to offer -- check_for_update returns a bare None for "already newest"
+    and "no file for your computer" alike, which is fine for the quiet
+    launch-time check but not for a button that has to answer the person.
+
+    An answer with no readable tag (GitHub's rate-limit reply is valid JSON
+    with no tag_name) counts as CHECK_FAILED, never as "up to date"."""
+    if release_data is None:
+        return CheckResult(CHECK_FAILED)
+    tag = release_data.get("tag_name", "")
+    version = parse_version(tag)
+    if version is None:
+        return CheckResult(CHECK_FAILED)
+    if not is_newer(current_version, tag):
+        return CheckResult(CHECK_UP_TO_DATE)
+    latest = ".".join(str(p) for p in version)
+    info = check_for_update(current_version, release_data, platform)
+    if info is None:
+        return CheckResult(CHECK_NO_FILE, latest=latest)
+    return CheckResult(CHECK_AVAILABLE, info=info, latest=latest)
+
+
+def check_message(result: CheckResult, current_version: str, can_restart: bool) -> str:
+    """The words shown next to the button. can_restart is False when
+    running from source, where there's no Restart button to point at."""
+    if result.status == CHECK_UP_TO_DATE:
+        return f"You already have the newest Lock In (v{current_version})."
+    if result.status == CHECK_NO_FILE:
+        return (f"A newer Lock In (v{result.latest}) is out, but there's "
+                "no download for your computer yet.")
+    if result.status == CHECK_DOWNLOAD_FAILED:
+        return (f"Found Lock In v{result.latest}, but it wouldn't finish "
+                "downloading. Try again in a little while.")
+    if result.status == CHECK_AVAILABLE:
+        if can_restart:
+            return f"Found Lock In v{result.latest}! Press \"Restart now\" at the top."
+        return f"Found Lock In v{result.latest}! Get it from the Releases page."
+    return "Couldn't check just now. Try again in a little while."
