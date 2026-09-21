@@ -141,7 +141,7 @@ ZERO_UI_HEIGHT = 120
 # what the tab is called. Grows one entry per Rider as each one ships.
 _TIER5_TAB_LABELS = {
     "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
-    "history_editor": "History", "kanban_board": "Board",
+    "history_editor": "History", "kanban_board": "Board", "week_compare": "Week",
 }
 
 
@@ -1649,9 +1649,15 @@ class LockInApp(ctk.CTk):
             "columns: To Do, In Progress and Done. Tap the little arrow "
             "on a task to move it one column over."
         )
+        bullet(
+            "W — a \"Week\" tab appears. It puts the last 7 days next to "
+            "the 7 days before them: one total for each, a little "
+            "sentence about which is bigger, and a chart with two bars "
+            "for every day. Every block counts, finished or not."
+        )
         body(
             "More heroes will get a tab like this over time -- these "
-            "five are just the first."
+            "six are just the first."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #

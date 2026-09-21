@@ -7,6 +7,7 @@ from lock_in.visuals import (
     make_glow,
     make_hours_chart,
     make_panel_divider,
+    make_week_compare_chart,
 )
 
 
@@ -219,6 +220,89 @@ def test_make_hours_chart_each_era_looks_different():
     showa = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Showa")
     heisei = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Heisei")
     reiwa = make_hours_chart(200, 80, day_values, "#ff0000", "#00ff00", dark=True, era="Reiwa")
+    assert showa.tobytes() != heisei.tobytes()
+    assert heisei.tobytes() != reiwa.tobytes()
+    assert showa.tobytes() != reiwa.tobytes()
+
+
+# --- make_week_compare_chart ------------------------------------------- #
+# this_color is green, last_color is red in every test below, so a pixel
+# check can tell the two weeks' bars apart at a glance.
+
+_WEEK_PAIRS_EQUAL = [("2026-01-01", 100, 100), ("2026-01-02", 100, 100)]
+
+
+def test_make_week_compare_chart_returns_the_requested_size():
+    image = make_week_compare_chart(280, 100, _WEEK_PAIRS_EQUAL, "#00ff00", "#ff0000", dark=False)
+    assert image.size == (280, 100)
+    assert image.mode == "RGBA"
+
+
+def test_make_week_compare_chart_handles_an_empty_list_without_crashing():
+    image = make_week_compare_chart(100, 50, [], "#00ff00", "#ff0000", dark=True)
+    assert image.size == (100, 50)
+
+
+def test_make_week_compare_chart_handles_all_zero_days_without_dividing_by_zero():
+    pairs = [("2026-01-01", 0, 0), ("2026-01-02", 0, 0)]
+    image = make_week_compare_chart(150, 60, pairs, "#00ff00", "#ff0000", dark=False)
+    assert image.size == (150, 60)
+
+
+def test_make_week_compare_chart_last_week_is_left_and_this_week_is_right():
+    """Width 280, two groups: each group is 135px wide with a 10px gap
+    between groups. Inside a group the left bar is last week (red) and the
+    right bar is this week (green). Both values are equal, so every bar is
+    full height and a sample at y=40 is safely inside all four bars."""
+    image = make_week_compare_chart(280, 100, _WEEK_PAIRS_EQUAL, "#00ff00", "#ff0000", dark=False)
+    assert image.getpixel((30, 40))[:3] == (0xff, 0x00, 0x00)    # group 1, last week
+    assert image.getpixel((100, 40))[:3] == (0x00, 0xff, 0x00)   # group 1, this week
+    assert image.getpixel((170, 40))[:3] == (0xff, 0x00, 0x00)   # group 2, last week
+    assert image.getpixel((250, 40))[:3] == (0x00, 0xff, 0x00)   # group 2, this week
+
+
+def test_make_week_compare_chart_leaves_a_gap_between_groups():
+    image = make_week_compare_chart(280, 100, _WEEK_PAIRS_EQUAL, "#00ff00", "#ff0000", dark=False)
+    assert image.getpixel((140, 40))[3] == 0    # the gap between group 1 and group 2
+
+
+def test_make_week_compare_chart_both_weeks_share_one_height_scale():
+    """One group, last week 100 and this week 50, on a 200x116 image (plot
+    area 100px tall). The last-week bar fills it; the this-week bar must be
+    exactly half as tall no matter which side the bigger number is on."""
+    image = make_week_compare_chart(
+        200, 116, [("2026-01-01", 100, 50)], "#00ff00", "#ff0000", dark=False)
+    assert image.getpixel((50, 10))[:3] == (0xff, 0x00, 0x00)     # last week, full height
+    assert image.getpixel((150, 10))[3] == 0                       # this week: empty above half height
+    assert image.getpixel((150, 60))[:3] == (0x00, 0xff, 0x00)    # this week: filled below half height
+
+
+def test_make_week_compare_chart_a_zero_day_draws_no_bar():
+    image = make_week_compare_chart(
+        200, 116, [("2026-01-01", 0, 100)], "#00ff00", "#ff0000", dark=False)
+    assert image.getpixel((50, 50))[3] == 0                        # last week is 0: nothing drawn
+    assert image.getpixel((150, 50))[:3] == (0x00, 0xff, 0x00)    # this week is full height
+
+
+def test_make_week_compare_chart_light_and_dark_renders_differ():
+    pairs = [("2026-01-01", 100, 200), ("2026-01-02", 300, 50)]
+    light = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=False)
+    dark = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True)
+    assert light.tobytes() != dark.tobytes()
+
+
+def test_make_week_compare_chart_default_era_matches_showa():
+    pairs = [("2026-01-01", 100, 200), ("2026-01-02", 300, 50)]
+    default = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True)
+    showa = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True, era="Showa")
+    assert default.tobytes() == showa.tobytes()
+
+
+def test_make_week_compare_chart_each_era_looks_different():
+    pairs = [("2026-01-01", 100, 200), ("2026-01-02", 300, 50)]
+    showa = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True, era="Showa")
+    heisei = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True, era="Heisei")
+    reiwa = make_week_compare_chart(200, 80, pairs, "#00ff00", "#ff0000", dark=True, era="Reiwa")
     assert showa.tobytes() != heisei.tobytes()
     assert heisei.tobytes() != reiwa.tobytes()
     assert showa.tobytes() != reiwa.tobytes()

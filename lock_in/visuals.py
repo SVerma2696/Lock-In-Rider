@@ -362,6 +362,73 @@ def make_hours_chart(
     return image
 
 
+def make_week_compare_chart(
+    width: int, height: int, pairs: list[tuple[str, int, int]],
+    this_color: str, last_color: str, dark: bool, era: str = "Showa",
+) -> Image.Image:
+    """
+    Draw a paired bar chart: one GROUP per day, oldest on the left and
+    today on the right, with two bars in each group. The left bar is that
+    day's number from LAST week (`last_color`) and the right bar is the
+    same day THIS week (`this_color`), so time also reads left to right
+    inside a group.
+
+    `pairs` is `(iso_day, last_week_seconds, this_week_seconds)`, already
+    zero-filled by the caller. `iso_day` is the this-week date (its
+    weekday letter goes under the group). Both weeks share ONE height
+    scale -- the biggest number in either week -- so a bar means the same
+    amount on both sides. A day with 0 seconds draws no bar, and all-zero
+    input never divides by zero.
+
+    Sits next to make_hours_chart() and reuses its label and era-accent
+    approach, but is its own function on purpose: make_hours_chart() draws
+    V3's and Decade's charts and is left exactly as it was.
+    """
+    LABEL_MARGIN = 16
+    GROUP_GAP = 10
+    PAIR_GAP = 2
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    if not pairs:
+        return image
+
+    draw = ImageDraw.Draw(image, "RGBA")
+    plot_height = height - LABEL_MARGIN
+    this_rgba = (*_hex_to_rgb(this_color), 255)
+    last_rgba = (*_hex_to_rgb(last_color), 255)
+    label_color = (190, 190, 190, 220) if dark else (90, 90, 90, 220)
+
+    count = len(pairs)
+    max_secs = max(max(last, this) for _, last, this in pairs) or 1
+    group_width = (width - GROUP_GAP * (count - 1)) / count
+    bar_width = (group_width - PAIR_GAP) / 2
+
+    for index, (iso_day, last_secs, this_secs) in enumerate(pairs):
+        group_x = index * (group_width + GROUP_GAP)
+        bars = (
+            (group_x, last_secs, last_rgba),
+            (group_x + bar_width + PAIR_GAP, this_secs, this_rgba),
+        )
+        for x_start, secs, color in bars:
+            bar_height = plot_height * secs / max_secs
+            if bar_height > 0:
+                y0 = round(plot_height - bar_height)
+                draw.rectangle(
+                    [round(x_start), y0, round(x_start + bar_width), plot_height],
+                    fill=color,
+                )
+
+        letter = date.fromisoformat(iso_day).strftime("%a")[0]
+        bbox = draw.textbbox((0, 0), letter)
+        letter_width = bbox[2] - bbox[0]
+        text_x = group_x + group_width / 2 - letter_width / 2
+        draw.text((text_x, plot_height + 5), letter, fill=label_color)
+
+    accent = make_panel_divider(width, 8, this_color, last_color, era=era)
+    image.alpha_composite(accent, (0, max(plot_height - 4, 0)))
+
+    return image
+
+
 def load_app_icon() -> Optional[Image.Image]:
     """
     Load the app's own picture, padded onto a square, see-through canvas.

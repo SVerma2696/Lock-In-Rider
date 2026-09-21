@@ -12,7 +12,7 @@ already-large LockInApp.
 TIER5_BUILDERS grows one entry per Rider as each one is built.
 """
 
-from . import blade, decade, den_o, v3, zi_o
+from . import blade, decade, den_o, v3, w, zi_o
 
 TIER5_BUILDERS = {
     "hours_tab": v3.build,
@@ -20,4 +20,5 @@ TIER5_BUILDERS = {
     "analytics_dashboard": decade.build,
     "history_editor": zi_o.build,
     "kanban_board": blade.build,
+    "week_compare": w.build,
 }

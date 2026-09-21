@@ -285,6 +285,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider W (2009)": RiderTheme(
         "Heisei", 2009, ("#225c25", "#4caf50"), ("#111111", "#616161"),
+        tier5_effect="week_compare",
     ),
     "Kamen Rider OOO (2010)": RiderTheme(
         "Heisei", 2010, ("#111111", "#616161"), ("#9c1e1e", "#ef5350"),

@@ -734,8 +734,14 @@ behavior.
   arrow button that moves it one column over. It shows the same tasks as
   the Tasks tab, so a move on the Board shows up there too.
 
+- **W** — adds a "Week" tab. It puts two weeks side by side: the last 7
+  days, and the 7 days right before them. You see one total for each, a
+  short sentence that says which one is bigger, and a chart with two
+  bars for every day, one for last week and one for this week. Every
+  block counts, finished or not.
+
 More Riders will read your tasks and history this way over time — these
-five are just the first of ten planned.
+six are just the first of ten planned.
 
 ### Look and feel
 
@@ -1129,6 +1135,8 @@ use — never the key itself.
 - **The Board can only move a task forward** — the arrow on a Blade Board
   note goes To Do → In Progress → Done. There's no dragging, and no arrow
   to send a note back.
+- **W only compares two fixed weeks** — the last 7 days against the 7
+  days right before them. There are no buttons to pick other weeks.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
   `git pull` instead of a restart button.

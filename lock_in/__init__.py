@@ -18,5 +18,5 @@ The first five modules import nothing outside the standard library, which
 is why the whole behavioural core is unit-tested without a display server.
 """
 
-__version__ = "2.5.5"
+__version__ = "2.5.6"
 __all__ = ["__version__"]
