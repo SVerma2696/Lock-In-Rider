@@ -142,6 +142,7 @@ ZERO_UI_HEIGHT = 120
 _TIER5_TAB_LABELS = {
     "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
     "history_editor": "History", "kanban_board": "Board", "week_compare": "Week",
+    "goal_streak": "Goal",
 }
 
 
@@ -1237,6 +1238,7 @@ class LockInApp(ctk.CTk):
         TIER5_BUILDERS[self.current_tier5_effect](
             frame, history=self.history, tasks=self.tasks,
             theme=self._current_rider_theme, appearance_mode=ctk.get_appearance_mode(),
+            config=self.config_obj,
         )
 
     # ------------------------------------------------------------------ #
@@ -1655,9 +1657,16 @@ class LockInApp(ctk.CTk):
             "sentence about which is bigger, and a chart with two bars "
             "for every day. Every block counts, finished or not."
         )
+        bullet(
+            "Geats — a \"Goal\" tab appears. Pick how many minutes you "
+            "want to focus each day with the minus and plus buttons. A "
+            "bar fills up as you focus, and a streak counts the days in "
+            "a row you reached your goal. Every block counts, finished "
+            "or not."
+        )
         body(
             "More heroes will get a tab like this over time -- these "
-            "six are just the first."
+            "seven are just the first."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #

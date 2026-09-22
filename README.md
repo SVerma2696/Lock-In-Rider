@@ -740,8 +740,15 @@ behavior.
   bars for every day, one for last week and one for this week. Every
   block counts, finished or not.
 
+- **Geats** — adds a "Goal" tab. You pick how many minutes you want to
+  focus each day with a minus and a plus button (each press is 15
+  minutes, and the app remembers your pick). A bar fills up as you
+  focus, and a streak counts how many days in a row you reached your
+  goal. Seven little boxes show the last 7 days, filled in for the days
+  you made it. Every block counts, finished or not.
+
 More Riders will read your tasks and history this way over time — these
-six are just the first of ten planned.
+seven are just the first of ten planned.
 
 ### Look and feel
 
@@ -1137,6 +1144,9 @@ use — never the key itself.
   to send a note back.
 - **W only compares two fixed weeks** — the last 7 days against the 7
   days right before them. There are no buttons to pick other weeks.
+- **Geats judges every day by the goal you have now** — there is one
+  goal number, not a different one for each day. Making the goal bigger
+  can make your streak shorter, and making it smaller can make it longer.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
   `git pull` instead of a restart button.

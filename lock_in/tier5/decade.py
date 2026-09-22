@@ -41,7 +41,7 @@ def ranked_tasks(
     return resolved[:10]
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Populate `parent` with Decade's Analytics view: a 30-day bar chart
     (V3's renderer, a wider window), then a "Top tasks" ranking below

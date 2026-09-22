@@ -66,7 +66,7 @@ def build_reassign_choices(all_tasks: list[Task]) -> tuple[list[str], dict[str, 
     return words, ids
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Fill `parent` with Zi-O's History tab: Den-O's day-by-day list, plus
     a task menu and a Delete button on every block.

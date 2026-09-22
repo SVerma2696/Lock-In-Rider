@@ -112,3 +112,39 @@ def test_turning_blackrx_manual_breaks_off_restores_the_real_setting():
 
 def test_check_for_updates_defaults_to_on():
     assert Config().check_for_updates is True
+
+
+def test_daily_goal_minutes_defaults_to_one_hour():
+    assert Config().daily_goal_minutes == 60
+
+
+def test_daily_goal_minutes_round_trips_through_save_and_load(tmp_path):
+    path = tmp_path / "config.json"
+    Config(daily_goal_minutes=90).save(path)
+    assert Config.load(path).daily_goal_minutes == 90
+
+
+def test_effective_daily_goal_minutes_gives_back_a_good_value_as_it_is():
+    assert Config(daily_goal_minutes=90).effective_daily_goal_minutes() == 90
+    assert Config().effective_daily_goal_minutes() == 60
+
+
+def test_effective_daily_goal_minutes_allows_exactly_fifteen_minutes_and_twelve_hours():
+    assert Config(daily_goal_minutes=15).effective_daily_goal_minutes() == 15
+    assert Config(daily_goal_minutes=720).effective_daily_goal_minutes() == 720
+
+
+def test_effective_daily_goal_minutes_keeps_a_number_that_is_not_a_multiple_of_fifteen():
+    assert Config(daily_goal_minutes=20).effective_daily_goal_minutes() == 20
+
+
+def test_effective_daily_goal_minutes_falls_back_to_sixty_for_a_bad_number():
+    """config.json can be edited by hand, and Config.load() does not check
+    it, so a silly goal must never reach the tab (it would divide by zero)."""
+    for bad in (0, -5, 14, 721, 100000):
+        assert Config(daily_goal_minutes=bad).effective_daily_goal_minutes() == 60, bad
+
+
+def test_effective_daily_goal_minutes_falls_back_to_sixty_for_the_wrong_kind_of_value():
+    for bad in ("abc", "60", 60.0, None, True, False, [60]):
+        assert Config(daily_goal_minutes=bad).effective_daily_goal_minutes() == 60, bad

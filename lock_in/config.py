@@ -62,6 +62,14 @@ LOG_PATH = app_data_dir() / "sessions.jsonl"
 OBSERVATIONS_PATH = app_data_dir() / "observations.jsonl"
 TASKS_PATH = app_data_dir() / "tasks.json"
 
+# Geats' daily goal (see daily_goal_minutes on Config below): how many
+# minutes of focus you want each day. It always sits between the smallest
+# and the biggest, and the plus/minus buttons move it one step at a time.
+DAILY_GOAL_DEFAULT_MINUTES = 60
+DAILY_GOAL_MIN_MINUTES = 15
+DAILY_GOAL_MAX_MINUTES = 12 * 60
+DAILY_GOAL_STEP_MINUTES = 15
+
 
 # --------------------------------------------------------------------------- #
 # The starter "always block" and "always allow" lists
@@ -193,6 +201,12 @@ class Config:
     # version?". Turning this off stops that check from ever happening.
     check_for_updates: bool = True
 
+    # Geats' daily goal: how many minutes of focus you want each day, set
+    # with the minus and plus buttons on Geats' Goal tab. Read it with
+    # effective_daily_goal_minutes() below, not directly: that one is safe
+    # even if a hand-edited config.json holds something silly.
+    daily_goal_minutes: int = DAILY_GOAL_DEFAULT_MINUTES
+
     # --- Claude fallback (an optional helper) -------------------------------- #
     # Off unless you turn it on. When it's on, and the local model is UNSURE
     # about a window (below claude_confidence_floor), that one window title
@@ -290,3 +304,16 @@ class Config:
     def effective_auto_start_breaks(self) -> bool:
         """Black RX's manual-break override -- see the field comment above."""
         return False if self.blackrx_manual_breaks else self.auto_start_breaks
+
+    def effective_daily_goal_minutes(self) -> int:
+        """The daily goal, made safe to use. Config.load() does no
+        checking, so a hand-edited config.json could hold 0, a negative
+        number, some words, or true. Anything that is not a whole number
+        between the smallest and biggest allowed goal gives the normal
+        goal instead, so the Goal tab never divides by zero."""
+        value = self.daily_goal_minutes
+        if isinstance(value, bool) or not isinstance(value, int):
+            return DAILY_GOAL_DEFAULT_MINUTES
+        if not DAILY_GOAL_MIN_MINUTES <= value <= DAILY_GOAL_MAX_MINUTES:
+            return DAILY_GOAL_DEFAULT_MINUTES
+        return value

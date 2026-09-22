@@ -50,7 +50,7 @@ def compare_sentence(this_seconds: int, last_seconds: int) -> str:
     return f"That's {format_hm(-gap)} less than last week. You can do it!"
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Populate `parent` with W's Week view: two total lines (this week and
     last week, colored to match their bars), one short sentence, and a

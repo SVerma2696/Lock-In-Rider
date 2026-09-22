@@ -38,7 +38,7 @@ def group_by_status(tasks: list[Task]) -> dict[TaskStatus, list[Task]]:
     return buckets
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Fill `parent` with Blade's Board tab: three columns, one note per
     task, and (except in Done) an arrow button to move a note one column

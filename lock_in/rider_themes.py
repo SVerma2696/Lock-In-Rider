@@ -120,7 +120,7 @@ class RiderTheme:
     # display/audio/input behavior this Rider needs.
     tier4_effect: str = "none"
     # "none" for every Rider except the ones that read your tasks and
-    # history (V3, Den-O, Decade, Zi-O and Blade so far, out of 10
+    # history (V3, Den-O, Decade, Zi-O, Blade, W and Geats so far, out of 10
     # planned -- see
     # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md).
     # ui.py reads this to decide whether a 6th tab exists at all, and
@@ -331,6 +331,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Geats (2022)": RiderTheme(
         "Reiwa", 2022, ("#9e9e9e", "#ffffff"), ("#9c1e1e", "#ef5350"),
+        tier5_effect="goal_streak",
     ),
     "Kamen Rider Gotchard (2023)": RiderTheme(
         "Reiwa", 2023, ("#008394", "#4dd0e1"), ("#b33f00", "#ffb74d"),

@@ -25,7 +25,7 @@ from .. import visuals
 from ._shared import format_hm, last_n_days
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Populate `parent` (an empty Tier 5 tab frame) with V3's Hours view:
     a headline number for today, and a 14-day bar chart below it.

@@ -33,7 +33,7 @@ _ENDED_EARLY_COLOR = "#e0a800"
 _MUTED_COLOR = "#5a6472"
 
 
-def build(parent, *, history, tasks, theme, appearance_mode) -> None:
+def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> None:
     """
     Populate `parent` with Den-O's Timeline view: one calendar day's
     focus blocks at a time, earliest first, with Prev/Next day buttons.
