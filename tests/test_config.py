@@ -148,3 +148,20 @@ def test_effective_daily_goal_minutes_falls_back_to_sixty_for_a_bad_number():
 def test_effective_daily_goal_minutes_falls_back_to_sixty_for_the_wrong_kind_of_value():
     for bad in ("abc", "60", 60.0, None, True, False, [60]):
         assert Config(daily_goal_minutes=bad).effective_daily_goal_minutes() == 60, bad
+
+
+def test_badges_earned_defaults_to_an_empty_list():
+    assert Config().badges_earned == []
+
+
+def test_two_configs_do_not_share_one_badges_earned_list():
+    a = Config()
+    b = Config()
+    a.badges_earned.append("first_step")
+    assert b.badges_earned == []
+
+
+def test_badges_earned_round_trips_through_save_and_load(tmp_path):
+    path = tmp_path / "config.json"
+    Config(badges_earned=["first_step", "ten_blocks"]).save(path)
+    assert Config.load(path).badges_earned == ["first_step", "ten_blocks"]

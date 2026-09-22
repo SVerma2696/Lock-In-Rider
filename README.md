@@ -6,11 +6,12 @@ gently — nudges you back to work.
 
 You pick how long you want to focus for, hit Start, and get to work. If
 you open something distracting, Lock In notices and says something about
-it. Ignore it for too long and it gets louder, then it minimizes the
-distracting window for you, then (if you've turned on "hard mode") it
-covers your whole screen until you get back to work. It's built so
-leaving a focus block is always something you *decide* to do, not
-something that just quietly happens.
+it. Ignore it for too long and it minimizes the distracting window for
+you, then covers your whole screen until you get back to work — that's
+"hard mode," on by default (turn it off in Settings if you'd rather get
+gentler warnings first instead). It's built so leaving a focus block is
+always something you *decide* to do, not something that just quietly
+happens.
 
 Under the hood it's also a hand-built "is this study or is this a
 distraction" learning system (no external AI library, so you can read
@@ -127,10 +128,11 @@ asks when you press it.
   actually finish, so you can look back later at what you got done.
 * **Notices distracting apps and does something about it.** You tell it
   what's always allowed and what's always blocked, and it also learns on
-  its own over time. First it's just a gentle notification. Keep
-  ignoring it and it gets louder, then it minimizes the window for you,
-  then — if you've turned on "hard mode" — it covers your whole screen
-  until you're back on track.
+  its own over time. "Hard mode" — on by default — minimizes the window
+  right away and then covers your whole screen until you're back on
+  track; turn it off in Settings if you'd rather get a gentle
+  notification first, then a louder one, before anything happens to
+  your windows.
 * **Learns your habits.** It watches which windows you open while
   focusing and slowly learns what counts as "working" for *you*
   specifically, not some generic list. You can correct it with one click
@@ -399,23 +401,23 @@ classifier never gets to veto that.
 When a window is judged blocked, escalation is by **intensity, not frequency**,
 and the ladder depends on whether Hard mode is on:
 
-**Soft mode (default — Hard mode off):**
-
-| Time on the app | What happens |
-|---|---|
-| 0–8s | Nothing. You might be closing it. |
-| first strike | Toast notification. |
-| every strike after that | Toast + alert sound. |
-
-**Hard mode (Blocking tab → "Hard mode"):** no warnings first — it acts
-immediately, since the whole point of turning this on is that you don't
-want to be asked nicely.
+**Hard mode (default — Blocking tab → "Hard mode"):** no warnings first — it
+acts immediately, since the whole point of this mode is that you don't want
+to be asked nicely.
 
 | Time on the app | What happens |
 |---|---|
 | 0–8s | Nothing. You might be closing it. |
 | first strike | Window minimised, timer pulled to the front. |
 | every strike after that | Full-screen cover for 15 seconds. |
+
+**Soft mode (Blocking tab → turn "Hard mode" off):**
+
+| Time on the app | What happens |
+|---|---|
+| 0–8s | Nothing. You might be closing it. |
+| first strike | Toast notification. |
+| every strike after that | Toast + alert sound. |
 
 Strikes decay after 45 seconds of clean work, so one slip at minute 3 doesn't
 leave you one click from a screen takeover at minute 20. Hopping between two
@@ -746,9 +748,15 @@ behavior.
   focus, and a streak counts how many days in a row you reached your
   goal. Seven little boxes show the last 7 days, filled in for the days
   you made it. Every block counts, finished or not.
+- **Gotchard** — adds a "Badges" tab: 9 cards to collect, for things
+  like your first focus block, doing 10 blocks, a 1-hour day, a 3-hour
+  day, 10 hours in all, checking off a task, and reaching your daily
+  goal once, 3 days in a row, or 7 days in a row. A card you haven't
+  won yet shows a gray hint so you know what to aim for; once you win a
+  badge, it's yours to keep.
 
 More Riders will read your tasks and history this way over time — these
-seven are just the first of ten planned.
+eight are just the first of ten planned.
 
 ### Look and feel
 
@@ -1032,9 +1040,10 @@ xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display
 A separate extra thing, nothing to do with Claude fallback: turn it on
 and Lock In watches your webcam during a focus block. If it spots a
 phone, you get warned the same way you'd get warned for opening a
-blocked app -- first a gentle nudge, then louder, and (if you've also
-turned on hard mode) eventually a full-screen lockdown, just like
-already happens for blocked apps.
+blocked app -- with Hard mode on (the default), that's a minimised
+window and then a full-screen lockdown right away; with it off, a
+gentle nudge first, then louder -- just like already happens for
+blocked apps.
 
 ### Setup
 
@@ -1147,6 +1156,12 @@ use — never the key itself.
 - **Geats judges every day by the goal you have now** — there is one
   goal number, not a different one for each day. Making the goal bigger
   can make your streak shorter, and making it smaller can make it longer.
+- **Gotchard's badges are yours to keep, forever** — even if you delete a
+  focus block in Zi-O or change your goal on Geats' tab afterward. That
+  also means a very small daily goal makes the streak badges quick to
+  win, on purpose — the goal is yours to set however you like.
+- **Only Geats can change the daily goal** — Gotchard's Badges tab has no
+  goal buttons of its own; it just reads whatever goal is set.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
   `git pull` instead of a restart button.

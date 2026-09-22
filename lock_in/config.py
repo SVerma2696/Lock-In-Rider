@@ -176,7 +176,7 @@ class Config:
 
     # --- Blocking rules ------------------------------------------------------ #
     enforcement_enabled: bool = True
-    hard_mode: bool = False               # allows minimising + full-screen warning
+    hard_mode: bool = True                 # minimises windows + full-screen lockdown, on by default
     grace_seconds: int = 8                # a few free seconds before we react
     strike_interval_seconds: int = 12     # how often we get stricter
     strike_decay_seconds: int = 45        # good behavior needed to calm down
@@ -206,6 +206,14 @@ class Config:
     # effective_daily_goal_minutes() below, not directly: that one is safe
     # even if a hand-edited config.json holds something silly.
     daily_goal_minutes: int = DAILY_GOAL_DEFAULT_MINUTES
+
+    # Gotchard's badge collection: the ids of every badge you've won so
+    # far (see lock_in/tier5/gotchard.py's BADGES). A badge is added here
+    # the first time you earn it and is never removed by this app -- once
+    # you have it, it's yours to keep. Read it with
+    # lock_in.tier5.gotchard.saved_badges(), not directly: that one is
+    # safe even if a hand-edited config.json holds something silly.
+    badges_earned: List[str] = field(default_factory=list)
 
     # --- Claude fallback (an optional helper) -------------------------------- #
     # Off unless you turn it on. When it's on, and the local model is UNSURE

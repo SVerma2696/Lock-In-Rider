@@ -142,7 +142,7 @@ ZERO_UI_HEIGHT = 120
 _TIER5_TAB_LABELS = {
     "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
     "history_editor": "History", "kanban_board": "Board", "week_compare": "Week",
-    "goal_streak": "Goal",
+    "goal_streak": "Goal", "badge_cards": "Badges",
 }
 
 
@@ -1664,9 +1664,15 @@ class LockInApp(ctk.CTk):
             "a row you reached your goal. Every block counts, finished "
             "or not."
         )
+        bullet(
+            "Gotchard — a \"Badges\" tab appears: 9 cards to collect, "
+            "for things like your first focus block, a 3-hour day, or a "
+            "7-day streak of reaching your daily goal. A badge you win "
+            "is yours to keep."
+        )
         body(
             "More heroes will get a tab like this over time -- these "
-            "seven are just the first."
+            "eight are just the first."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #
