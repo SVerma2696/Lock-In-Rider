@@ -66,6 +66,10 @@ class Task:
     status: TaskStatus = TaskStatus.TODO
     created_at: str = ""
     completed_at: Optional[str] = None
+    # OOO's Combo tab: three fixed checkboxes, always in this order --
+    # Plan, Work, Review. Checking all three never changes `status`; it
+    # just shows a "Combo formed!" mark (see lock_in/tier5/ooo.py).
+    phases: List[bool] = field(default_factory=lambda: [False, False, False])
 
 
 class TaskStore:
@@ -130,6 +134,17 @@ class TaskStore:
                         # Skip malformed subtask entries.
                         continue
 
+                # phases: always exactly 3 booleans (Plan, Work, Review).
+                # A hand-edited tasks.json could hold anything here --
+                # anything that isn't a list of exactly 3 entries falls
+                # back to all-unchecked rather than raising or guessing
+                # which one was meant.
+                raw_phases = item.get("phases", [False, False, False])
+                if isinstance(raw_phases, list) and len(raw_phases) == 3:
+                    phases = [bool(p) for p in raw_phases]
+                else:
+                    phases = [False, False, False]
+
                 task = Task(
                     id=item["id"],
                     name=item["name"],
@@ -137,6 +152,7 @@ class TaskStore:
                     status=TaskStatus(item.get("status", "todo")),
                     created_at=item.get("created_at", ""),
                     completed_at=item.get("completed_at"),
+                    phases=phases,
                 )
                 self._tasks[task.id] = task
             except (KeyError, ValueError, TypeError):
@@ -180,6 +196,18 @@ class TaskStore:
                 self.save()
                 return True
         return False
+
+    def toggle_phase(self, task_id: str, index: int) -> bool:
+        """Flip one of a task's three fixed phases (0=Plan, 1=Work,
+        2=Review). Returns False, with nothing changed, for a missing
+        task or an index that isn't 0, 1, or 2 -- the same
+        bounds-checked posture as toggle_subtask()."""
+        task = self._tasks.get(task_id)
+        if task is None or index not in (0, 1, 2):
+            return False
+        task.phases[index] = not task.phases[index]
+        self.save()
+        return True
 
     def set_status(self, task_id: str, status: TaskStatus) -> bool:
         """Plain status change -- does NOT touch completed_at. Use

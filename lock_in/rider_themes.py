@@ -120,10 +120,9 @@ class RiderTheme:
     # display/audio/input behavior this Rider needs.
     tier4_effect: str = "none"
     # "none" for every Rider except the ones that read your tasks and
-    # history (V3, Den-O, Decade, Zi-O, Blade, W, Geats and Gotchard so
-    # far, out of 10
-    # planned -- see
-    # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md).
+    # history -- all 10 planned Riders are now built: V3, Den-O, Decade,
+    # Zi-O, Blade, W, Geats, Gotchard, OOO, and MY-TH. See
+    # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md.
     # ui.py reads this to decide whether a 6th tab exists at all, and
     # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
     # that fills that tab in.
@@ -290,6 +289,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider OOO (2010)": RiderTheme(
         "Heisei", 2010, ("#111111", "#616161"), ("#9c1e1e", "#ef5350"),
+        tier5_effect="phase_combo",
     ),
     "Kamen Rider Fourze (2011)": RiderTheme(
         "Heisei", 2011, ("#9e9e9e", "#ffffff"), ("#b33f00", "#ff9800"), tier1_effect="constellation",
@@ -347,6 +347,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider MY-TH (2026)": RiderTheme(
         "Reiwa", 2026, ("#0f4a8f", "#42a5f5"), ("#78909c", "#b0bec5"),
+        tier5_effect="priority_order",
     ),
 }
 

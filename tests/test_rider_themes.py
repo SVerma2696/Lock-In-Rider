@@ -288,7 +288,7 @@ def test_tier5_effect_defaults_to_none():
     assert theme.tier5_effect == "none"
 
 
-def test_exactly_these_eight_riders_have_a_tier5_effect():
+def test_exactly_these_ten_riders_have_a_tier5_effect():
     from lock_in.rider_themes import RIDER_THEMES
     expected = {
         "Kamen Rider V3 (1973)": "hours_tab",
@@ -299,6 +299,8 @@ def test_exactly_these_eight_riders_have_a_tier5_effect():
         "Kamen Rider W (2009)": "week_compare",
         "Kamen Rider Geats (2022)": "goal_streak",
         "Kamen Rider Gotchard (2023)": "badge_cards",
+        "Kamen Rider OOO (2010)": "phase_combo",
+        "Kamen Rider MY-TH (2026)": "priority_order",
     }
     for name, effect in expected.items():
         assert RIDER_THEMES[name].tier5_effect == effect, name

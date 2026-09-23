@@ -261,3 +261,84 @@ def test_a_completed_block_does_not_move_an_in_progress_task_to_done(store):
     task = store.add("Write the report")
     store.set_status(task.id, TaskStatus.IN_PROGRESS)
     assert store.all()[0].status != TaskStatus.DONE
+
+
+def test_new_task_has_three_unchecked_phases(store):
+    task = store.add("Task")
+    assert task.phases == [False, False, False]
+
+
+def test_toggle_phase_flips_the_given_index(store):
+    task = store.add("Task")
+    assert store.toggle_phase(task.id, 1) is True
+    assert store.all()[0].phases == [False, True, False]
+    store.toggle_phase(task.id, 1)
+    assert store.all()[0].phases == [False, False, False]
+
+
+def test_toggle_phase_on_missing_task_returns_false(store):
+    assert store.toggle_phase("nope", 0) is False
+
+
+def test_toggle_phase_with_an_out_of_range_index_returns_false(store):
+    task = store.add("Task")
+    assert store.toggle_phase(task.id, 3) is False
+    assert store.toggle_phase(task.id, -1) is False
+    assert store.all()[0].phases == [False, False, False]
+
+
+def test_phases_round_trip_through_save_and_load(tmp_path):
+    path = tmp_path / "tasks.json"
+    store1 = TaskStore(path)
+    task = store1.add("Task")
+    store1.toggle_phase(task.id, 0)
+    store1.toggle_phase(task.id, 2)
+    store2 = TaskStore(path)
+    assert store2.all()[0].phases == [True, False, True]
+
+
+def test_missing_phases_field_defaults_to_all_unchecked(tmp_path):
+    import json
+
+    path = tmp_path / "tasks.json"
+    payload = {"tasks": [{
+        "id": "task1", "name": "Old task", "subtasks": [], "status": "todo",
+        "created_at": "2024-01-01T10:00:00", "completed_at": None,
+    }]}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    store = TaskStore(path)
+    assert store.all()[0].phases == [False, False, False]
+
+
+@pytest.mark.parametrize("bad_phases", [
+    "not a list", 5, None, True, [True, False], [True, False, True, False],
+    {"0": True}, [],
+])
+def test_malformed_phases_falls_back_to_all_unchecked(tmp_path, bad_phases):
+    import json
+
+    path = tmp_path / "tasks.json"
+    payload = {"tasks": [{
+        "id": "task1", "name": "Task", "subtasks": [], "status": "todo",
+        "created_at": "2024-01-01T10:00:00", "completed_at": None,
+        "phases": bad_phases,
+    }]}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    store = TaskStore(path)
+    tasks = store.all()
+    assert len(tasks) == 1
+    assert tasks[0].phases == [False, False, False]
+
+
+def test_non_boolean_phase_entries_are_coerced_to_bool(tmp_path):
+    import json
+
+    path = tmp_path / "tasks.json"
+    payload = {"tasks": [{
+        "id": "task1", "name": "Task", "subtasks": [], "status": "todo",
+        "created_at": "2024-01-01T10:00:00", "completed_at": None,
+        "phases": [1, 0, "yes"],
+    }]}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    store = TaskStore(path)
+    assert store.all()[0].phases == [True, False, True]

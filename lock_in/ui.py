@@ -142,7 +142,8 @@ ZERO_UI_HEIGHT = 120
 _TIER5_TAB_LABELS = {
     "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
     "history_editor": "History", "kanban_board": "Board", "week_compare": "Week",
-    "goal_streak": "Goal", "badge_cards": "Badges",
+    "goal_streak": "Goal", "badge_cards": "Badges", "phase_combo": "Combo",
+    "priority_order": "Priority",
 }
 
 
@@ -1670,9 +1671,21 @@ class LockInApp(ctk.CTk):
             "7-day streak of reaching your daily goal. A badge you win "
             "is yours to keep."
         )
+        bullet(
+            "OOO — a \"Combo\" tab appears: every open task gets three "
+            "boxes, Plan, Work, and Review. Check all three and the task "
+            "shows a \"Combo formed!\" mark -- but only your own click on "
+            "the Tasks tab actually finishes it."
+        )
+        bullet(
+            "MY-TH — a \"Priority\" tab appears: your open tasks, "
+            "numbered, the one you've gone the longest without working "
+            "on at the top. Nothing is saved -- it's worked out fresh "
+            "every time you open the tab."
+        )
         body(
-            "More heroes will get a tab like this over time -- these "
-            "eight are just the first."
+            "All ten Tier 5 heroes are built now -- every one of them "
+            "reads your tasks and history this way."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #

@@ -754,9 +754,18 @@ behavior.
   goal once, 3 days in a row, or 7 days in a row. A card you haven't
   won yet shows a gray hint so you know what to aim for; once you win a
   badge, it's yours to keep.
+- **OOO** — adds a "Combo" tab: every open task gets three boxes, Plan,
+  Work, and Review, that you can check in any order. Check all three
+  and the task shows a small "Combo formed!" mark. It's just for fun —
+  you still mark the task itself done on the Tasks tab, the same as
+  always.
+- **MY-TH** — adds a "Priority" tab: your open tasks, numbered, with the
+  one you've gone the longest without working on at the top. A task
+  you've never started outranks every task you have, no matter how
+  stale. Nothing is saved here — the order is worked out fresh every
+  time you open the tab.
 
-More Riders will read your tasks and history this way over time — these
-eight are just the first of ten planned.
+All ten Tier 5 Riders now read your tasks and history this way.
 
 ### Look and feel
 

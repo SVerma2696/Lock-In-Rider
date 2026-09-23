@@ -49,3 +49,11 @@ app_icon_square.png
 # always downloads and unpacks in the OS temp folder, never this one.
 *.old
 lockin_update_tmp/
+
+# Local coding-assistant scratch space (worktrees, notes, drafts) and a
+# generated code map — neither belongs in the project, they're just
+# working files on the machine that built this. This folder never gets
+# read by the app itself.
+.claude/
+.superpowers/
+graphify-out/
