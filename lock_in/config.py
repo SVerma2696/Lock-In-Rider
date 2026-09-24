@@ -170,6 +170,13 @@ class Config:
     # shown, or sent anywhere -- it's judged and thrown away immediately.
     camera_monitoring_enabled: bool = False
 
+    # Wizard's mouse gestures: while Kamen Rider Wizard is the picked
+    # Rider, holding the right mouse button and drawing a line left or
+    # right (or a circle) on the Lock In window switches tabs. This
+    # switch turns that off without changing your Rider. On by default.
+    # It only ever watches the mouse inside the Lock In window itself.
+    mouse_gestures_enabled: bool = True
+
     # --- What happens automatically ----------------------------------------- #
     auto_start_breaks: bool = True        # break starts right away
     auto_start_focus: bool = False        # you must press start to work again

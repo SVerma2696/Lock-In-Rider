@@ -165,3 +165,21 @@ def test_badges_earned_round_trips_through_save_and_load(tmp_path):
     path = tmp_path / "config.json"
     Config(badges_earned=["first_step", "ten_blocks"]).save(path)
     assert Config.load(path).badges_earned == ["first_step", "ten_blocks"]
+
+
+def test_mouse_gestures_default_to_on():
+    assert Config().mouse_gestures_enabled is True
+
+
+def test_mouse_gestures_setting_round_trips_through_save_and_load(tmp_path):
+    path = tmp_path / "config.json"
+    Config(mouse_gestures_enabled=False).save(path)
+    assert Config.load(path).mouse_gestures_enabled is False
+
+
+def test_old_settings_file_without_mouse_gestures_loads_as_on(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"focus_minutes": 30}', encoding="utf-8")
+    loaded = Config.load(path)
+    assert loaded.focus_minutes == 30
+    assert loaded.mouse_gestures_enabled is True

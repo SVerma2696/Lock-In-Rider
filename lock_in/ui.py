@@ -64,6 +64,7 @@ from .history import HistoryStore, SessionRecord
 from . import __version__, update_apply, update_fetch, updater
 from .updater import UpdateInfo
 from .tier5 import TIER5_BUILDERS
+from .wizard_gestures import next_tab_name, recognize
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
 from .ambient import AmbientPlayer
@@ -374,6 +375,16 @@ class LockInApp(ctk.CTk):
         self.bind_all("s", self._on_zeztz_skip)
         self.bind_all("r", self._on_zeztz_reset)
 
+        # Wizard's mouse gestures. Bound once here; each handler checks
+        # for itself whether Wizard is picked and the switch is on, so
+        # changing Rider later needs no re-binding. add="+" keeps any
+        # other binding on the window working.
+        self._wizard_points: list = []
+        self._wizard_last_dot = None
+        self.bind("<ButtonPress-3>", self._on_wizard_press, add="+")
+        self.bind("<B3-Motion>", self._on_wizard_motion, add="+")
+        self.bind("<ButtonRelease-3>", self._on_wizard_release, add="+")
+
         self.monitor.start()
         self.camera_watcher.start()
         self._sync_progress_widget_visibility()
@@ -524,6 +535,10 @@ class LockInApp(ctk.CTk):
         # Which Tier 5 gimmick (if any) this Rider has -- read by
         # _build_tabs() to decide whether a 6th tab exists at all.
         self.current_tier5_effect = theme.tier5_effect
+        # Which Tier 6 gimmick (if any) this Rider has -- read by the
+        # Wizard mouse-gesture handlers below. Standard Mode swaps in
+        # STANDARD_THEME above, so this reads "none" there automatically.
+        self.current_tier6_effect = theme.tier6_effect
         # The resolved RiderTheme itself (after ZX's desaturation, if
         # that applied above) -- _build_tier5_tab() needs the actual
         # theme object, not just the derived colors already unpacked
@@ -1214,10 +1229,11 @@ class LockInApp(ctk.CTk):
         )
         self._mpack(self.tabs, fill="both", expand=True, padx=20, pady=(0, 16))
 
-        for name in ("Tasks", "Blocking", "Activity", "Settings", "Help"):
-            self.tabs.add(name)
+        self._tab_names = ["Tasks", "Blocking", "Activity", "Settings", "Help"]
         if self.current_tier5_effect != "none":
-            self.tabs.add(_TIER5_TAB_LABELS[self.current_tier5_effect])
+            self._tab_names.append(_TIER5_TAB_LABELS[self.current_tier5_effect])
+        for name in self._tab_names:
+            self.tabs.add(name)
 
         self._build_tasks_tab(self.tabs.tab("Tasks"))
         self._build_blocking_tab(self.tabs.tab("Blocking"))
@@ -1688,8 +1704,20 @@ class LockInApp(ctk.CTk):
             "reads your tasks and history this way."
         )
 
+        # --- Tier 6 -------------------------------------------------------- #
+        heading("6. A hero that listens to your mouse", COLOR_ENFORCE_ACCENT)
+        bullet(
+            "Wizard — hold the right mouse button and draw on this "
+            "window. A line to the left goes back one tab. A line to the "
+            "right goes forward one tab. A circle jumps to the first "
+            "tab, Tasks. It only works inside this window, it only "
+            "changes tabs, and if it isn't sure what you drew, it does "
+            "nothing. You can turn it off with the \"Mouse gestures\" "
+            "switch in Settings."
+        )
+
         # --- Strict Camera Monitoring ------------------------------------ #
-        heading("6. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
+        heading("7. Strict Camera Monitoring (optional)", COLOR_ENFORCE_ACCENT)
         body(
             "A separate extra, nothing to do with heroes: turn it on in "
             "the Blocking tab, and Lock In peeks at your webcam every "
@@ -1704,7 +1732,7 @@ class LockInApp(ctk.CTk):
         )
 
         # --- Version ------------------------------------------------ #
-        heading("7. Version", COLOR_IDLE)
+        heading("8. Version", COLOR_IDLE)
         body(f"You're running Lock In v{__version__}.")
         body(
             "Want to know if there's a newer Lock In? Open the Settings "
@@ -1784,6 +1812,16 @@ class LockInApp(ctk.CTk):
         self.update_check_status = ctk.CTkLabel(
             frame, text="", justify="left", wraplength=440, anchor="w")
         self._mpack(self.update_check_status, anchor="w", pady=(0, 4))
+
+        # Wizard's switch only shows up while Wizard is the picked Rider,
+        # so every other Rider's Settings tab stays exactly as it was.
+        self.gestures_var = None
+        if self.current_tier6_effect == "mouse_gestures":
+            self.gestures_var = ctk.BooleanVar(value=self.config_obj.mouse_gestures_enabled)
+            self._mpack(ctk.CTkSwitch(
+                frame, text="Mouse gestures (right-drag to change tabs)",
+                variable=self.gestures_var, progress_color=COLOR_LOOK_ACCENT,
+                command=self._save_from_widgets), anchor="w", pady=4)
 
         row = ctk.CTkFrame(frame, fg_color="transparent")
         self._mpack(row, fill="x", pady=(10, 4))
@@ -2535,6 +2573,96 @@ class LockInApp(ctk.CTk):
         if self._zeztz_hotkeys_active():
             self._on_reset()
 
+    # ------------------------------------------------------------------ #
+    # Wizard's mouse gestures (see lock_in/wizard_gestures.py)
+    # ------------------------------------------------------------------ #
+    def _wizard_listening(self, event) -> bool:
+        """True only while Wizard is picked, the Settings switch is on,
+        and the mouse press began in THIS window (not, say, the lockdown
+        screen). It does not check where the mouse is now."""
+        try:
+            return (
+                self.current_tier6_effect == "mouse_gestures"
+                and self.config_obj.mouse_gestures_enabled
+                and event.widget.winfo_toplevel() is self
+            )
+        except Exception:
+            return False
+
+    def _wizard_inside_window(self, event) -> bool:
+        """True if the mouse is over this window right now. Tk keeps
+        sending drag and release events here even after the mouse leaves."""
+        try:
+            left, top = self.winfo_rootx(), self.winfo_rooty()
+            return (left <= event.x_root < left + self.winfo_width()
+                    and top <= event.y_root < top + self.winfo_height())
+        except Exception:
+            return False
+
+    def _on_wizard_press(self, event) -> None:
+        self._wizard_points = []
+        self._wizard_last_dot = None
+        if self._wizard_listening(event):
+            self._wizard_points.append((event.x_root, event.y_root))
+
+    def _on_wizard_motion(self, event) -> None:
+        # An empty list means the press wasn't one we're listening to.
+        if not self._wizard_points or not self._wizard_listening(event):
+            return
+        if not self._wizard_inside_window(event):
+            return
+        # Keep a point only when the mouse moved a few pixels. A slow swipe
+        # sends hundreds of tiny moves, which would look too wobbly.
+        last_x, last_y = self._wizard_points[-1]
+        if abs(event.x_root - last_x) + abs(event.y_root - last_y) < 4:
+            return
+        self._wizard_points.append((event.x_root, event.y_root))
+        self._wizard_draw_trail_dot(event)
+
+    def _on_wizard_release(self, event) -> None:
+        points, self._wizard_points = self._wizard_points, []
+        if not points:
+            return
+        # Any surprise in here means "do nothing" -- a gesture is a
+        # nice-to-have shortcut, never worth an error.
+        try:
+            if not self._wizard_listening(event):
+                return
+            if not self._wizard_inside_window(event):
+                return
+            gesture = recognize(points)
+            target = next_tab_name(self._tab_names, self.tabs.get(), gesture)
+            if target:
+                self.tabs.set(target)
+        except Exception:
+            pass
+
+    def _wizard_draw_trail_dot(self, event) -> None:
+        """The little fading trail. Best-effort only: recognizing and
+        switching tabs never depend on it, so any problem drawing it is
+        silently ignored."""
+        dot = None
+        try:
+            x = event.x_root - self.winfo_rootx()
+            y = event.y_root - self.winfo_rooty()
+            last = self._wizard_last_dot
+            if last is not None and abs(x - last[0]) < 10 and abs(y - last[1]) < 10:
+                return
+            self._wizard_last_dot = (x, y)
+            dot = ctk.CTkFrame(self, width=6, height=6, corner_radius=3,
+                               fg_color=self.color_focus)
+            dot.place(x=x - 3, y=y - 3)
+            self.after(400, lambda d=dot: self._wizard_remove_dot(d))
+        except Exception:
+            if dot is not None:
+                self._wizard_remove_dot(dot)
+
+    def _wizard_remove_dot(self, dot) -> None:
+        try:
+            dot.destroy()
+        except Exception:
+            pass
+
     def _on_appearance_change(self, value: str) -> None:
         ctk.set_appearance_mode(value)
         self.config_obj.appearance = value
@@ -2860,6 +2988,8 @@ class LockInApp(ctk.CTk):
             c.sound_enabled = self.sound_var.get()
             c.toast_enabled = self.toast_var.get()
             c.check_for_updates = self.check_updates_var.get()
+            if getattr(self, "gestures_var", None) is not None:
+                c.mouse_gestures_enabled = self.gestures_var.get()
         c.save()
 
     def _save_lists(self) -> None:

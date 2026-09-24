@@ -127,6 +127,13 @@ class RiderTheme:
     # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
     # that fills that tab in.
     tier5_effect: str = "none"
+    # "none" for every Rider except Wizard, the first of Tier 6's two
+    # "new infrastructure" Riders (see
+    # docs/superpowers/specs/2026-09-23-tier6-wizard-mouse-gestures-design.md).
+    # ui.py reads this to decide whether right-button mouse gestures
+    # (draw a line left or right, or a circle, to switch tabs) are
+    # listened for at all. lock_in/wizard_gestures.py does the drawing math.
+    tier6_effect: str = "none"
 
     @property
     def primary_pair(self) -> tuple[str, str]:
@@ -296,6 +303,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Wizard (2012)": RiderTheme(
         "Heisei", 2012, ("#9c1e1e", "#ef5350"), ("#1a1a1a", "#757575"),
+        tier6_effect="mouse_gestures",
     ),
     "Kamen Rider Gaim (2013)": RiderTheme(
         "Heisei", 2013, ("#b33f00", "#ff9800"), ("#96761c", "#e4c657"),

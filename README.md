@@ -192,6 +192,7 @@ Lock In/
 │   │                           focus block, saved as sessions.jsonl. Each block
 │   │                           has its own id so Zi-O can fix or delete it.
 │   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
+│   ├── wizard_gestures.py      Draws-a-line-or-circle math for Wizard's mouse gestures.
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
 │   ├── updater.py               Pure version-compare/asset-pick logic for
@@ -229,6 +230,8 @@ Lock In/
 │   │                           real network calls, a fake client stands in.
 │   ├── test_rider_themes.py    Palette completeness, color validity, dark-mode
 │   │                           shade generation, contrast-safe text colors.
+│   ├── test_wizard_gestures.py Line and circle recognition, ignored gestures,
+│   │                           and tab stepping with no wrap-around.
 │   ├── test_visuals.py         Font lookup, glow shape/fade, per-era background
 │   │                           and divider differences, light/dark contrast,
 │   │                           app-icon loading/padding.
@@ -766,6 +769,29 @@ behavior.
   time you open the tab.
 
 All ten Tier 5 Riders now read your tasks and history this way.
+
+### Tier 6: Riders that add something new
+
+The last two Riders do things no earlier Rider does. The first one is
+built:
+
+- **Wizard** — you can now move between tabs with your mouse, like
+  drawing a magic spell. Hold the **right mouse button** and drag on the
+  Lock In window:
+  - Draw a line to the **left** to go back one tab.
+  - Draw a line to the **right** to go forward one tab.
+  - Draw a **circle** to jump to the first tab (Tasks).
+
+  A quick right-click does nothing, and if the app isn't sure what you
+  drew, it does nothing too. Small dots follow your mouse while you
+  draw and disappear a moment later. Gestures only ever change tabs — they can't start,
+  pause, or end a focus block. They only work inside the Lock In window;
+  the app never watches your mouse anywhere else on your computer, and
+  nothing is recorded or sent anywhere. When Wizard is your Rider, a
+  "Mouse gestures" switch appears in Settings (on by default) if you'd
+  rather turn it off.
+
+The other one, Revice, is still to come.
 
 ### Look and feel
 
