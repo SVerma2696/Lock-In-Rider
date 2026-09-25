@@ -127,12 +127,14 @@ class RiderTheme:
     # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
     # that fills that tab in.
     tier5_effect: str = "none"
-    # "none" for every Rider except Wizard, the first of Tier 6's two
-    # "new infrastructure" Riders (see
+    # "none" for every Rider except Tier 6's two "new infrastructure"
+    # Riders. Wizard's "mouse_gestures": ui.py listens for right-button
+    # drags (a line left or right, or a circle) to switch tabs, and
+    # lock_in/wizard_gestures.py does the drawing math (see
     # docs/superpowers/specs/2026-09-23-tier6-wizard-mouse-gestures-design.md).
-    # ui.py reads this to decide whether right-button mouse gestures
-    # (draw a line left or right, or a circle, to switch tabs) are
-    # listened for at all. lock_in/wizard_gestures.py does the drawing math.
+    # Revice's "buddy_link": ui.py adds a "Buddy" tab for pairing with
+    # another computer on the same Wi-Fi (see
+    # docs/superpowers/specs/2026-09-24-tier6-revice-buddy-link-design.md).
     tier6_effect: str = "none"
 
     @property
@@ -337,6 +339,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Revice (2021)": RiderTheme(
         "Reiwa", 2021, ("#b3154b", "#f06292"), ("#0097a7", "#18ffff"),
+        tier6_effect="buddy_link",
     ),
     "Kamen Rider Geats (2022)": RiderTheme(
         "Reiwa", 2022, ("#9e9e9e", "#ffffff"), ("#9c1e1e", "#ef5350"),

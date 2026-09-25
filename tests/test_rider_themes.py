@@ -319,11 +319,12 @@ def test_tier6_effect_defaults_to_none():
     assert theme.tier6_effect == "none"
 
 
-def test_only_wizard_has_a_tier6_effect():
+def test_only_wizard_and_revice_have_a_tier6_effect():
     from lock_in.rider_themes import RIDER_THEMES
     assert RIDER_THEMES["Kamen Rider Wizard (2012)"].tier6_effect == "mouse_gestures"
+    assert RIDER_THEMES["Kamen Rider Revice (2021)"].tier6_effect == "buddy_link"
     tier6_riders = {n for n, t in RIDER_THEMES.items() if t.tier6_effect != "none"}
-    assert tier6_riders == {"Kamen Rider Wizard (2012)"}
+    assert tier6_riders == {"Kamen Rider Wizard (2012)", "Kamen Rider Revice (2021)"}
 
 
 def test_standard_theme_has_no_tier6_effect():

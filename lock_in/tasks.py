@@ -72,6 +72,73 @@ class Task:
     phases: List[bool] = field(default_factory=lambda: [False, False, False])
 
 
+def task_from_dict(item: object) -> Optional[Task]:
+    """Turn one saved task (a dict) back into a Task. Returns None if
+    it's broken, so one bad entry never costs you the others. Used by
+    TaskStore.load() and by Revice's Pull History -- which matters more
+    here than for most files, because a task pulled from another
+    computer can hold anything at all. Every field is checked for the
+    right type, not just the right shape: a task with the wrong type
+    in `id`, `name`, `created_at`, or `completed_at` is rejected outright,
+    since a bad `id` (e.g. a list, which can't go in a dict key) could
+    otherwise crash the merge that calls this, not just show up wrong."""
+    if not isinstance(item, dict):
+        return None
+    try:
+        task_id = item.get("id")
+        name = item.get("name")
+        created_at = item.get("created_at", "")
+        completed_at = item.get("completed_at")
+        if not (isinstance(task_id, str) and task_id):
+            return None
+        if not (isinstance(name, str) and name):
+            return None
+        if not isinstance(created_at, str):
+            return None
+        if completed_at is not None and not isinstance(completed_at, str):
+            return None
+
+        # Build subtasks defensively, skipping any malformed entries.
+        subtasks = []
+        for s in item.get("subtasks", []):
+            try:
+                sub_id = s.get("id", "")
+                text = s.get("text", "")
+                done = s.get("done", False)
+            except (TypeError, AttributeError):
+                # Skip malformed subtask entries.
+                continue
+            # Only add valid subtasks: non-empty string id and text,
+            # and a real bool for done (not just anything truthy).
+            if (isinstance(sub_id, str) and sub_id
+                    and isinstance(text, str) and text
+                    and isinstance(done, bool)):
+                subtasks.append(Subtask(id=sub_id, text=text, done=done))
+
+        # phases: always exactly 3 booleans (Plan, Work, Review).
+        # A hand-edited tasks.json could hold anything here --
+        # anything that isn't a list of exactly 3 entries falls
+        # back to all-unchecked rather than raising or guessing
+        # which one was meant.
+        raw_phases = item.get("phases", [False, False, False])
+        if isinstance(raw_phases, list) and len(raw_phases) == 3:
+            phases = [bool(p) for p in raw_phases]
+        else:
+            phases = [False, False, False]
+
+        return Task(
+            id=task_id,
+            name=name,
+            subtasks=subtasks,
+            status=TaskStatus(item.get("status", "todo")),
+            created_at=created_at,
+            completed_at=completed_at,
+            phases=phases,
+        )
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
 class TaskStore:
     """
     Loads, edits, and saves the whole task list.
@@ -115,49 +182,9 @@ class TaskStore:
         if not isinstance(entries, list):
             return
         for item in entries:
-            if not isinstance(item, dict):
-                continue
-            try:
-                # Build subtasks defensively, skipping any malformed entries.
-                subtasks = []
-                for s in item.get("subtasks", []):
-                    try:
-                        subtask = Subtask(
-                            id=s.get("id", ""),
-                            text=s.get("text", ""),
-                            done=s.get("done", False),
-                        )
-                        # Only add valid subtasks (with non-empty id and text).
-                        if subtask.id and subtask.text:
-                            subtasks.append(subtask)
-                    except (TypeError, AttributeError):
-                        # Skip malformed subtask entries.
-                        continue
-
-                # phases: always exactly 3 booleans (Plan, Work, Review).
-                # A hand-edited tasks.json could hold anything here --
-                # anything that isn't a list of exactly 3 entries falls
-                # back to all-unchecked rather than raising or guessing
-                # which one was meant.
-                raw_phases = item.get("phases", [False, False, False])
-                if isinstance(raw_phases, list) and len(raw_phases) == 3:
-                    phases = [bool(p) for p in raw_phases]
-                else:
-                    phases = [False, False, False]
-
-                task = Task(
-                    id=item["id"],
-                    name=item["name"],
-                    subtasks=subtasks,
-                    status=TaskStatus(item.get("status", "todo")),
-                    created_at=item.get("created_at", ""),
-                    completed_at=item.get("completed_at"),
-                    phases=phases,
-                )
+            task = task_from_dict(item)
+            if task is not None:
                 self._tasks[task.id] = task
-            except (KeyError, ValueError, TypeError):
-                # One broken entry shouldn't cost you every other task.
-                continue
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -176,6 +203,17 @@ class TaskStore:
         self._tasks[task.id] = task
         self.save()
         return task
+
+    def add_existing(self, task: Task) -> bool:
+        """Add a whole task that already has its own id -- Revice's Pull
+        History uses this for tasks copied from another computer. Saves
+        straight away. Returns False, with nothing changed, if a task
+        with that id is already here."""
+        if task.id in self._tasks:
+            return False
+        self._tasks[task.id] = task
+        self.save()
+        return True
 
     def add_subtask(self, task_id: str, text: str) -> Optional[Subtask]:
         task = self._tasks.get(task_id)

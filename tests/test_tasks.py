@@ -342,3 +342,44 @@ def test_non_boolean_phase_entries_are_coerced_to_bool(tmp_path):
     path.write_text(json.dumps(payload), encoding="utf-8")
     store = TaskStore(path)
     assert store.all()[0].phases == [True, False, True]
+
+
+def test_task_from_dict_reads_a_good_task():
+    from lock_in.tasks import task_from_dict
+    task = task_from_dict({"id": "abc12345", "name": "Read", "status": "done",
+                           "created_at": "2026-09-01T10:00:00", "completed_at": None,
+                           "subtasks": [{"id": "s1", "text": "Ch 1", "done": True}],
+                           "phases": [True, False, False]})
+    assert task.id == "abc12345"
+    assert task.name == "Read"
+    assert task.status == TaskStatus.DONE
+    assert task.subtasks == [Subtask(id="s1", text="Ch 1", done=True)]
+    assert task.phases == [True, False, False]
+
+
+@pytest.mark.parametrize("item", [None, 5, "x", [], {}, {"id": "a"}, {"name": "b"},
+                                  {"id": "a", "name": "b", "status": "flying"},
+                                  {"id": "a", "name": {"a": 1}},
+                                  {"id": "a", "name": None},
+                                  {"id": ["a"], "name": "b"},
+                                  {"id": "a", "name": "b", "created_at": 5},
+                                  {"id": "a", "name": "b", "completed_at": 5}])
+def test_task_from_dict_returns_none_for_broken_items(item):
+    from lock_in.tasks import task_from_dict
+    assert task_from_dict(item) is None
+
+
+def test_add_existing_keeps_the_id_and_saves(tmp_path):
+    path = tmp_path / "tasks.json"
+    store = TaskStore(path)
+    task = Task(id="keepme01", name="From the other computer")
+    assert store.add_existing(task) is True
+    reloaded = TaskStore(path)
+    assert reloaded.get("keepme01").name == "From the other computer"
+
+
+def test_add_existing_refuses_a_duplicate_id(store):
+    first = store.add("Mine")
+    assert store.add_existing(Task(id=first.id, name="Theirs")) is False
+    assert store.get(first.id).name == "Mine"
+    assert len(store.all()) == 1

@@ -33,6 +33,7 @@ import dataclasses
 import os
 import queue
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -65,6 +66,9 @@ from . import __version__, update_apply, update_fetch, updater
 from .updater import UpdateInfo
 from .tier5 import TIER5_BUILDERS
 from .wizard_gestures import next_tab_name, recognize
+from . import revice_sync
+from .revice_link import BuddyLink
+from .revice_tab import BuddyTab
 from .camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, lockdown_label_for, message_for
 from .ambient import AmbientPlayer
@@ -366,6 +370,16 @@ class LockInApp(ctk.CTk):
         self._mirror_managed_widgets: dict = {}
         self._dashboard_built = False
 
+        # Revice's buddy link. Made once for the app's whole life, so
+        # redrawing the tabs (dark mode, a Rider switch) never drops the
+        # connection. It doesn't touch the network until Share or Receive
+        # is pressed -- see lock_in/revice_link.py.
+        self.buddy_link = BuddyLink(socket.gethostname() or "Buddy")
+        self._buddy_tab: Optional[BuddyTab] = None
+        self._buddy_status: Optional[dict] = None
+        self._buddy_message = ""
+        self._buddy_last_sent = 0.0
+
         self._build_header()
         self._build_divider()
         self._build_tabs()
@@ -536,8 +550,10 @@ class LockInApp(ctk.CTk):
         # _build_tabs() to decide whether a 6th tab exists at all.
         self.current_tier5_effect = theme.tier5_effect
         # Which Tier 6 gimmick (if any) this Rider has -- read by the
-        # Wizard mouse-gesture handlers below. Standard Mode swaps in
-        # STANDARD_THEME above, so this reads "none" there automatically.
+        # Wizard mouse-gesture handlers below, and by Revice's Buddy tab
+        # (_drain_buddy_link) to decide whether the buddy link should be
+        # running at all. Standard Mode swaps in STANDARD_THEME above, so
+        # this reads "none" there automatically.
         self.current_tier6_effect = theme.tier6_effect
         # The resolved RiderTheme itself (after ZX's desaturation, if
         # that applied above) -- _build_tier5_tab() needs the actual
@@ -1232,6 +1248,8 @@ class LockInApp(ctk.CTk):
         self._tab_names = ["Tasks", "Blocking", "Activity", "Settings", "Help"]
         if self.current_tier5_effect != "none":
             self._tab_names.append(_TIER5_TAB_LABELS[self.current_tier5_effect])
+        if self.current_tier6_effect == "buddy_link":
+            self._tab_names.append("Buddy")
         for name in self._tab_names:
             self.tabs.add(name)
 
@@ -1242,6 +1260,16 @@ class LockInApp(ctk.CTk):
         self._build_help_tab(self.tabs.tab("Help"))
         if self.current_tier5_effect != "none":
             self._build_tier5_tab()
+
+        self._buddy_tab = None
+        if self.current_tier6_effect == "buddy_link":
+            self._buddy_tab = BuddyTab(
+                self.tabs.tab("Buddy"),
+                accent=self.color_rider_accent, text_color=self.color_button_text,
+                on_share=self._on_buddy_share, on_receive=self._on_buddy_receive,
+                on_cancel=self._on_buddy_cancel, on_pull=self._on_buddy_pull,
+                on_unpair=self._on_buddy_cancel,
+            )
 
     def _build_tier5_tab(self) -> None:
         """Fills in whichever Tier 5 tab `_build_tabs()` just added, by
@@ -1705,7 +1733,7 @@ class LockInApp(ctk.CTk):
         )
 
         # --- Tier 6 -------------------------------------------------------- #
-        heading("6. A hero that listens to your mouse", COLOR_ENFORCE_ACCENT)
+        heading("6. Heroes that add something new", COLOR_ENFORCE_ACCENT)
         bullet(
             "Wizard — hold the right mouse button and draw on this "
             "window. A line to the left goes back one tab. A line to the "
@@ -1714,6 +1742,20 @@ class LockInApp(ctk.CTk):
             "changes tabs, and if it isn't sure what you drew, it does "
             "nothing. You can turn it off with the \"Mouse gestures\" "
             "switch in Settings."
+        )
+        bullet(
+            "Revice — pair with a friend's computer on the same Wi-Fi. "
+            "You both pick Revice. One of you opens the Buddy tab and "
+            "presses Share, and the other presses Receive and types the "
+            "4 numbers. Then you each see the other's timer and task, "
+            "and your computer's name is shown to them. Pull History "
+            "copies their past focus blocks (and the tasks those blocks "
+            "belong to) into yours. It only adds things -- it never "
+            "changes or deletes what you already have. Your buddy can "
+            "press Pull History too, any time you're paired -- then your "
+            "focus blocks and their tasks go to them, and you're not "
+            "asked first. Nothing goes on the network until you press "
+            "Share or Receive."
         )
 
         # --- Strict Camera Monitoring ------------------------------------ #
@@ -1948,6 +1990,7 @@ class LockInApp(ctk.CTk):
             self._drain_claude_queue()
             self._drain_banner_queue()
             self._drain_update_queue()
+            self._drain_buddy_link()
             self._refresh_timer_widgets()
         finally:
             # This "finally" makes sure we always schedule the next loop,
@@ -2660,6 +2703,106 @@ class LockInApp(ctk.CTk):
     def _wizard_remove_dot(self, dot) -> None:
         try:
             dot.destroy()
+        except Exception:
+            pass
+
+    # ================================================================== #
+    # Revice's buddy link (see lock_in/revice_link.py)
+    # ================================================================== #
+    def _on_buddy_share(self) -> None:
+        try:
+            self._buddy_message = ""
+            self._buddy_status = None
+            self.buddy_link.share()
+        except Exception:
+            pass
+
+    def _on_buddy_receive(self, code: str) -> None:
+        try:
+            if not revice_sync.is_valid_code(code):
+                self._buddy_message = revice_sync.MSG_TYPE_FOUR
+                return
+            self._buddy_message = ""
+            self._buddy_status = None
+            self.buddy_link.receive(code)
+        except Exception:
+            pass
+
+    def _on_buddy_cancel(self) -> None:
+        try:
+            self._buddy_message = ""
+            self._buddy_status = None
+            self.buddy_link.close()
+        except Exception:
+            pass
+
+    def _on_buddy_pull(self) -> None:
+        try:
+            if self.buddy_link.request_pull():
+                self._buddy_message = ""
+        except Exception:
+            pass
+
+    def _drain_buddy_link(self) -> None:
+        """Called every tick from _pump(). Reads what the link heard,
+        sends our timer about once a second, and redraws the Buddy tab.
+        Closes the link as soon as Revice isn't the Rider any more
+        (another Rider, or Standard Mode). Never lets an error reach the
+        timer."""
+        try:
+            link = self.buddy_link
+            if self.current_tier6_effect != "buddy_link":
+                if link.state != "idle":
+                    link.close()
+                link.poll()
+                self._buddy_status = None
+                self._buddy_message = ""
+                return
+            for event in link.poll():
+                kind = event[0]
+                if kind == "paired":
+                    self._buddy_message = ""
+                    self._buddy_status = None
+                elif kind == "status":
+                    self._buddy_status = revice_sync.clean_status(event[1])
+                elif kind == "pull_request":
+                    sessions, task_list = revice_sync.pull_reply_payload(self.history, self.tasks)
+                    link.send_pull_reply(sessions, task_list)
+                elif kind == "pull_reply":
+                    # The merge alone is wrapped here (not the whole
+                    # handler) so a mid-merge failure -- e.g.
+                    # sessions.jsonl locked by OneDrive -- still shows a
+                    # message instead of leaving the tab looking frozen.
+                    before = len(self.tasks.all())
+                    try:
+                        added = revice_sync.merge_pull(self.history, self.tasks, event[1], event[2])
+                        self._buddy_message = revice_sync.pull_result_text(*added)
+                    except Exception:
+                        self._buddy_message = revice_sync.MSG_PULL_FAILED
+                    finally:
+                        # Redraw whenever a task actually got added, even
+                        # if something above failed partway through --
+                        # otherwise a pulled task could sit in tasks.py
+                        # without showing up anywhere until the next
+                        # unrelated redraw.
+                        if len(self.tasks.all()) != before:
+                            self._render_tasks()
+                            self._refresh_current_task_picker()
+                elif kind == "pull_failed":
+                    self._buddy_message = revice_sync.MSG_PULL_FAILED
+                elif kind == "left":
+                    self._buddy_message = revice_sync.MSG_BUDDY_LEFT
+                    self._buddy_status = None
+                elif kind == "error":
+                    self._buddy_message = event[1]
+            now = time.monotonic()
+            if link.state == "paired" and now - self._buddy_last_sent >= revice_sync.STATUS_EVERY_SECONDS:
+                self._buddy_last_sent = now
+                task = self.tasks.get(self.current_task_id) if self.current_task_id else None
+                link.send_status(revice_sync.status_from_session(
+                    self.session, task.name if task else None, link.name))
+            if self._buddy_tab is not None:
+                self._buddy_tab.show(link, self._buddy_status, self._buddy_message, now)
         except Exception:
             pass
 
@@ -3484,6 +3627,10 @@ class LockInApp(ctk.CTk):
             self.model.save(MODEL_PATH)
             self.observations.save()
         finally:
+            try:
+                self.buddy_link.close()
+            except Exception:
+                pass
             self.monitor.stop()
             self.ambient.stop()
             self.camera_watcher.stop()

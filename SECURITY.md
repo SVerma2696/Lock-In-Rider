@@ -1,10 +1,25 @@
 # Security Policy
 
 Lock In is a personal desktop app (Pomodoro timer + app blocker). It
-runs entirely on your own machine — the only optional network call is
-the Claude fallback (off by default), which sends a single window
-title string and nothing else. See the README's "Claude fallback"
-section for the full data-handling details.
+runs on your own machine. It only uses the network in these ways:
+
+- The Claude fallback (off by default) sends a single window title
+  string and nothing else. See the README's "Claude fallback" section.
+- The update check asks GitHub for the latest release. It's on by
+  default and runs once, shortly after the app opens, without asking.
+  Turn it off in Settings ("Automatically check for updates") — the
+  README's "Auto-Update" section has details.
+- Revice's buddy link (only while Revice is the picked Rider, and only
+  after you press Share or Receive) talks to one other computer on the
+  same local network. Either of you can press Pull History at any time
+  to send your focus blocks and their tasks to the other side, with no
+  extra confirmation, and your computer's name is shown to your buddy
+  the whole time you're paired. Pairing uses a 4-digit code that is
+  never sent over the network as-is, and it is locked after 3 wrong
+  tries. That stops guessing, but a device on the same network that
+  answers the pairing call, or watches a pairing happen, can work the
+  code out. What's sent after pairing is not encrypted. Only use it on
+  a network you trust. See the README's Tier 6 section.
 
 ## Supported versions
 

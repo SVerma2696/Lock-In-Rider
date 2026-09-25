@@ -193,6 +193,8 @@ Lock In/
 │   │                           has its own id so Zi-O can fix or delete it.
 │   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
 │   ├── wizard_gestures.py      Draws-a-line-or-circle math for Wizard's mouse gestures.
+│   ├── revice_sync.py           Revice's rules: the code check, messages, and
+│   │                           the Pull History merge (no network, no window).
 │   ├── visuals.py               Display font pick, plus Pillow-generated glow,
 │   │                           background art, and app-icon loading.
 │   ├── updater.py               Pure version-compare/asset-pick logic for
@@ -212,6 +214,9 @@ Lock In/
 │   │                           for the latest release, downloads the matching file.
 │   ├── update_apply.py          Unpacks the downloaded release and writes/launches
 │   │                           the per-OS relaunch script that swaps files.
+│   ├── revice_link.py           Revice's connection to a buddy's computer on
+│   │                           the same Wi-Fi. Only runs after Share/Receive.
+│   ├── revice_tab.py            Revice's Buddy tab.
 │   └── ui.py                   CustomTkinter front end. The only module that
 │                               imports tkinter.
 │
@@ -232,6 +237,10 @@ Lock In/
 │   │                           shade generation, contrast-safe text colors.
 │   ├── test_wizard_gestures.py Line and circle recognition, ignored gestures,
 │   │                           and tab stepping with no wrap-around.
+│   ├── test_revice_sync.py     Codes, the handshake, messages, status text,
+│   │                           and the add-only Pull History merge.
+│   ├── test_revice_link.py     Pairing, wrong codes, time-outs, status and
+│   │                           pull round-trips, all on 127.0.0.1.
 │   ├── test_visuals.py         Font lookup, glow shape/fade, per-era background
 │   │                           and divider differences, light/dark contrast,
 │   │                           app-icon loading/padding.
@@ -488,7 +497,7 @@ model on screen captures. Titles win on all three axes that matter:
   rediscovering text.
 - **Cost.** Titles are a handful of tokens once a second. Screenshots are
   megabytes per second through a vision model.
-- **Privacy.** Nothing leaves your machine. An app you run *all day while
+- **Privacy.** Your window titles never leave your machine. An app you run *all day while
   working* becomes a very different thing to trust the moment it starts
   shipping screenshots anywhere.
 
@@ -533,8 +542,11 @@ keeps a diary of every focus block you actually finish.
   will read from it, so the app keeps the record now and loses nothing
   while those get built.
 
-Nothing here is sent anywhere; both files stay on your machine right
-next to `config.json` (see [Config](#-config) below).
+Both files stay on your machine right next to `config.json` (see
+[Config](#-config) below), unless you pick Revice. While you're paired
+with a buddy, either of you can press Pull History to copy focus blocks
+(and the tasks they belong to) onto the other's computer — it's not
+one-way, and it doesn't ask again each time (see Tier 6 below).
 
 ---
 
@@ -772,8 +784,7 @@ All ten Tier 5 Riders now read your tasks and history this way.
 
 ### Tier 6: Riders that add something new
 
-The last two Riders do things no earlier Rider does. The first one is
-built:
+The last two Riders do things no earlier Rider does. Both are built:
 
 - **Wizard** — you can now move between tabs with your mouse, like
   drawing a magic spell. Hold the **right mouse button** and drag on the
@@ -791,7 +802,41 @@ built:
   "Mouse gestures" switch appears in Settings (on by default) if you'd
   rather turn it off.
 
-The other one, Revice, is still to come.
+- **Revice** — Revice is two heroes sharing one body, so it lets two
+  computers share one Lock In. Both of you pick Revice, then open the
+  new **Buddy** tab:
+  - One of you presses **Share**. A 4-number code shows up.
+  - The other presses **Receive** and types those 4 numbers.
+
+  Now you're paired. Each of you sees the other's timer, whether
+  they're focusing or on a break, and what task they picked — and your
+  computer's name is what they see for yours. Press **Pull History** to
+  copy their past focus blocks, and the tasks those blocks belong to,
+  into yours. It only adds what you don't already have. It never
+  changes or deletes anything, so pressing it twice is fine. Your buddy
+  can press Pull History too, any time you're paired — then your focus
+  blocks and their tasks go to them, and you aren't asked each time.
+  Press **Unpair** when you're done.
+
+  A few things to know:
+  - Both computers must be on the **same Wi-Fi**. Some school, office,
+    or café Wi-Fi blocks this. Home Wi-Fi almost always works.
+  - The code lasts 2 minutes. After 3 wrong tries it stops working, and
+    you press Share again. That stops someone guessing, but a sneaky
+    computer on the same Wi-Fi could still figure the code out. Only use
+    Revice on Wi-Fi you trust, like at home.
+  - Nothing goes on the network until you press Share or Receive, and
+    it stops when either of you unpairs, closes Lock In, picks
+    another Rider, or turns on Standard Mode.
+  - Windows may ask whether to let Lock In use the network the first
+    time you press Share. Say yes, or pairing can't work.
+  - What's sent between the two computers is **not scrambled**
+    (encrypted). Someone snooping on the same Wi-Fi could read your
+    timer, task names, and pulled history. That's fine at home, but
+    don't use it on café Wi-Fi.
+  - Pairing can never start, pause, or stop anyone's timer.
+
+Tier 6 is complete.
 
 ### Look and feel
 
