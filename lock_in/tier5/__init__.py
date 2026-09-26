@@ -4,10 +4,10 @@ tier5/
 One module per Tier 5 Rider (V3, Decade, W, OOO, Den-O, Zi-O, Gotchard,
 Geats, Blade, MY-TH). Each module exposes a single `build(parent, *,
 history, tasks, theme, appearance_mode)` function that populates an
-empty tab frame with that Rider's view -- see
+empty page frame with that Rider's view -- see
 docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md for why
-this is a package of small modules instead of more methods on ui.py's
-already-large LockInApp.
+this is a package of small modules instead of more methods on the app
+itself. lock_in/ui/pages/rider.py hands each builder its empty frame.
 
 Every builder also accepts `config` (the app's settings). Geats uses it
 to read and save the daily goal, and Gotchard uses it to read the goal

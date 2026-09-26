@@ -106,33 +106,39 @@ class RiderTheme:
     secondary: tuple[str, str]
     # "none" for every Rider except the 9 with a Tier 1 gimmick (see
     # docs/superpowers/specs/2026-08-10-tier1-rider-progress-variants-design.md).
-    # visuals.py and ui.py read this to decide what the progress bar or
+    # visuals.py and lock_in/ui/ read this to decide what the progress bar or
     # background should look like for this Rider.
     tier1_effect: str = "none"
+    # "none" for every Rider except the 3 with quick-pick timer buttons
+    # (see docs/superpowers/specs/2026-08-10-tier2-settings-presets-design.md):
+    # Kuuga's "interval_presets", Super-1's "task_presets", and Gavv's
+    # "micro_sprint" switch. The Settings page reads this to decide which
+    # extra row to show.
+    tier2_effect: str = "none"
     # "none" for every Rider except the 5 with a Tier 3 gimmick (see
     # docs/superpowers/specs/2026-08-11-tier3-enforcement-interaction-design.md).
-    # ui.py reads this to decide what enforcement/interaction behavior
+    # lock_in/ui/ reads this to decide what enforcement/interaction behavior
     # this Rider needs.
     tier3_effect: str = "none"
     # "none" for every Rider except the 8 with a Tier 4 gimmick (see
     # docs/superpowers/specs/2026-08-26-tier4-alternate-display-modes-design.md).
-    # ui.py, notifier.py, and ambient.py all read this to decide what
+    # lock_in/ui/, notifier.py, and ambient.py all read this to decide what
     # display/audio/input behavior this Rider needs.
     tier4_effect: str = "none"
     # "none" for every Rider except the ones that read your tasks and
     # history -- all 10 planned Riders are now built: V3, Den-O, Decade,
     # Zi-O, Blade, W, Geats, Gotchard, OOO, and MY-TH. See
     # docs/superpowers/specs/2026-09-05-tier5-v3-daily-hours-design.md.
-    # ui.py reads this to decide whether a 6th tab exists at all, and
-    # lock_in/tier5/__init__.py's TIER5_BUILDERS maps it to the module
-    # that fills that tab in.
+    # lock_in/ui/router.py reads this to decide whether the side bar gets
+    # a Rider page at all, and lock_in/tier5/__init__.py's TIER5_BUILDERS
+    # maps it to the module that draws that page.
     tier5_effect: str = "none"
     # "none" for every Rider except Tier 6's two "new infrastructure"
-    # Riders. Wizard's "mouse_gestures": ui.py listens for right-button
-    # drags (a line left or right, or a circle) to switch tabs, and
+    # Riders. Wizard's "mouse_gestures": lock_in/ui/ listens for right-button
+    # drags (a line left or right, or a circle) to switch pages, and
     # lock_in/wizard_gestures.py does the drawing math (see
     # docs/superpowers/specs/2026-09-23-tier6-wizard-mouse-gestures-design.md).
-    # Revice's "buddy_link": ui.py adds a "Buddy" tab for pairing with
+    # Revice's "buddy_link": the side bar gets a "Buddy" page for pairing with
     # another computer on the same Wi-Fi (see
     # docs/superpowers/specs/2026-09-24-tier6-revice-buddy-link-design.md).
     tier6_effect: str = "none"
@@ -243,6 +249,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Super-1 (1980)": RiderTheme(
         "Showa", 1980, ("#9e9e9e", "#e0e0e0"), ("#1a1a1a", "#757575"),
+        tier2_effect="task_presets",
     ),
     "Kamen Rider ZX (1982)": RiderTheme(
         "Showa", 1982, ("#9c1e1e", "#ef5350"), ("#78909c", "#b0bec5"),
@@ -257,6 +264,7 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Kuuga (2000)": RiderTheme(
         "Heisei", 2000, ("#961d22", "#ef5350"), ("#1a1a1a", "#757575"),
+        tier2_effect="interval_presets",
     ),
     "Kamen Rider Agito (2001)": RiderTheme(
         "Heisei", 2001, ("#d49e15", "#ffca28"), ("#1a1a1a", "#757575"), tier1_effect="color_interpolation",
@@ -351,13 +359,17 @@ RIDER_THEMES: dict[str, RiderTheme] = {
     ),
     "Kamen Rider Gavv (2024)": RiderTheme(
         "Reiwa", 2024, ("#571673", "#ab47bc"), ("#c48000", "#ffee58"),
+        tier2_effect="micro_sprint",
     ),
     "Kamen Rider Zeztz (2025)": RiderTheme(
         "Reiwa", 2025, ("#225c25", "#4caf50"), ("#111111", "#616161"),
         tier4_effect="hotkeys",
     ),
+    # MY-TH is one pick with two looks. Light mode is normal MY-TH (blue
+    # and silver). Dark mode is MY-TH ORIGIN (red and gunmetal). Both
+    # pairs are picked by hand -- neither one is worked out from the other.
     "Kamen Rider MY-TH (2026)": RiderTheme(
-        "Reiwa", 2026, ("#0f4a8f", "#42a5f5"), ("#78909c", "#b0bec5"),
+        "Reiwa", 2026, ("#0f4a8f", "#ef5350"), ("#78909c", "#616161"),
         tier5_effect="priority_order",
     ),
 }

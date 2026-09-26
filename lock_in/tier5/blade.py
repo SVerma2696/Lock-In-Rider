@@ -49,7 +49,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
 
     if not tasks.all():
         ctk.CTkLabel(
-            frame, text="No tasks yet. Add one on the Tasks tab.",
+            frame, text="No tasks yet. Add one on the Tasks page.",
             justify="left", wraplength=400,
         ).pack(anchor="w", pady=8)
         return

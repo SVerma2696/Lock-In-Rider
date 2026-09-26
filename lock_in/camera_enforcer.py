@@ -21,15 +21,11 @@ enforcer.py / monitor.py boundary elsewhere in this app:
 
 from __future__ import annotations
 
+import importlib.util
 import threading
 import time
 from pathlib import Path
 from typing import Callable, Optional
-
-try:
-    import cv2  # type: ignore
-except ImportError:  # pragma: no cover - depends on install
-    cv2 = None
 
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo
 
@@ -42,9 +38,20 @@ MODEL_PBTXT_PATH = _ASSETS_DIR / "phone_detector.pbtxt"
 # actually present. ui.py disables the Settings switch (with an
 # explanation) whenever this is False, the same treatment monitor.py's
 # BACKEND_AVAILABLE already gets for window detection.
+#
+# This only asks "is OpenCV installed?" -- it doesn't load it. OpenCV is
+# big (tens of MB of memory), and most people never turn the camera on,
+# so it's loaded by _cv2() the first time the camera is really used.
 CAMERA_BACKEND_AVAILABLE = (
-    cv2 is not None and MODEL_PB_PATH.exists() and MODEL_PBTXT_PATH.exists()
+    importlib.util.find_spec("cv2") is not None
+    and MODEL_PB_PATH.exists() and MODEL_PBTXT_PATH.exists()
 )
+
+
+def _cv2():
+    """Load OpenCV the first time it's needed (Python remembers it after)."""
+    import cv2  # type: ignore
+    return cv2
 
 PHONE_CLASS_ID = 77                     # COCO's class id for "cell phone"
 DETECTION_CONFIDENCE_THRESHOLD = 0.5
@@ -66,12 +73,12 @@ class PhoneDetector:
 
     @classmethod
     def from_files(cls, pb_path: Path, pbtxt_path: Path) -> "PhoneDetector":
-        net = cv2.dnn.readNetFromTensorflow(str(pb_path), str(pbtxt_path))
+        net = _cv2().dnn.readNetFromTensorflow(str(pb_path), str(pbtxt_path))
         return cls(net)
 
     def detect(self, frame) -> bool:
         """One frame in, one answer out: was a phone visible, confidently, anywhere in it?"""
-        blob = cv2.dnn.blobFromImage(frame, size=DETECTION_INPUT_SIZE, swapRB=True, crop=False)
+        blob = _cv2().dnn.blobFromImage(frame, size=DETECTION_INPUT_SIZE, swapRB=True, crop=False)
         self._net.setInput(blob)
         output = self._net.forward()
         for detection in output[0, 0]:
@@ -113,7 +120,7 @@ class PhoneWatcher:
         self._callback = callback
         self._detector = detector
         self._detector_unavailable = detector is None and not CAMERA_BACKEND_AVAILABLE
-        self._camera_factory = camera_factory or (lambda: cv2.VideoCapture(0))
+        self._camera_factory = camera_factory or (lambda: _cv2().VideoCapture(0))
         self.interval = interval
 
         self._cap = None

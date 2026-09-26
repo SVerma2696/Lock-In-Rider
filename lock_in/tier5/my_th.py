@@ -87,7 +87,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     open_tasks = tasks.open()
     if not open_tasks:
         ctk.CTkLabel(
-            frame, text="No open tasks yet. Add one on the Tasks tab.",
+            frame, text="No open tasks yet. Add one on the Tasks page.",
             text_color=theme.primary_text_pair,
         ).pack(anchor="w", pady=(4, 0))
         return
@@ -113,7 +113,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         frame,
         text="Ranked by which task you've worked on least recently — "
              "nothing here is saved, it's worked out fresh every time "
-             "you open this tab.",
+             "you open this page.",
         text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
         justify="left", wraplength=400,
     ).pack(anchor="w", pady=(6, 0))

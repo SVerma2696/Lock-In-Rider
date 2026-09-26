@@ -1,7 +1,8 @@
 """
 revice_tab.py
 =============
-The "Buddy" tab Kamen Rider Revice adds. Draws one of five screens:
+The screens on the "Buddy" page Kamen Rider Revice adds to the side bar
+(the page itself is lock_in/ui/pages/buddy.py). Draws one of five screens:
 
 - start:    Share and Receive buttons
 - typing:   a box for the 4-digit code, Connect, Back
@@ -14,7 +15,7 @@ All the widgets are made once; show() only switches which screen is
 visible and changes text, so calling it on every timer tick is cheap.
 The buttons just call the functions ui.py hands in -- this file never
 touches the network itself. Checked by hand in the running app, like
-every other tab.
+every other page.
 """
 
 from __future__ import annotations

@@ -21,6 +21,40 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## ✨ New in v3.0.0: a brand-new look
+
+Lock In got a whole new coat of paint. **Everything it could do before,
+it still does** — only the look and the layout changed.
+
+- **A side bar on the left.** Every page has its own button with a small
+  picture: Focus, Tasks, Blocking, Activity, Insights, then Help and
+  Settings at the bottom. Click one to go there. (Before, the pages were
+  tabs squeezed along the bottom.)
+- **A bigger window** — 960 × 680 to start — so nothing feels cramped.
+- **Clean cards.** Things that belong together sit in the same rounded
+  box, like the switches on the Blocking page or each task on the Tasks
+  page.
+- **One Rider color, used with care.** The rest of the app stays calm
+  grey (or white in light mode). Your Rider's color marks the important
+  things: the big Start button, the progress bar, and the page you're on.
+  Green, amber, and red only ever mean "good", "careful", and "blocked".
+- **A new Insights page** that adds up your focus time: today, this week,
+  all time, and how many blocks you finished.
+- **Rider pages live in the side bar.** Pick a Rider like V3 or Blade and
+  their page shows up under a small "Rider" heading. Revice's Buddy page
+  shows up there too.
+- **MY-TH has two looks.** Light mode shows normal MY-TH (blue and
+  silver). Dark mode shows MY-TH ORIGIN (red and gunmetal). It's still
+  one Rider to pick.
+- **Quicker and lighter.** Pages open faster, switching between them is
+  almost instant, picking a new Rider takes a moment instead of many
+  seconds, and the app uses less memory. The camera part (OpenCV) only
+  loads if you turn Strict Camera Monitoring on.
+- **Your stuff is safe.** Your settings, tasks, and focus history are
+  saved in exactly the same files as before, so updating loses nothing.
+
+---
+
 ## 🚀 Releases
 
 Don't want to install anything? Every tagged version (`vX.Y.Z`) is built
@@ -88,7 +122,7 @@ mid-focus-block, it simply won't do anything until you finish — and the
 app closes, swaps itself for the new version, and reopens, same as if
 you'd downloaded it by hand.
 
-**Want to ask right now?** Open the Settings tab and press **Check for
+**Want to ask right now?** Open the Settings page and press **Check for
 updates now**. The app asks GitHub right then and tells you, in a short
 sentence right under the button, what it found:
 
@@ -108,7 +142,7 @@ asks when you press it.
   background, before you click anything — worth knowing if you're on a
   slow or metered connection. (Turn the setting off below if you'd
   rather it didn't.)
-- Turn the automatic check off anytime: Settings tab → "Automatically
+- Turn the automatic check off anytime: Settings page → "Automatically
   check for updates." The "Check for updates now" button right under it
   still works when you want it.
 - Only works for the app downloaded from Releases. Running it from
@@ -140,9 +174,9 @@ asks when you press it.
   No outside AI service is needed for this part — it's small enough to
   read and understand the whole thing yourself.
 * **38 Kamen Rider costume changes.** Pick a Rider from the classic TV
-  show and the whole app repaints itself in that Rider's colors — not
-  just an accent color, but the header, every tab, the progress bar, and
-  the background. **26 of those Riders unlock an extra surprise on top**
+  show and the app takes on that Rider's color — on the big Start
+  button, the progress bar, the page you're on in the side bar, and a
+  thin strip under the top bar. **26 of those Riders unlock an extra surprise on top**
   — a differently-shaped progress bar, a special sound, a screen effect,
   or a new keyboard shortcut, unique to that Rider.
 * **A plain, no-costume mode** if you'd rather skip all of that — one
@@ -216,9 +250,26 @@ Lock In/
 │   │                           the per-OS relaunch script that swaps files.
 │   ├── revice_link.py           Revice's connection to a buddy's computer on
 │   │                           the same Wi-Fi. Only runs after Share/Receive.
-│   ├── revice_tab.py            Revice's Buddy tab.
-│   └── ui.py                   CustomTkinter front end. The only module that
-│                               imports tkinter.
+│   ├── revice_tab.py            The screens on Revice's Buddy page.
+│   └── ui/                     Everything you see on screen (CustomTkinter).
+│       ├── app.py              The main window: top bar, side bar, page area,
+│       │                       and the heartbeat that runs the timer.
+│       ├── theme.py            Every base color, size, and space, in one place.
+│       ├── router.py           The side bar's list of pages (no window needed).
+│       ├── mirror.py           Ryuki's left-right flip helpers.
+│       ├── icons.py            Small line pictures, drawn with Pillow.
+│       ├── overlays.py         Lockdown screen, X's goal screen, Ghost's clock.
+│       ├── updates.py          "Check for updates" and the update strip.
+│       ├── gestures.py         Wizard's mouse gestures.
+│       ├── revice.py           Revice's buddy link, from the app's side.
+│       ├── preferences.py      What happens when you change a setting.
+│       ├── insights_data.py    The Insights page's totals (no window needed).
+│       ├── task_picker.py      The "current task" menu's labels.
+│       ├── components/         Cards, buttons, badges, setting rows, the side
+│       │                       bar, and the timer.
+│       └── pages/              One file per page: Focus, Tasks, Blocking,
+│                               Activity, Insights, Help, Settings, the Rider
+│                               page, and Buddy.
 │
 ├── tests/
 │   ├── test_session.py         State machine: transitions, pause, skip, formatting,
@@ -236,7 +287,7 @@ Lock In/
 │   ├── test_rider_themes.py    Palette completeness, color validity, dark-mode
 │   │                           shade generation, contrast-safe text colors.
 │   ├── test_wizard_gestures.py Line and circle recognition, ignored gestures,
-│   │                           and tab stepping with no wrap-around.
+│   │                           and page stepping with no wrap-around.
 │   ├── test_revice_sync.py     Codes, the handshake, messages, status text,
 │   │                           and the add-only Pull History merge.
 │   ├── test_revice_link.py     Pairing, wrong codes, time-outs, status and
@@ -246,7 +297,15 @@ Lock In/
 │   │                           app-icon loading/padding.
 │   ├── test_notifier.py        Era-to-sound-cue selection logic (Windows tones,
 │   │                           macOS/Linux sound tables).
-│   └── smoke_ui.py             Headless end-to-end run under Xvfb (not pytest).
+│   ├── test_ui_theme.py        Base colors, every Rider's palette, MY-TH's two
+│   │                           looks, Black's stricter dark mode.
+│   ├── test_ui_router.py       Side bar pages for every Rider, moving between
+│   │                           pages, and Wizard's gestures along them.
+│   ├── test_ui_logic.py        Icons, Insights totals, task filters, Rider rows
+│   │                           in Settings, and Ryuki's flip helper.
+│   └── smoke_ui.py             Opens the real window and clicks through it
+│                               (not pytest). Point your data folder somewhere
+│                               safe first -- it saves settings.
 │
 ├── .github/workflows/
 │   ├── tests.yml               Runs pytest on Windows, macOS, and Linux on every push.
@@ -287,7 +346,7 @@ To produce a standalone `.exe`, run `build.bat` — or just grab a
 [prebuilt release](#-releases) for your OS instead of building from
 source.
 
-Once it's open, the app's own **Help tab** has a full, plain-language
+Once it's open, the app's own **Help page** has a full, plain-language
 walkthrough of every feature — including exactly how to turn on each
 of the 26 Kamen Riders' special extra powers (Tiers 1/2/3/4 below). Start
 there before this README if you just want to use the app.
@@ -308,7 +367,7 @@ means the "these packages are missing" warning that normally prints to the
 console is thrown away and nobody ever sees it. If blocking doesn't seem to
 be doing anything, run `pip install -r requirements.txt` again and make sure
 it installs `pywin32` and `psutil` without errors. The app also now shows a
-red banner on startup, and a note on the Blocking tab, if it can't detect
+red banner on startup, and a note on the Blocking page, if it can't detect
 windows — but it's worth checking directly if you're not sure.
 
 ---
@@ -326,13 +385,13 @@ which file does which step.
 ```
 Foreground window (title + process) -> judge() [lock_in/enforcer.py] -> Verdict
 Verdict -> Enforcer.update()                    -> Action (warn/nag/minimize/lockdown)
-Action  -> Notifier (toast + sound) and ui.py    -> banner / full-screen lockdown
+Action  -> Notifier (toast + sound) and lock_in/ui -> banner / full-screen lockdown
 ```
 
 ### Training loop
 ```
 Every window seen during focus -> ObservationStore (observations.jsonl)
-Corrections (Activity tab, or `train.py label`) -> NaiveBayesClassifier.learn() -> model.json
+Corrections (Activity page, or `train.py label`) -> NaiveBayesClassifier.learn() -> model.json
 ```
 
 ### Claude fallback (optional, off by default)
@@ -413,7 +472,7 @@ classifier never gets to veto that.
 When a window is judged blocked, escalation is by **intensity, not frequency**,
 and the ladder depends on whether Hard mode is on:
 
-**Hard mode (default — Blocking tab → "Hard mode"):** no warnings first — it
+**Hard mode (default — Blocking page → "Hard mode"):** no warnings first — it
 acts immediately, since the whole point of this mode is that you don't want
 to be asked nicely.
 
@@ -423,7 +482,7 @@ to be asked nicely.
 | first strike | Window minimised, timer pulled to the front. |
 | every strike after that | Full-screen cover for 15 seconds. |
 
-**Soft mode (Blocking tab → turn "Hard mode" off):**
+**Soft mode (Blocking page → turn "Hard mode" off):**
 
 | Time on the app | What happens |
 |---|---|
@@ -436,7 +495,7 @@ leave you one click from a screen takeover at minute 20. Hopping between two
 blocked apps restarts the grace period but *keeps* your strikes — app-hopping
 to dodge the nag isn't a valid strategy.
 
-All timings are configurable in the Settings tab.
+All timings are configurable in the Settings page.
 
 ### If a window's program name can't be read
 
@@ -446,7 +505,7 @@ happens, Lock In still checks the *window's title text* for the name of a
 listed program before falling back to the guessing model — so `steam.exe`
 being on the block list still catches a window titled "Steam" even if we
 never learned its process name. If blocking still doesn't seem to be working
-at all, check the Blocking tab: if it says "App detection unavailable" (or
+at all, check the Blocking page: if it says "App detection unavailable" (or
 you see a red banner about `pywin32`/`psutil` when the app starts), those two
 packages aren't installed and nothing can be detected — see How to Run.
 
@@ -523,7 +582,7 @@ Write down what you're working on, break it into smaller steps if you
 want, pick it from a dropdown above the Start button, and the app quietly
 keeps a diary of every focus block you actually finish.
 
-- **Adding a task.** The Tasks tab has a plain text box — type a name,
+- **Adding a task.** The Tasks page has a plain text box — type a name,
   hit Add. Click into a task to add smaller checklist steps under it,
   and check them off as you go.
 - **Picking what you're working on.** A dropdown above the Start button
@@ -580,15 +639,20 @@ era), each with its own primary/secondary color pair pulled from that
 Rider's actual suit colors — hand-tuned as a *separate* hex for light
 mode and dark mode (not one color with the other guessed from it), so
 nothing washes out on a pale background or vanishes on a near-black one.
-This isn't just a couple of small accents — the header panel, the tab
-bar, and every tab's content panel are tinted toward the Rider's primary
-color too, along with the Henshin/Start button, the selected-tab
-highlight, the timer digits/progress bar during a focus block, and the
-Rider name shown under the timer. The fixed per-section colors (pink for
-Claude fallback, teal for sound/notification settings, and so on) stay
-as they are, since those work like a legend to tell sections apart
-regardless of theme. Defaults to the original 1971 series. See
-`lock_in/rider_themes.py` for the full palette.
+Since v3.0.0 the app uses **one** Rider color at a time, on purpose: the
+big Start/Henshin button, the progress bar, the marker on the page you're
+on, the switches, and the thin era strip under the top bar. Everything
+else stays a calm grey (dark mode) or white (light mode), so the app
+looks tidy no matter which Rider you pick. Green, amber, and red are
+kept for things that *mean* something (allowed, careful, blocked) and
+never used as decoration. Defaults to the original 1971 series. See
+`lock_in/rider_themes.py` for the full palette, and `lock_in/ui/theme.py`
+for the calm base colors.
+
+**MY-TH is special:** it's one Rider with two looks. In **light mode**
+you get normal Kamen Rider MY-TH — blue and silver. In **dark mode** you
+get Kamen Rider MY-TH ORIGIN — red and gunmetal. There is still only one
+"MY-TH" to pick; the light/dark switch decides which one shows up.
 
 Picking a Rider also picks its **era**, and — when Wording is set to
 Tokusatsu — the era changes more than color, too:
@@ -596,13 +660,12 @@ Tokusatsu — the era changes more than color, too:
 | | Showa (1971–1994) | Heisei (2000–2019) | Reiwa (2019–present) |
 |---|---|---|---|
 | **Voice** | Blunt base-alarm ("Intruder Alert", "Base Lockdown") | Tactical mission briefing ("Off Mission", "Full Lockdown") | Crisp digital system alert ("Focus Breach", "System Lockdown") |
-| **Background pattern** | Faint scanlines + film grain | Diamond-facet grid, like a cut gem | Circuit-board grid of lines and node dots |
 | **Divider strip** | Tick marks, like a gauge | A row of tiny diamonds | A dashed line with square nodes |
 | **Sound cue** | A plain two-tone alarm | The original beep sequence this app shipped with | A quicker, higher-pitched digital-sounding sequence |
 
 In Professional wording, the Voice column above doesn't apply — there's
-one plain voice for every era. The background pattern, divider strip,
-and sound cue still vary by era either way. Heisei is the fallback
+one plain voice for every era. The divider strip and sound cue still
+vary by era either way. Heisei is the fallback
 voice/pattern/sound if the app is ever handed a Rider name it doesn't
 recognize, so nothing crashes on a corrupted `config.json`. All three
 eras of tokusatsu copy live in `lock_in/enforcer.py` (`MESSAGES_BY_ERA`),
@@ -613,12 +676,10 @@ the patterns in `lock_in/visuals.py`, and the sound tables in
 
 Settings → "Standard Mode" is a single switch, independent of which
 Rider is picked below it. Turning it on swaps in a plain slate-grey and
-blue palette, turns off every Tier 1/2/3 Rider gimmick, forces Wording
-to Professional, and replaces every piece of Pillow-rendered art (the
-timer/button glow, the background wallpaper, the divider strip) with a
-flat, patternless fill — the same rendering pipeline, just fed a
-neutral color and no texture, which is what makes it the lightest,
-fastest-drawing look in the app. Your actual Rider and Wording choices
+blue palette, turns off every Rider gimmick from Tier 1 all the way to
+Tier 6 (no Rider page, no Buddy page, no gestures), forces Wording to
+Professional, and uses the plain progress bar and a plain grey line
+instead of the era strip. It's the cleanest, lightest look in the app. Your actual Rider and Wording choices
 are never overwritten; turning Standard Mode back off restores both
 instantly.
 
@@ -635,14 +696,14 @@ treatment during a focus block:
   and connecting one star at a time.
 - **Build** — the progress bar becomes two vials that fill together and
   visually combine once the block is nearly done.
-- **Stronger** — a soft red glow builds around the outer window edge as
+- **Stronger** — a soft red glow builds around the edge of the page as
   the block goes on, like charging up electricity.
-- **Kiva** — a translucent amber wash tints the whole app during a focus
-  block, evoking its night/vampire motif.
+- **Kiva** — a translucent amber wash tints the edge around the page
+  during a focus block, evoking its night/vampire motif.
 - **Agito** — the progress bar's color starts muted and gradually
   brightens to its true gold, like a dormant power waking up.
-- **Black** — dark mode gets stricter, higher-contrast text specifically
-  for this Rider.
+- **Black** — dark mode gets stricter and higher-contrast for this Rider:
+  a pure black background, darker cards, and brighter words.
 - **Drive** — the progress bar appears to lag behind early on, then
   visibly speeds up and catches up right near the end.
 - **Saber** — the progress bar becomes a bookmark ribbon hanging from
@@ -656,8 +717,8 @@ for the implementation plan.
 
 ### Tier 2: 3 Riders with quick-access settings presets
 
-Three more Riders add controls to the Settings tab itself, above the
-Timer lengths section:
+Three more Riders add a **Rider power** card to the Settings page, right
+under the Focus card:
 
 - **Kuuga** — 4 buttons (Mighty/Dragon/Pegasus/Titan) that each set
   focus/break lengths in one click, from a quick 10-minute sprint to a
@@ -682,14 +743,16 @@ Five more Riders change actual behavior, not just looks:
   asks what you're working on. No timeout — type when you're ready.
   Your answer replaces the Rider-name label for that block.
 - **Amazon** — during a focus block, the whole UI strips down to a
-  solid draining green field (Pause/Skip/Reset shrink to icons instead
-  of disappearing), and the grace period drops to 0 seconds.
+  solid draining green field (the side bar hides, and Pause/Skip/Reset
+  shrink to icons instead of disappearing), and the grace period drops
+  to 0 seconds.
 - **ZX** — the whole app renders in monochrome for as long as ZX is
   selected, and auto-minimizes the moment a focus block starts, with
   Sounds and Desktop notifications silenced for that block.
 - **Gaim** — during a focus block, the window stays always-on-top, the
-  background dims, and a padlock appears — a strong visual deterrent,
-  never a real block on switching windows.
+  edge around the page dims, and a "Locked on top" badge appears in the
+  top bar — a strong visual deterrent, never a real block on switching
+  windows.
 - **555** — the existing Lockdown screen gets a second way out: type
   `555` to skip the rest of the countdown and return to work early.
 
@@ -704,15 +767,15 @@ block — completely separate from the Tier 1 progress-bar gimmicks above:
 
 - **Black RX** — makes breaks wait for you to press Start instead of starting
   on their own.
-- **Ryuki** — the whole window flips left-to-right during breaks and flips back
-  when focus starts again.
+- **Ryuki** — the whole window flips left-to-right during breaks (the side
+  bar jumps to the right side too) and flips back when focus starts again.
 - **Kabuto** — the timer digits hide while you focus; hover to peek at the
   real time.
 - **Ex-Aid** — the timer switches to a pixel font and the alert sound becomes
   an 8-bit jingle.
 - **Hibiki** — soft ambient background sound plays for the whole focus block.
 - **Zero-One** — the timer changes into a row of dashboard cards instead of
-  centered digits.
+  the big digits.
 - **Ghost** — the main window hides and a small floating clock stays on top of
   everything; click it to bring the full window back.
 - **Zeztz** — keyboard shortcuts take over: Space to start/pause, S to skip,
@@ -724,61 +787,63 @@ bookmark-ribbon shape uses the same drawing code as Fourze and Build.
 ### Tier 5: Riders that read your own history
 
 A new kind of Rider gimmick, separate from every tier above: picking one
-of these Riders adds a whole new tab next to Help, built from your own
+of these Riders adds a whole new page to the side bar (under a small
+"Rider" heading), built from your own
 tasks and past focus blocks instead of just changing colors, sounds, or
 behavior.
 
-- **V3** — adds an "Hours" tab: a big number showing how long you've
+- **V3** — adds an "Hours" page: a big number showing how long you've
   focused today, plus a simple bar chart of the last 14 days. Every
   block counts toward it, whether you finished it, skipped it, or reset
   it early.
-- **Den-O** — adds a "Timeline" tab: one day's focus blocks at a time,
+- **Den-O** — adds a "Timeline" page: one day's focus blocks at a time,
   earliest first, with buttons to flip a day forward or back. Each block
   shows its time, how long it ran, whether it finished naturally or got
   cut short, and which task (if any) it was for.
-- **Decade** — adds an "Analytics" tab: a 30-day version of V3's bar
+- **Decade** — adds an "Analytics" page: a 30-day version of V3's bar
   chart, plus your top 10 tasks ranked by how much total time you've
   spent on each.
-- **Zi-O** — adds a "History" tab. It shows the same day-by-day list as
+- **Zi-O** — adds a "History" page. It shows the same day-by-day list as
   Den-O, but now you can fix mistakes. Every block has a little menu for
   picking a different task, and a Delete button. Delete asks you to tap
   twice ("Delete", then "Really delete?") so you can't do it by
   accident, and there's no pop-up. Only the task can change; when the
   block started, when it ended and how long it was stay exactly as the
   timer measured them.
-- **Blade** — adds a "Board" tab: your tasks as three columns, To Do, In
+- **Blade** — adds a "Board" page: your tasks as three columns, To Do, In
   Progress and Done, like sticky notes on a wall. Each note has a small
   arrow button that moves it one column over. It shows the same tasks as
-  the Tasks tab, so a move on the Board shows up there too.
+  the Tasks page, so a move on the Board shows up there too.
 
-- **W** — adds a "Week" tab. It puts two weeks side by side: the last 7
+- **W** — adds a "Week" page. It puts two weeks side by side: the last 7
   days, and the 7 days right before them. You see one total for each, a
   short sentence that says which one is bigger, and a chart with two
   bars for every day, one for last week and one for this week. Every
   block counts, finished or not.
 
-- **Geats** — adds a "Goal" tab. You pick how many minutes you want to
+- **Geats** — adds a "Goal" page. You pick how many minutes you want to
   focus each day with a minus and a plus button (each press is 15
   minutes, and the app remembers your pick). A bar fills up as you
   focus, and a streak counts how many days in a row you reached your
   goal. Seven little boxes show the last 7 days, filled in for the days
   you made it. Every block counts, finished or not.
-- **Gotchard** — adds a "Badges" tab: 9 cards to collect, for things
+- **Gotchard** — adds a "Badges" page: 9 cards to collect, for things
   like your first focus block, doing 10 blocks, a 1-hour day, a 3-hour
   day, 10 hours in all, checking off a task, and reaching your daily
   goal once, 3 days in a row, or 7 days in a row. A card you haven't
   won yet shows a gray hint so you know what to aim for; once you win a
   badge, it's yours to keep.
-- **OOO** — adds a "Combo" tab: every open task gets three boxes, Plan,
+- **OOO** — adds a "Combo" page: every open task gets three boxes, Plan,
   Work, and Review, that you can check in any order. Check all three
   and the task shows a small "Combo formed!" mark. It's just for fun —
-  you still mark the task itself done on the Tasks tab, the same as
+  you still mark the task itself done on the Tasks page, the same as
   always.
-- **MY-TH** — adds a "Priority" tab: your open tasks, numbered, with the
+- **MY-TH** — adds a "Priority" page: your open tasks, numbered, with the
   one you've gone the longest without working on at the top. A task
   you've never started outranks every task you have, no matter how
   stale. Nothing is saved here — the order is worked out fresh every
-  time you open the tab.
+  time you open the page. MY-TH also has two looks — see
+  [Kamen Rider theme](#kamen-rider-theme) above.
 
 All ten Tier 5 Riders now read your tasks and history this way.
 
@@ -786,16 +851,16 @@ All ten Tier 5 Riders now read your tasks and history this way.
 
 The last two Riders do things no earlier Rider does. Both are built:
 
-- **Wizard** — you can now move between tabs with your mouse, like
+- **Wizard** — you can move between pages with your mouse, like
   drawing a magic spell. Hold the **right mouse button** and drag on the
   Lock In window:
-  - Draw a line to the **left** to go back one tab.
-  - Draw a line to the **right** to go forward one tab.
-  - Draw a **circle** to jump to the first tab (Tasks).
+  - Draw a line to the **left** to go to the page above in the side bar.
+  - Draw a line to the **right** to go to the page below in the side bar.
+  - Draw a **circle** to jump to the first page (Focus).
 
   A quick right-click does nothing, and if the app isn't sure what you
   drew, it does nothing too. Small dots follow your mouse while you
-  draw and disappear a moment later. Gestures only ever change tabs — they can't start,
+  draw and disappear a moment later. Gestures only ever change pages — they can't start,
   pause, or end a focus block. They only work inside the Lock In window;
   the app never watches your mouse anywhere else on your computer, and
   nothing is recorded or sent anywhere. When Wizard is your Rider, a
@@ -804,7 +869,7 @@ The last two Riders do things no earlier Rider does. Both are built:
 
 - **Revice** — Revice is two heroes sharing one body, so it lets two
   computers share one Lock In. Both of you pick Revice, then open the
-  new **Buddy** tab:
+  new **Buddy** page in the side bar:
   - One of you presses **Share**. A 4-number code shows up.
   - The other presses **Receive** and types those 4 numbers.
 
@@ -840,32 +905,39 @@ Tier 6 is complete.
 
 ### Look and feel
 
-`lock_in/visuals.py` generates the app's art at runtime with Pillow, tinted
-to whichever Rider is picked:
+Since v3.0.0 the screen is built from a few simple parts, all in
+`lock_in/ui/`:
 
+- **A side bar** on the left with one button per page. Each button has a
+  small line picture drawn by the app itself with Pillow
+  (`lock_in/ui/icons.py`) — no emoji, so they look the same on every
+  computer.
+- **A top bar** with the app's name on the left and a small status badge
+  on the right, like "● Focus active" or "Short Break".
+- **Cards** (`ModernCard`) — rounded boxes with a thin border. Almost
+  everything sits in one.
+- **Three kinds of button.** The main one is filled with the Rider's
+  color. The others are plain grey. Red is only for things you can't
+  easily undo.
+- **Calm base colors** (`lock_in/ui/theme.py`), picked separately for
+  light and dark mode, so both look like they were designed on purpose.
 - **A display font** for the timer digits and headings, instead of the
   toolkit's plain default — a different one per OS (`Bahnschrift` on
   Windows, `Avenir Next` on macOS, `Noto Sans` on Linux), falling back
   quietly to the system default if that font isn't installed.
-- **A soft glow** behind the timer digits (the Rider's primary color) and
-  behind the Henshin button (its secondary color).
-- **A faint background wallpaper** behind the whole window, tinted with
-  both of the Rider's colors and shaped by its era (see the table above),
-  with separate light- and dark-mode versions so it never fights with the
-  appearance-mode setting.
-- **Tinted panel backgrounds** (`RiderTheme.surface_pair` in
-  `lock_in/rider_themes.py`) for the header and every tab — a pale and a
-  near-black shade of the same primary color, so the panels themselves
-  change with the theme instead of staying a fixed neutral grey.
-- **A themed divider strip** in the gap between the timer panel and the
-  tab panel. The background wallpaper's patterns are too large to show
-  up in a strip that thin, so this is its own small-scale motif per era:
-  tick marks for Showa, tiny diamonds for Heisei, a dashed circuit trace
-  for Reiwa (`make_panel_divider()` in `lock_in/visuals.py`).
+- **A thin era strip** under the top bar: tick marks for Showa, tiny
+  diamonds for Heisei, a dashed circuit trace for Reiwa
+  (`make_panel_divider()` in `lock_in/visuals.py`). Standard Mode shows a
+  plain grey line instead.
+
+The Pillow art from earlier versions (glows, era wallpapers) is still in
+`lock_in/visuals.py`, because some Rider gimmicks and Tier 5 charts use
+it. The everyday screen just doesn't paint it behind everything any
+more.
 
 **Contrast safety.** A Rider's `primary`/`secondary` are also used
-directly as *text* colors in a few places (the phase name and timer
-digits, the Rider name label, the Henshin button, the selected tab).
+directly as *text* colors in a few places (the phase name, the Rider
+name label, the Henshin button, the page you're on).
 Even with every color hand-tuned per mode (see above), a color that's
 already fairly pale or fairly dark can still end up too close to its
 own tinted background to read comfortably — so those specific spots use
@@ -886,7 +958,7 @@ canvas rather than stretching it. On Windows, the taskbar specifically
 needs a real `.ico` file (not a `.png`) and its own "app ID" separate
 from `python.exe`'s — both are handled automatically
 (`main.py`'s `_detach_from_python_exe_on_windows()`, and
-`ui.py`'s `_set_app_icon()`).
+`lock_in/ui/app.py`'s `_set_app_icon()`).
 
 ---
 
@@ -896,7 +968,7 @@ There are three ways in, in increasing order of how much data they get you.
 
 ### 1. The correction buttons
 
-The Activity tab logs **every** window seen during a focus block, not just
+The Activity page logs **every** window seen during a focus block, not just
 the ones that got blocked — each row has a colored dot (red = blocked, green
 = allowed) and says why. Click **distraction** / **was studying** on any row
 to correct it. Writes `model.json` immediately; no retrain step. Correcting
@@ -1040,7 +1112,7 @@ afterward.
 pip install anthropic
 ```
 
-**4. Turn it on.** Blocking tab → "Enable Claude fallback for ambiguous
+**4. Turn it on.** Blocking page → "Enable Claude fallback for ambiguous
 windows". The status line underneath tells you immediately if something's
 missing (`no ANTHROPIC_API_KEY environment variable found`,
 `anthropic package not installed`, or `ready (claude-haiku-4-5-20251001)`).
@@ -1061,7 +1133,7 @@ accidentally widen it.
 
 - **Non-blocking.** The enforcer polls once a second; an API call is never
   fast enough to sit in that loop. `judge()` only ever peeks an in-memory
-  cache — a dict read. On a cache miss, `ui.py` fires a background thread and
+  cache — a dict read. On a cache miss, `lock_in/ui/app.py` fires a background thread and
   uses the local model's answer for *that* poll. Since a window you're on for
   one second is usually still open a second later, the real answer is
   typically ready by the next poll.
@@ -1098,9 +1170,9 @@ own tests never make a real call; a fake client swapped into `_client`
 exercises every branch offline.
 
 Everything platform-specific is pushed into `monitor.py`, `notifier.py`, and
-`ui.py`, which are deliberately thin: they perform actions and marshal data, but
+`lock_in/ui/`, which are deliberately thin: they perform actions and marshal data, but
 make no decisions. `enforcer.py` decides that a window warrants `Action.MINIMIZE`;
-`ui.py` just calls the minimise function.
+`lock_in/ui/` just calls the minimise function.
 
 **Threading.** `ActiveWindowMonitor` polls on a background daemon thread.
 Tkinter is not thread-safe, so that thread does exactly one thing:
@@ -1110,7 +1182,12 @@ boundary.
 
 ```bat
 pytest                                   :: runs the unit test suite
-xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display
+xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display (Linux)
+:: On Windows, use a throwaway .smoke-data folder so your real settings are
+:: never touched -- three separate lines:
+::   set APPDATA=%CD%\.smoke-data
+::   set PYTHONPATH=.
+::   python tests\smoke_ui.py
 ```
 
 ---
@@ -1133,7 +1210,7 @@ blocked apps.
 pip install opencv-python-headless
 ```
 
-**2. Turn it on.** Blocking tab → "Strict Camera Monitoring (uses your
+**2. Turn it on.** Blocking page → "Strict Camera Monitoring (uses your
 webcam to catch phones)". If the switch is greyed out, the message
 underneath tells you exactly what's missing.
 
@@ -1186,7 +1263,7 @@ your labels are still in `observations.jsonl` — just run `python train.py
 rebuild`. Deleting `observations.jsonl` is the one that actually loses work, so
 `train.py export` it first if you've put real time into labelling.
 
-Recording can be switched off entirely (Blocking tab → "Record windows for
+Recording can be switched off entirely (Blocking page → "Record windows for
 training"). Nothing ever leaves your machine either way — except, if you've
 opted into it, the Claude fallback's ambiguous-window titles (see above).
 
@@ -1225,7 +1302,7 @@ use — never the key itself.
   something is checked off, hiding it again means editing `tasks.json`
   by hand. That's on the list for later.
 - **Fixing the session diary only works with Zi-O picked** — the History
-  tab can change a block's task or delete it, but it can't change when a
+  page can change a block's task or delete it, but it can't change when a
   block started or how long it was. Once you delete a block there's no
   undo.
 - **The Board can only move a task forward** — the arrow on a Blade Board
@@ -1237,10 +1314,10 @@ use — never the key itself.
   goal number, not a different one for each day. Making the goal bigger
   can make your streak shorter, and making it smaller can make it longer.
 - **Gotchard's badges are yours to keep, forever** — even if you delete a
-  focus block in Zi-O or change your goal on Geats' tab afterward. That
+  focus block in Zi-O or change your goal on Geats' page afterward. That
   also means a very small daily goal makes the streak badges quick to
   win, on purpose — the goal is yours to set however you like.
-- **Only Geats can change the daily goal** — Gotchard's Badges tab has no
+- **Only Geats can change the daily goal** — Gotchard's Badges page has no
   goal buttons of its own; it just reads whatever goal is set.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
@@ -1257,9 +1334,10 @@ picker, and all associated characters and likenesses are trademarks of
 color and flavor-text inspiration for a personal productivity tool, with
 no commercial intent — no official footage, artwork, or trademarked
 imagery is bundled with this app or its source. Every visual element
-(glow, background pattern, divider strip, app-icon padding) is generated
-at runtime from plain hex color codes in `lock_in/visuals.py`, not from
-any copyrighted asset.
+(the side bar pictures, the era strip, the progress shapes, the
+app-icon padding) is drawn at runtime from plain hex color codes in
+`lock_in/visuals.py` and `lock_in/ui/icons.py`, not from any
+copyrighted asset.
 
 The app icon (`lock_in/assets/app_icon.png`) was supplied by the
 project's author.

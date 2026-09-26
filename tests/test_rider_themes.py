@@ -30,7 +30,7 @@ def test_spot_check_corrected_palette_values():
     assert RIDER_THEMES["Kamen Rider V3 (1973)"].primary == ("#225c25", "#4caf50")
     assert RIDER_THEMES["Kamen Rider Zero-One (2019)"].primary == ("#77a100", "#c6ff00")
     assert RIDER_THEMES["Kamen Rider Gavv (2024)"].secondary == ("#c48000", "#ffee58")
-    assert RIDER_THEMES["Kamen Rider MY-TH (2026)"].primary == ("#0f4a8f", "#42a5f5")
+    assert RIDER_THEMES["Kamen Rider MY-TH (2026)"].primary == ("#0f4a8f", "#ef5350")
 
 
 def test_every_entry_has_valid_hex_colors():

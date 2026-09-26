@@ -8,9 +8,19 @@ building the window, the main loop, reading from the waiting lines, showing
 blocked windows, correcting the model, and shutting down cleanly. This catches
 mistakes that the regular tests structurally can't, like a typo in a widget's
 setting, things being placed in the wrong order, or a timer trying to update
-a window that's already been closed.
+a window that's already been closed. It also walks the side bar: every
+page, every Rider's own page, Revice's Buddy page, Ryuki's mirror (side
+bar included), Wizard's page order, Standard Mode, and light/dark mode.
 
-Run it with:  xvfb-run -a python tests/smoke_ui.py
+It SAVES settings and teaches the model as it goes, so point the app's
+data folder at a throwaway folder first -- otherwise it changes yours.
+.smoke-data is already in .gitignore for exactly this.
+
+Run it with:  xvfb-run -a python tests/smoke_ui.py                (Linux)
+         or, on Windows, three separate lines:
+              set APPDATA=%CD%\\.smoke-data
+              set PYTHONPATH=.
+              python tests\\smoke_ui.py
 """
 
 import sys
@@ -127,44 +137,118 @@ check("windmill shape still shown after a phase transition",
       app.progress_shape.winfo_manager() != "")
 
 print("mirror-layout regression (Ryuki still flips correctly)...")
-# The fix adds a guard that makes _sync_mirror_layout() a no-op for
-# every Rider except Ryuki -- confirm it does NOT also break the one
-# Rider it's supposed to keep working.
+# Guarded so it only runs for Ryuki -- confirm it does NOT break the one
+# Rider it's supposed to flip. Skip and Reset share a row (Start spans
+# both columns above them), and the side bar swaps sides too.
 app._on_reset()
 app.update()
 app._on_rider_theme_change("Kamen Rider Ryuki (2002)")
 app.update()
-check("start button unmirrored before any break",
-      int(app.start_button.grid_info()["column"]) == 0)
+check("skip button unmirrored before any break",
+      int(app.skip_button.grid_info()["column"]) == 0)
 check("reset button unmirrored before any break",
-      int(app.reset_button.grid_info()["column"]) == 2)
+      int(app.reset_button.grid_info()["column"]) == 1)
+check("side bar on the left before any break",
+      int(app.sidebar.grid_info()["column"]) == 0)
 app._on_skip()   # IDLE -> FOCUS (still unmirrored -- FOCUS isn't a break)
 app.update()
 check("buttons still unmirrored entering focus",
-      int(app.start_button.grid_info()["column"]) == 0)
+      int(app.skip_button.grid_info()["column"]) == 0)
 app._on_skip()   # FOCUS -> break (mirrored)
 app.update()
-check("start button mirrors to column 2 on break",
-      int(app.start_button.grid_info()["column"]) == 2)
+check("skip button mirrors to column 1 on break",
+      int(app.skip_button.grid_info()["column"]) == 1)
 check("reset button mirrors to column 0 on break",
       int(app.reset_button.grid_info()["column"]) == 0)
+check("side bar moves to the right on break",
+      int(app.sidebar.grid_info()["column"]) == 1)
+check("page area moves to the left on break",
+      int(app.content.grid_info()["column"]) == 0)
+# Leaving Ryuki in the middle of a break must flip everything back, and
+# coming back must flip it again (this used to leave the window half-flipped).
+app._on_rider_theme_change("Kamen Rider (1971)")
+app.update()
+check("switching away from Ryuki mid-break un-flips the side bar",
+      int(app.sidebar.grid_info()["column"]) == 0)
+check("switching away from Ryuki mid-break un-flips the top bar",
+      app.brand_label.master.pack_info()["side"] == "left")
+app._on_rider_theme_change("Kamen Rider Ryuki (2002)")
+app.update()
+check("switching back to Ryuki mid-break flips again",
+      int(app.sidebar.grid_info()["column"]) == 1)
 app._on_skip()   # break -> FOCUS (un-mirrored again)
 app.update()
-check("start button un-mirrors back to column 0",
-      int(app.start_button.grid_info()["column"]) == 0)
-check("reset button un-mirrors back to column 2",
-      int(app.reset_button.grid_info()["column"]) == 2)
+check("skip button un-mirrors back to column 0",
+      int(app.skip_button.grid_info()["column"]) == 0)
+check("side bar back on the left",
+      int(app.sidebar.grid_info()["column"]) == 0)
 
 app._on_reset()
 app.update()
 app._on_rider_theme_change("Kamen Rider (1971)")   # back to the default Rider
 app.update()
 
-print("tabs...")
-for tab in ("Blocking", "Activity", "Settings"):
-    app.tabs.set(tab)
+print("pages...")
+for route in ("tasks", "blocking", "activity", "insights", "help", "settings", "focus"):
+    check(f"navigate to {route}", app.navigate(route))
     app.update()
-check("all tabs render", True)
+check("no bottom tab strip any more", not hasattr(app, "tabs"))
+check("default Rider has no Rider page", not app.router.has("rider"))
+
+print("Tier 5 and Tier 6 pages...")
+from lock_in.rider_themes import RIDER_THEMES
+for name, theme in RIDER_THEMES.items():
+    app._on_rider_theme_change(name)
+    app.update()
+    if theme.tier5_effect != "none":
+        check(f"{name}: Rider page listed", app.router.has("rider"))
+        check(f"{name}: Rider page opens", app.navigate("rider"))
+        app.update()
+        check(f"{name}: Rider page drew something",
+              len(app.pages["rider"].content.winfo_children()) > 0)
+    else:
+        check(f"{name}: no Rider page", not app.router.has("rider"))
+    check(f"{name}: Buddy page only for Revice",
+          app.router.has("buddy") == (theme.tier6_effect == "buddy_link"))
+    app.navigate("focus")
+    app.update()
+app._on_rider_theme_change("Kamen Rider Revice (2021)")
+app.update()
+check("Buddy page opens", app.navigate("buddy"))
+app._pump()
+app.update()
+check("Buddy page shows its start screen", app.pages["buddy"].tab._screen == "start")
+
+print("Wizard's gestures move along the side bar...")
+app._on_rider_theme_change("Kamen Rider Wizard (2012)")
+app.update()
+app.navigate("tasks")
+from lock_in.ui.gestures import gesture_target
+check("line right goes to the next page",
+      gesture_target(app.router.ids, app.router.active, "right") == "blocking")
+check("circle goes to Focus",
+      gesture_target(app.router.ids, app.router.active, "circle") == "focus")
+
+print("Standard Mode strips every gimmick...")
+app.config_obj.standard_mode = True
+app._apply_theme_everywhere()
+app.update()
+check("standard: plain progress bar", app.progress.winfo_manager() != "")
+check("standard: no Rider page", not app.router.has("rider"))
+check("standard: no Buddy page", not app.router.has("buddy"))
+check("standard: no Tier effects", all(
+    getattr(app, f"current_tier{n}_effect") == "none" for n in (1, 2, 3, 4, 5, 6)))
+app.config_obj.standard_mode = False
+app._apply_theme_everywhere()
+app._on_rider_theme_change("Kamen Rider (1971)")
+app.update()
+
+print("appearance switch...")
+app._on_appearance_change("light")
+app.update()
+app._on_appearance_change("dark")
+app.update()
+check("appearance switches rebuild cleanly", app.winfo_exists())
 
 print("saving from widgets...")
 app._save_lists()

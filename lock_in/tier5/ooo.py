@@ -51,7 +51,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     open_tasks = tasks.open()
     if not open_tasks:
         ctk.CTkLabel(
-            frame, text="No open tasks yet. Add one on the Tasks tab.",
+            frame, text="No open tasks yet. Add one on the Tasks page.",
             text_color=theme.primary_text_pair,
         ).pack(anchor="w", pady=(4, 0))
         return
@@ -109,7 +109,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         frame,
         text="Plan, Work, Review — check them in any order. A full combo "
              "is just for fun; you still mark the task itself done on the "
-             "Tasks tab.",
+             "Tasks page.",
         text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
         justify="left", wraplength=400,
     ).pack(anchor="w", pady=(6, 0))
