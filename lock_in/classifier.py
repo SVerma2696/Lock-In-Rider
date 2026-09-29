@@ -34,12 +34,13 @@ trusted when it interrupts you.
 
 from __future__ import annotations
 
-import json
 import math
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+
+from .storage import atomic_write_json, read_json
 
 STUDY = "study"
 DISTRACTION = "distraction"
@@ -53,8 +54,27 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Boring little words we throw away because they don't tell us anything.
 # If we kept "the", the model might wrongly think "the" means "studying".
 _STOPWORDS = {
-    "the", "and", "for", "with", "you", "your", "www", "com", "http", "https",
-    "exe", "app", "new", "tab", "window", "page", "of", "to", "in", "on", "a",
+    "the",
+    "and",
+    "for",
+    "with",
+    "you",
+    "your",
+    "www",
+    "com",
+    "http",
+    "https",
+    "exe",
+    "app",
+    "new",
+    "tab",
+    "window",
+    "page",
+    "of",
+    "to",
+    "in",
+    "on",
+    "a",
     # Almost every browser window title ends with the browser's own name, no
     # matter what's on the page — so these words don't help tell study and
     # distraction apart. We handle the actual program name separately, with
@@ -66,12 +86,22 @@ _STOPWORDS = {
     # means that word quietly becomes "the thing every window in that
     # browser has in common" instead of being ignored — the exact same
     # problem this whole stopword list exists to avoid.
-    "google", "chrome", "mozilla", "firefox", "edge", "msedge", "microsoft",
-    "safari", "opera", "brave", "vivaldi", "browser",
+    "google",
+    "chrome",
+    "mozilla",
+    "firefox",
+    "edge",
+    "msedge",
+    "microsoft",
+    "safari",
+    "opera",
+    "brave",
+    "vivaldi",
+    "browser",
 }
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """
     Turn a sentence into a clean list of lowercase words.
 
@@ -94,7 +124,7 @@ def tokenize(text: str) -> List[str]:
 # can make good guesses right away instead of just flipping a coin until you
 # teach it 50 examples yourself. Each one looks like a real window title.
 
-SEED_DATA: List[Tuple[str, str]] = [
+SEED_DATA: list[tuple[str, str]] = [
     # --- studying ---------------------------------------------------------- #
     ("main.py - lock_in - Visual Studio Code code.exe", STUDY),
     ("Lecture 12 Pipelining.pdf - Adobe Acrobat Reader acrord32.exe", STUDY),
@@ -203,10 +233,12 @@ class NaiveBayesClassifier:
     """
 
     def __init__(self, alpha: float = 1.0) -> None:
-        self.alpha = alpha                                    # how cautious the guessing is
-        self.token_counts: Dict[str, Dict[str, int]] = {l: defaultdict(int) for l in LABELS}
-        self.label_counts: Dict[str, int] = {l: 0 for l in LABELS}   # examples seen per label
-        self.total_tokens: Dict[str, int] = {l: 0 for l in LABELS}   # words seen per label
+        self.alpha = alpha  # how cautious the guessing is
+        self.token_counts: dict[str, dict[str, int]] = {label: defaultdict(int) for label in LABELS}
+        self.label_counts: dict[str, int] = {
+            label: 0 for label in LABELS
+        }  # examples seen per label
+        self.total_tokens: dict[str, int] = {label: 0 for label in LABELS}  # words seen per label
         self.vocabulary: set[str] = set()
 
     # ------------------------------------------------------------------ #
@@ -223,7 +255,7 @@ class NaiveBayesClassifier:
             self.total_tokens[label] += 1
             self.vocabulary.add(token)
 
-    def train(self, samples: Iterable[Tuple[str, str]]) -> "NaiveBayesClassifier":
+    def train(self, samples: Iterable[tuple[str, str]]) -> NaiveBayesClassifier:
         """Teach it a whole bunch of examples at once, one by one."""
         for text, label in samples:
             self.learn(text, label)
@@ -236,7 +268,7 @@ class NaiveBayesClassifier:
     # ------------------------------------------------------------------ #
     # Making a guess
     # ------------------------------------------------------------------ #
-    def _log_likelihood(self, tokens: List[str], label: str) -> float:
+    def _log_likelihood(self, tokens: list[str], label: str) -> float:
         """
         Work out a score for how likely this label is, using math tricks so
         tiny numbers don't get lost (we add instead of multiply).
@@ -271,7 +303,7 @@ class NaiveBayesClassifier:
             score += math.log((count + self.alpha) / denominator)
         return score
 
-    def predict(self, text: str) -> Tuple[str, float]:
+    def predict(self, text: str) -> tuple[str, float]:
         """
         Guess whether `text` is study or distraction.
 
@@ -292,13 +324,13 @@ class NaiveBayesClassifier:
 
         # Turn the two raw scores into normal probabilities that add up to 1.
         top = max(scores.values())
-        exps = {l: math.exp(s - top) for l, s in scores.items()}
+        exps = {label: math.exp(s - top) for label, s in scores.items()}
         denom = sum(exps.values())
 
-        winner = max(scores, key=lambda l: scores[l])
+        winner = max(scores, key=lambda label: scores[label])
         return winner, exps[winner] / denom
 
-    def explain(self, text: str, top_n: int = 5) -> List[Tuple[str, float]]:
+    def explain(self, text: str, top_n: int = 5) -> list[tuple[str, float]]:
         """
         List the words that pushed the guess toward DISTRACTION the hardest.
 
@@ -307,7 +339,7 @@ class NaiveBayesClassifier:
         "flagged because: youtube, mv, official".
         """
         vocab_size = max(1, len(self.vocabulary))
-        weights: List[Tuple[str, float]] = []
+        weights: list[tuple[str, float]] = []
 
         for token in set(tokenize(text)):
             per_label = {}
@@ -327,41 +359,46 @@ class NaiveBayesClassifier:
     def to_dict(self) -> dict:
         return {
             "alpha": self.alpha,
-            "token_counts": {l: dict(c) for l, c in self.token_counts.items()},
+            "token_counts": {label: dict(c) for label, c in self.token_counts.items()},
             "label_counts": self.label_counts,
             "total_tokens": self.total_tokens,
             "vocabulary": sorted(self.vocabulary),
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "NaiveBayesClassifier":
+    def from_dict(cls, data: dict) -> NaiveBayesClassifier:
         model = cls(alpha=data.get("alpha", 1.0))
         for label in LABELS:
-            model.token_counts[label] = defaultdict(int, data.get("token_counts", {}).get(label, {}))
-        model.label_counts = {l: data.get("label_counts", {}).get(l, 0) for l in LABELS}
-        model.total_tokens = {l: data.get("total_tokens", {}).get(l, 0) for l in LABELS}
+            model.token_counts[label] = defaultdict(
+                int, data.get("token_counts", {}).get(label, {})
+            )
+        model.label_counts = {label: data.get("label_counts", {}).get(label, 0) for label in LABELS}
+        model.total_tokens = {label: data.get("total_tokens", {}).get(label, 0) for label in LABELS}
         model.vocabulary = set(data.get("vocabulary", []))
         return model
 
     def save(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.to_dict(), indent=1), encoding="utf-8")
+        atomic_write_json(path, self.to_dict(), indent=1, ensure_ascii=True)
 
     @classmethod
-    def load_seed(cls) -> "NaiveBayesClassifier":
+    def load_seed(cls) -> NaiveBayesClassifier:
         """Make a brand-new model taught only the starter examples. Used by 'Reset model'."""
         return cls().train(SEED_DATA)
 
     @classmethod
-    def load(cls, path: Path) -> "NaiveBayesClassifier":
+    def load(cls, path: Path) -> NaiveBayesClassifier:
         """
         Load a saved model from disk. If there isn't one yet, or the file is
         broken, just make a fresh one with the starter examples instead of
         giving up.
         """
         if path.exists():
-            try:
-                return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
-            except (json.JSONDecodeError, OSError, KeyError):
-                pass
+            data = read_json(path)
+            # Valid JSON of the wrong shape (a list, a number) used to crash
+            # the app on opening, since from_dict() expects a dict.
+            if isinstance(data, dict):
+                try:
+                    return cls.from_dict(data)
+                except (AttributeError, KeyError, TypeError, ValueError):
+                    pass
         return cls().train(SEED_DATA)

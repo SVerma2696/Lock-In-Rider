@@ -24,21 +24,26 @@ best-effort" treatment of sound.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 from .notifier import _HAS_APLAY, _HAS_PAPLAY
+from .rider_effects import DisplayEffect
 from .rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES
+
+logger = logging.getLogger(__name__)
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
 
-_winsound = None
+_winsound: Any = None
 if IS_WINDOWS:
     try:
-        import winsound as _winsound  # type: ignore
+        import winsound as _winsound
     except ImportError:  # pragma: no cover - depends on install
         _winsound = None
 
@@ -50,14 +55,14 @@ class AmbientPlayer:
 
     def __init__(self, config) -> None:
         self.config = config
-        self._loop_thread: "threading.Thread | None" = None
+        self._loop_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
     def start_if_applicable(self) -> None:
         """Call this whenever a focus block begins. Does nothing unless
         Hibiki is selected, Standard Mode is off, and sound is on."""
         theme = RIDER_THEMES.get(self.config.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME])
-        if theme.tier4_effect != "ambient_loop":
+        if theme.tier4_effect != DisplayEffect.AMBIENT_LOOP:
             return
         if self.config.standard_mode:
             return
@@ -96,11 +101,13 @@ class AmbientPlayer:
                 return
             self._stop_event.clear()
             self._loop_thread = threading.Thread(
-                target=self._repeat_subprocess, args=(player,), daemon=True,
+                target=self._repeat_subprocess,
+                args=(player,),
+                daemon=True,
             )
             self._loop_thread.start()
         except Exception:
-            pass
+            logger.warning("Hibiki's sound couldn't start", exc_info=True)
 
     def _repeat_subprocess(self, player: str) -> None:
         while not self._stop_event.is_set():

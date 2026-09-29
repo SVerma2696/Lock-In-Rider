@@ -27,16 +27,22 @@ we don't alert too often — this file's job is just to make each alert count.
 
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from .config import app_data_dir
+from .diagnostics import log_once
+from .rider_effects import DisplayEffect
 from .rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES
 from .visuals import load_app_icon
+
+logger = logging.getLogger(__name__)
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
@@ -46,16 +52,18 @@ IS_LINUX = sys.platform.startswith("linux")
 _winotify = None
 if IS_WINDOWS:
     try:
-        from winotify import Notification as _WinotifyNotification, audio as _winotify_audio  # type: ignore
+        from winotify import Notification as _WinotifyNotification
+        from winotify import audio as _winotify_audio
+
         _winotify = True
     except ImportError:  # pragma: no cover
         _winotify = None
 
 # --- The sound tool (built into Windows already) ----------------------------- #
-_winsound = None
+_winsound: Any = None
 if IS_WINDOWS:
     try:
-        import winsound as _winsound  # type: ignore
+        import winsound as _winsound
     except ImportError:  # pragma: no cover
         _winsound = None
 
@@ -113,7 +121,7 @@ _LINUX_ALERT_CANDIDATES = {
 _LINUX_SOUND_DIR = "/usr/share/sounds/freedesktop/stereo"
 
 
-def _square_icon_path() -> Optional[str]:
+def _square_icon_path() -> str | None:
     """
     Give back a file path to the app's own picture, saved as a square.
 
@@ -146,8 +154,8 @@ class Notifier:
     def __init__(self, config, app_name: str = "Lock In") -> None:
         self.config = config
         self.app_name = app_name
-        # ui.py fills this in so we can fall back to showing an in-app banner.
-        self.banner_callback = None
+        # The app fills this in so we can fall back to showing an in-app banner.
+        self.banner_callback: Callable[[str, str, str], None] | None = None
 
     # ------------------------------------------------------------------ #
     # What other files use to send alerts
@@ -207,7 +215,7 @@ class Notifier:
         fall back to the very first Rider instead of crashing.
         """
         theme = RIDER_THEMES.get(self.config.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME])
-        if theme.tier4_effect == "chiptune_alert" and not self.config.standard_mode:
+        if theme.tier4_effect == DisplayEffect.CHIPTUNE_ALERT and not self.config.standard_mode:
             return "ExAid"
         return theme.era
 
@@ -231,21 +239,23 @@ class Notifier:
                     toast.set_audio(_winotify_audio.LoopingAlarm2, loop=False)
                 toast.show()
             except Exception:
-                pass
+                log_once(logger, "toast-windows", "A Windows pop-up message failed")
             return
 
         if IS_MACOS:
             try:
+
                 def esc(text: str) -> str:
                     # A quote mark inside the message would otherwise
                     # break the little script we hand to macOS — this
                     # puts a backslash in front of it so macOS reads it
                     # as a plain character instead.
                     return text.replace("\\", "\\\\").replace('"', '\\"')
+
                 script = f'display notification "{esc(body)}" with title "{esc(title)}"'
                 subprocess.run(["osascript", "-e", script], timeout=2, capture_output=True)
             except Exception:
-                pass
+                log_once(logger, "toast-macos", "A macOS pop-up message failed")
             return
 
         if _HAS_NOTIFY_SEND:
@@ -257,7 +267,7 @@ class Notifier:
                 args += [title, body]
                 subprocess.run(args, timeout=2, capture_output=True)
             except Exception:
-                pass
+                log_once(logger, "toast-linux", "A Linux pop-up message failed")
 
     def _beep_sequence(self, tones) -> None:
         """
@@ -267,10 +277,11 @@ class Notifier:
         this on the app's main thread, the timer would visibly freeze for a
         moment while the sound plays. Doing it on the side avoids that.
         """
+
         def run() -> None:
             try:
                 for freq, ms in tones:
-                    _winsound.Beep(freq, ms)  # type: ignore[union-attr]
+                    _winsound.Beep(freq, ms)
             except Exception:
                 pass
 
@@ -278,6 +289,7 @@ class Notifier:
 
     def _play_mac_sound(self, path: str, repeat: int = 1) -> None:
         """Play one of the sound files that already comes with macOS."""
+
         def run() -> None:
             try:
                 for _ in range(repeat):
@@ -290,8 +302,11 @@ class Notifier:
     def _play_linux_sound(self, candidates: list, repeat: int = 1) -> None:
         """Play whichever Linux system sound we can actually find on this computer."""
         sound = next(
-            (f"{_LINUX_SOUND_DIR}/{name}" for name in candidates
-             if Path(f"{_LINUX_SOUND_DIR}/{name}").exists()),
+            (
+                f"{_LINUX_SOUND_DIR}/{name}"
+                for name in candidates
+                if Path(f"{_LINUX_SOUND_DIR}/{name}").exists()
+            ),
             None,
         )
         if sound is None:

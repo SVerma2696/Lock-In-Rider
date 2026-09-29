@@ -13,7 +13,7 @@ button. Rows in the same card get a thin line between them.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import customtkinter as ctk
 
@@ -30,40 +30,73 @@ def divider_line(master, palette: t.Palette) -> Box:
 
 
 class SettingRow(Box):
-    def __init__(self, master, palette: t.Palette, *, layout, title: str,
-                 description: str = "", icon=None,
-                 control: Optional[Callable] = None, divider: bool = False,
-                 wraplength: int = 380) -> None:
+    def __init__(
+        self,
+        master,
+        palette: t.Palette,
+        *,
+        layout,
+        title: str,
+        description: str = "",
+        icon=None,
+        control: Callable | None = None,
+        divider: bool = False,
+        wraplength: int = 380,
+    ) -> None:
         super().__init__(master)
         self.control = None
 
         if divider:
             line = divider_line(self, palette)
-            layout.grid(line, total_columns=3, row=0, column=0, columnspan=3,
-                        sticky="ew", pady=(0, t.SPACE_3))
+            layout.grid(
+                line,
+                total_columns=3,
+                row=0,
+                column=0,
+                columnspan=3,
+                sticky="ew",
+                pady=(0, t.SPACE_3),
+            )
 
         column_for_words = 1
         self.grid_columnconfigure(1, weight=1)
         if icon is not None:
-            layout.grid(ctk.CTkLabel(self, text="", image=icon, width=22, font=t.font()), total_columns=3,
-                        row=1, column=0, sticky="nw", padx=(0, t.SPACE_3), pady=(2, 0))
+            layout.grid(
+                ctk.CTkLabel(self, text="", image=icon, width=22, font=t.font()),
+                total_columns=3,
+                row=1,
+                column=0,
+                sticky="nw",
+                padx=(0, t.SPACE_3),
+                pady=(2, 0),
+            )
 
         words = Box(self)
         layout.grid(words, total_columns=3, row=1, column=column_for_words, sticky="ew")
         self.title_label = Text(
-            words, text=title, anchor="w", justify="left",
-            text_color=palette.text_primary, font=t.font(size=t.FONT_BODY + 1),
+            words,
+            text=title,
+            anchor="w",
+            justify="left",
+            text_color=palette.text_primary,
+            font=t.font(size=t.FONT_BODY + 1),
         )
         layout.pack(self.title_label, anchor="w", fill="x")
         self.description_label = None
         if description:
             self.description_label = Text(
-                words, text=description, anchor="w", justify="left", wraplength=wraplength,
-                text_color=palette.text_muted, font=t.font(size=t.FONT_SMALL + 1),
+                words,
+                text=description,
+                anchor="w",
+                justify="left",
+                wraplength=wraplength,
+                text_color=palette.text_muted,
+                font=t.font(size=t.FONT_SMALL + 1),
             )
             layout.pack(self.description_label, anchor="w", fill="x")
 
         if control is not None:
             self.control = control(self)
-            layout.grid(self.control, total_columns=3, row=1, column=2, sticky="e",
-                        padx=(t.SPACE_4, 0))
+            layout.grid(
+                self.control, total_columns=3, row=1, column=2, sticky="e", padx=(t.SPACE_4, 0)
+            )

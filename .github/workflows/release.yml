@@ -69,10 +69,22 @@ jobs:
           cd dist
           tar -czf "../${{ matrix.asset_name }}" "Lock In"
 
+      # The download's fingerprint (SHA-256). The app downloads this file
+      # too, and only installs an update whose fingerprint matches exactly
+      # (see lock_in/update_verify.py). Written the same way as the
+      # `sha256sum` tool: "<fingerprint>  <file name>".
+      - name: Write the download's fingerprint
+        shell: bash
+        run: |
+          python scripts/write_checksum.py "${{ matrix.asset_name }}"
+          cat "${{ matrix.asset_name }}.sha256"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: ${{ matrix.asset_name }}
+          path: |
+            ${{ matrix.asset_name }}
+            ${{ matrix.asset_name }}.sha256
 
   publish:
     needs: build
@@ -88,7 +100,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" artifacts/*.zip artifacts/*.tar.gz \
+          gh release create "${{ github.ref_name }}" artifacts/*.zip artifacts/*.tar.gz artifacts/*.sha256 \
             --repo "${{ github.repository }}" \
             --title "Lock In ${{ github.ref_name }}" \
             --generate-notes

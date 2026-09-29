@@ -125,6 +125,7 @@ def test_missing_file_starts_empty(tmp_path):
 
 # ---- Every block gets its own name tag (an id) ----------------------------
 
+
 def test_new_records_get_an_auto_generated_id(store):
     record = _record(datetime(2026, 9, 4, 9, 0, 0), 1500)
     assert record.id != ""
@@ -173,6 +174,7 @@ def test_load_only_rewrites_the_file_when_an_id_was_missing(tmp_path):
 
 
 # ---- Fixing a past block: change its task, or delete it -------------------
+
 
 def test_reassign_task_changes_the_task_id(store):
     record = _record(datetime(2026, 9, 4, 9, 0, 0), 1500, task_id="abc123")

@@ -2,7 +2,7 @@
 flip. No real Tk widget or display involved anywhere in this file --
 these are plain functions that take a kwargs dict and return one."""
 
-from lock_in.ui import flip_pack_kwargs, flip_place_kwargs, flip_grid_kwargs
+from lock_in.ui import flip_grid_kwargs, flip_pack_kwargs, flip_place_kwargs
 
 
 def test_pack_side_left_becomes_right_when_mirrored():

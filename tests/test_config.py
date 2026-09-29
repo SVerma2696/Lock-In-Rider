@@ -10,8 +10,9 @@ def test_phase_seconds_uses_normal_settings_by_default():
 
 
 def test_phase_seconds_uses_gavv_values_when_micro_sprint_mode_is_on():
-    config = Config(focus_minutes=25, short_break_minutes=5, long_break_minutes=15,
-                     micro_sprint_mode=True)
+    config = Config(
+        focus_minutes=25, short_break_minutes=5, long_break_minutes=15, micro_sprint_mode=True
+    )
     assert config.phase_seconds("focus") == GAVV_MICRO_SPRINT.focus_minutes * 60
     assert config.phase_seconds("short_break") == GAVV_MICRO_SPRINT.short_break_minutes * 60
     assert config.phase_seconds("long_break") == GAVV_MICRO_SPRINT.long_break_minutes * 60

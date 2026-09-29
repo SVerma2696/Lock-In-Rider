@@ -49,7 +49,7 @@ def test_repeat_sightings_increment_rather_than_duplicate(store):
 def test_empty_text_is_ignored(store):
     assert store.record("") is None
     assert store.record("   ") is None
-    assert store.record("!!!") is None      # cleans up to nothing at all
+    assert store.record("!!!") is None  # cleans up to nothing at all
     assert store.all() == []
 
 
@@ -116,7 +116,7 @@ def test_labelled_record_still_accumulates_sightings(store):
     store.record("Discord chat")
     record = store.all()[0]
     assert record.count == 2
-    assert record.label == DISTRACTION      # doesn't go back into the "needs a label" pile
+    assert record.label == DISTRACTION  # doesn't go back into the "needs a label" pile
 
 
 # --------------------------------------------------------------------------- #
@@ -141,10 +141,12 @@ def test_training_pairs_emit_once_regardless_of_visit_count(store):
 
 
 def test_extend_bulk_imports(store):
-    added = store.extend([
-        ("Overleaf thesis", STUDY),
-        ("Reddit frontpage", DISTRACTION),
-    ])
+    added = store.extend(
+        [
+            ("Overleaf thesis", STUDY),
+            ("Reddit frontpage", DISTRACTION),
+        ]
+    )
     assert added == 2
     assert len(store.training_pairs()) == 2
 
@@ -208,7 +210,7 @@ def test_saved_file_is_one_json_object_per_line(tmp_path):
     store.save()
 
     # each saved line should be its own valid, complete JSON entry
-    lines = [l for l in path.read_text().splitlines() if l.strip()]
+    lines = [row for row in path.read_text().splitlines() if row.strip()]
     assert len(lines) == 2
     for line in lines:
         assert "text" in json.loads(line)
@@ -219,7 +221,8 @@ def test_corrupt_lines_are_skipped_not_fatal(tmp_path):
     path.write_text(
         json.dumps({"text": "good record", "count": 1, "label": None}) + "\n"
         "{ this line is broken\n"
-        + json.dumps({"text": "another good one", "count": 1, "label": None}) + "\n"
+        + json.dumps({"text": "another good one", "count": 1, "label": None})
+        + "\n"
     )
     store = ObservationStore(path)
     assert len(store.all()) == 2
@@ -232,4 +235,4 @@ def test_missing_file_loads_empty(tmp_path):
 def test_save_is_a_noop_when_nothing_changed(tmp_path):
     path = tmp_path / "obs.jsonl"
     ObservationStore(path).save()
-    assert not path.exists()        # don't leave a useless empty file behind
+    assert not path.exists()  # don't leave a useless empty file behind

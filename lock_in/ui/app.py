@@ -1,7 +1,8 @@
 """
 ui/app.py
 =========
-The main Lock In window, and the brain behind it.
+The main Lock In window. It shows things and passes your clicks on;
+the deciding happens in lock_in/application/ (the AppController).
 
 What the window looks like
 --------------------------
@@ -25,13 +26,15 @@ How the background helpers and the screen work together (important!)
 Some jobs run on their own background helper (watching which window
 you're in, the camera, Claude, the update check, Revice's network
 link). The screen toolkit isn't safe to touch from those helpers, so
-each one only drops a note in a safe waiting line (a "queue"). The
-app's heartbeat (`_pump`, five times a second) reads those notes on the
-screen's own thread. It is the only place that changes what you see.
+each one only posts a small note to one mailbox (the controller's
+`events`, see application/events.py). The app's heartbeat (`_pump`,
+five times a second) hands those notes out on the screen's own thread.
+It is the only place that changes what you see.
 
 Where things live
 -----------------
-    app.py          this file: the window, the timer, blocking, pages
+    app.py          this file: the window, its heartbeat, the pages
+    effects.py      the Rider pictures (glow, era strip, progress shapes)
     overlays.py     the lockdown screen, X's goal screen, Ghost's clock
     updates.py      checking for a newer Lock In
     gestures.py     Wizard's mouse gestures
@@ -45,14 +48,11 @@ Where things live
 from __future__ import annotations
 
 import dataclasses
-import queue
-import socket
+import logging
 import sys
-from datetime import datetime
-from typing import List, Optional
 
 import customtkinter as ctk
-from PIL import ImageOps, ImageTk
+from PIL import ImageTk
 
 # customtkinter's own automatic per-monitor DPI handling briefly makes the
 # whole window ~85% transparent (window.attributes("-alpha", 0.15)) every
@@ -65,41 +65,42 @@ from PIL import ImageOps, ImageTk
 # window is created, so it's placed immediately after the import.
 ctk.deactivate_automatic_dpi_awareness()
 
-from ..classifier import STUDY, NaiveBayesClassifier
-from ..claude_fallback import ClaudeFallback
-from ..config import Config, LOG_PATH, MODEL_PATH, OBSERVATIONS_PATH, TASKS_PATH, app_data_dir
-from ..observations import ObservationStore
-from ..tasks import TaskStatus, TaskStore
-from ..history import HistoryStore, SessionRecord
+from ..application import (
+    AppController,
+    BannerRequested,
+    ClaudeAnswered,
+    PhoneSample,
+    UpdateChecked,
+    WindowSeen,
+)
+from ..application.enforcement_controller import Decision
+from ..camera_enforcer import CAMERA_BACKEND_AVAILABLE
+from ..config import app_data_dir
+from ..diagnostics import setup_logging
+from ..enforcer import Action, WindowInfo, message_for
+from ..monitor import BACKEND_AVAILABLE, minimize_window
+from ..rider_effects import DisplayEffect, EnforcementEffect, ProgressEffect
+from ..rider_themes import (
+    DEFAULT_RIDER_THEME,
+    RIDER_THEMES,
+    STANDARD_THEME,
+    RiderAbilities,
+    desaturate,
+)
+from ..session import Event, Phase, label_for
 from ..tier5 import TIER5_BUILDERS
-from ..revice_link import BuddyLink
-from ..camera_enforcer import CAMERA_BACKEND_AVAILABLE, CameraEnforcer, PhoneWatcher
-from ..enforcer import Action, Enforcer, Reason, Verdict, WindowInfo, judge, message_for
-from ..ambient import AmbientPlayer
-from ..monitor import BACKEND_AVAILABLE, ActiveWindowMonitor, minimize_window
-from ..notifier import Notifier
-from ..session import Event, Phase, PomodoroSession, label_for
-from ..rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES, STANDARD_THEME, desaturate
 from ..visuals import (
     SHAPE_EFFECTS,
-    apply_gaim_lock_overlay,
-    apply_tier1_background_effect,
     display_font_family,
     ease_drive_progress,
     interpolate_agito_color,
     load_app_icon,
     load_pixel_font,
-    make_flat_fill,
-    make_panel_divider,
-    render_amazon_drain,
-    render_progress,
 )
 from . import theme as t
-from .components.box import Box
 from .components import Sidebar, StatusBadge
-from .components.timer_display import (
-    PROGRESS_SHAPE_HEIGHT, PROGRESS_SHAPE_WIDTH, ZERO_UI_HEIGHT, ZERO_UI_WIDTH,
-)
+from .components.box import Box
+from .effects import DIVIDER_HEIGHT, BackgroundState, RiderVisuals
 from .gestures import WizardGesturesMixin
 from .mirror import MirrorLayout, mirrored_column
 from .overlays import OverlaysMixin
@@ -108,95 +109,55 @@ from .pages.base import tasks_signature
 from .preferences import PreferencesMixin
 from .revice import ReviceMixin
 from .router import FIRST_ROUTE_ID, Router, build_routes
-from .task_picker import build_task_picker_entries
 from .updates import UpdatesMixin
+
+logger = logging.getLogger(__name__)
 
 # The nicer-looking font for the timer digits and headings. Picked once
 # per computer in visuals.py -- see that file for why.
 DISPLAY_FONT = display_font_family()
 
-# The picture behind the page area. Stronger's glow, Kiva's night tint,
-# and Gaim's dimming are painted onto it; for everyone else it's just the
-# plain background color. It only shows in the thin gap around the page
-# and gets stretched to fit, so a small picture is plenty -- and a small
-# picture is much quicker to redraw and uses much less memory.
-BG_TEXTURE_WIDTH = 480
-BG_TEXTURE_HEIGHT = 640
-# Stronger's glow grows in this many steps (see visuals.render_border_glow_overlay).
-GLOW_STEPS = 14
-
-# The thin era strip under the top bar (Riders only, never Standard Mode).
-DIVIDER_WIDTH = 1400
-DIVIDER_HEIGHT = 4
-
 # The gap around the page area, where the background picture shows.
 CONTENT_MARGIN = t.SPACE_3
 
 
-class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
-                PreferencesMixin, ctk.CTk):
+class LockInApp(
+    OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin, PreferencesMixin, ctk.CTk
+):
     """The main app window -- everything you see lives inside this."""
 
-    UI_TICK_MS = 200      # how often we redraw the countdown, in milliseconds
-    BANNER_MS = 6000      # how long a pop-up banner stays on screen, in milliseconds
+    UI_TICK_MS = 200  # how often we redraw the countdown, in milliseconds
+    BANNER_MS = 6000  # how long a pop-up banner stays on screen, in milliseconds
 
-    def __init__(self) -> None:
+    def __init__(self, controller: AppController | None = None) -> None:
         super().__init__()
 
-        # ---------------- The main pieces of the app -------------------- #
-        self.config_obj = Config.load()
-        # The session has to exist BEFORE _apply_rider_theme(), which
-        # checks what phase we're in (for Stronger/Kiva's effect).
-        self.session = PomodoroSession(self.config_obj)
+        # ---------------- Everything that isn't drawing ----------------- #
+        # The timer, tasks, history, blocking, camera, Claude helper,
+        # notifications, and Revice's link all live in the controller
+        # (lock_in/application/). This window shows what it says.
+        self.controller = controller or AppController()
         self.display_font = DISPLAY_FONT
         self.layout = MirrorLayout(lambda: self._is_mirrored)
         # Which way the widgets are flipped right now (Ryuki's mirror).
         self._layout_mirrored = False
+        self.visuals = RiderVisuals()
         self._apply_rider_theme()
         # X's goal-entry gate stores what you typed here -- in memory
         # only, reset every time the app restarts.
         self.current_goal_text = ""
         # Kabuto's hidden timer: True only while you hover the digits.
         self._kabuto_revealed = False
-        self.model = NaiveBayesClassifier.load(MODEL_PATH)
-        self.observations = ObservationStore(OBSERVATIONS_PATH)
-        self.tasks = TaskStore(TASKS_PATH)
-        self.history = HistoryStore(LOG_PATH)
-        # The task picked on the Focus page. None means an untagged block.
-        # Never saved -- it's meant to change often.
-        self.current_task_id: Optional[str] = None
-        # Set the instant a FOCUS phase begins, cleared once it's logged to
-        # history (finished, skipped, or reset). None means "no focus block
-        # is being timed right now".
-        self._focus_block_start: Optional[datetime] = None
-        self._focus_block_planned_seconds: int = 0
-        self.claude = ClaudeFallback(self.config_obj)
-        self.enforcer = Enforcer(self.config_obj)
-        self.camera_enforcer = CameraEnforcer(self.config_obj)
-        self.notifier = Notifier(self.config_obj)
-        self.notifier.banner_callback = self._queue_banner
-        self.ambient = AmbientPlayer(self.config_obj)
 
-        # Safe mailboxes for passing messages between threads.
-        self._window_queue: "queue.Queue[WindowInfo]" = queue.Queue()
-        self._camera_queue: "queue.Queue[bool]" = queue.Queue()
-        self._banner_queue: "queue.Queue[tuple]" = queue.Queue()
-        self._claude_queue: "queue.Queue[tuple]" = queue.Queue()
-        self._update_queue: "queue.Queue[tuple]" = queue.Queue()
-
-        self.monitor = ActiveWindowMonitor(
-            callback=self._window_queue.put,   # safe to call from any thread
-            interval=1.0,
-        )
-        self.camera_watcher = PhoneWatcher(callback=self._camera_queue.put)
-
-        # The activity list: dicts of {time, text, blocked, reason, ...}
-        self.activity: List[dict] = []
-        self._lockdown_window: Optional[ctk.CTkToplevel] = None
-        self._ghost_widget: Optional[ctk.CTkToplevel] = None
-        self._banner_after_id: Optional[str] = None
+        self._lockdown_window: ctk.CTkToplevel | None = None
+        self._ghost_widget: ctk.CTkToplevel | None = None
+        self._banner_after_id: str | None = None
+        # Timers the window set with after(), by name, so closing the
+        # window can cancel every one of them.
+        self._after_ids: dict[str, str] = {}
+        self._closing = False
         # (UpdateInfo, Optional[Path]) once the background check finds one.
-        self._pending_update: Optional[tuple] = None
+        self._pending_update: tuple | None = None
         self._update_check_running = False
         self._update_message_wanted = False
         self._update_check_busy = False
@@ -204,26 +165,24 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
 
         # Things the pages remember while they're redrawn.
         self.pages: dict = {}
-        self.sidebar: Optional[Sidebar] = None
+        self.sidebar: Sidebar | None = None
         self._retired: list = []
         self._page_order: list = []
-        self._retire_after: Optional[str] = None
+        self._retire_after: str | None = None
         self._claude_status_labels: list = []
         self._task_filter = "All"
         self._expanded_tasks: dict = {}
-        self._task_menu_ids: dict = {}
         self._watching_text = ""
         self._zero_ui_on = False
-        self._zero_ui_saved_route: Optional[str] = None
+        self._zero_ui_saved_route: str | None = None
 
-        # Revice's buddy link. Made once for the app's whole life, so
-        # redrawing the pages (dark mode, a Rider switch) never drops the
-        # connection. It doesn't touch the network until Share or Receive
-        # is pressed -- see lock_in/revice_link.py.
-        self.buddy_link = BuddyLink(socket.gethostname() or "Buddy")
-        self._buddy_status: Optional[dict] = None
-        self._buddy_message = ""
-        self._buddy_last_sent = 0.0
+        # Which function handles which note from the background helpers.
+        events = self.controller.events
+        events.subscribe(WindowSeen, self._on_window_seen)
+        events.subscribe(PhoneSample, self._on_phone_sample)
+        events.subscribe(ClaudeAnswered, self._on_claude_answered)
+        events.subscribe(BannerRequested, self._on_banner_requested)
+        events.subscribe(UpdateChecked, self._on_update_checked)
 
         # ---------------- The window frame ------------------------------ #
         ctk.set_appearance_mode(self.config_obj.appearance)
@@ -236,8 +195,9 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self._set_app_icon()
 
         self._make_setting_vars()
-        self.router = Router(show=self._show_page, hide=self._hide_page,
-                             on_change=self._on_route_changed)
+        self.router = Router(
+            show=self._show_page, hide=self._hide_page, on_change=self._on_route_changed
+        )
         self._build_shell()
         self._rebuild_pages(initial=True)
 
@@ -248,13 +208,139 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self.bind_all("r", self._on_zeztz_reset)
         self._bind_wizard_gestures()
 
-        self.monitor.start()
-        self.camera_watcher.start()
-        self._pump()          # start the heartbeat
+        self.controller.start()
+        self._pump()  # start the heartbeat
         self._refresh_timer_widgets()
         # Wait a moment, so the window is fully drawn before a banner shows.
-        self.after(400, self._warn_if_app_detection_unavailable)
-        self.after(2000, self._start_update_check)
+        self._after("detection_warning", 400, self._warn_if_app_detection_unavailable)
+        self._after("update_check", 2000, self._start_update_check)
+
+    # ================================================================== #
+    # The parts the controller owns, under the names the pages use
+    # ================================================================== #
+    @property
+    def config_obj(self):
+        return self.controller.config
+
+    @property
+    def session(self):
+        return self.controller.session
+
+    @property
+    def model(self):
+        return self.controller.model
+
+    @model.setter
+    def model(self, value) -> None:
+        # "Rebuild model" swaps in a fresh model; blocking must use it too.
+        self.controller.model = value
+        self.controller.enforcement.model = value
+
+    @property
+    def observations(self):
+        return self.controller.observations
+
+    @property
+    def tasks(self):
+        return self.controller.tasks
+
+    @property
+    def history(self):
+        return self.controller.history
+
+    @property
+    def claude(self):
+        return self.controller.claude
+
+    @property
+    def enforcer(self):
+        return self.controller.enforcement.enforcer
+
+    @property
+    def camera_enforcer(self):
+        return self.controller.enforcement.camera_enforcer
+
+    @property
+    def notifier(self):
+        return self.controller.notifier
+
+    @property
+    def ambient(self):
+        return self.controller.ambient
+
+    @property
+    def monitor(self):
+        return self.controller.monitor
+
+    @property
+    def camera_watcher(self):
+        return self.controller.camera_watcher
+
+    @property
+    def buddy_link(self):
+        return self.controller.buddy.link
+
+    @property
+    def activity(self) -> list[dict]:
+        """The Activity page's rows (see ActivityLog)."""
+        return self.controller.enforcement.activity.entries
+
+    @property
+    def current_task_id(self) -> str | None:
+        return self.controller.tasks_ctl.current_task_id
+
+    @current_task_id.setter
+    def current_task_id(self, value: str | None) -> None:
+        self.controller.tasks_ctl.current_task_id = value
+
+    # The picked Rider's powers, under their older Tier names.
+    @property
+    def current_tier1_effect(self) -> ProgressEffect:
+        return self.abilities.progress
+
+    @property
+    def current_tier2_effect(self):
+        return self.abilities.preset
+
+    @property
+    def current_tier3_effect(self) -> EnforcementEffect:
+        return self.abilities.enforcement
+
+    @property
+    def current_tier4_effect(self) -> DisplayEffect:
+        return self.abilities.display
+
+    @property
+    def current_tier5_effect(self):
+        return self.abilities.productivity
+
+    @property
+    def current_tier6_effect(self):
+        return self.abilities.interaction
+
+    def _after(self, name: str, delay_ms: int, callback) -> None:
+        """after(), remembered by name so _on_close() can cancel it. A
+        timer set again under the same name replaces the old one."""
+        if self._closing:
+            return
+        old = self._after_ids.pop(name, None)
+        if old is not None:
+            try:
+                self.after_cancel(old)
+            except Exception:
+                pass
+
+        def run() -> None:
+            self._after_ids.pop(name, None)
+            callback()
+
+        self._after_ids[name] = self.after(delay_ms, run)
+
+    def report_callback_exception(self, kind, error, trace) -> None:
+        """An error inside a button click or timer. The screen toolkit
+        normally prints it to a console, which the packaged app doesn't
+        have -- so it goes to the log instead. The app keeps running."""
+        logger.error("Error in a window callback", exc_info=(kind, error, trace))
 
     def _set_app_icon(self) -> None:
         """
@@ -277,12 +363,13 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 ico_path = app_data_dir() / "app_icon.ico"
                 if not ico_path.exists():
                     icon.save(
-                        ico_path, format="ICO",
+                        ico_path,
+                        format="ICO",
                         sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
                     )
                 self.iconbitmap(default=str(ico_path))
             except Exception:
-                pass
+                logger.warning("Couldn't set the Windows title-bar icon", exc_info=True)
 
     # ================================================================== #
     # Picking words: "professional" or "tokusatsu"
@@ -320,13 +407,15 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         needs: its palette, and which gimmick it has in each Tier.
         If the saved name isn't recognized, use the default Rider.
         """
-        theme = STANDARD_THEME if self.config_obj.standard_mode else RIDER_THEMES.get(
-            self.config_obj.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME]
+        theme = (
+            STANDARD_THEME
+            if self.config_obj.standard_mode
+            else RIDER_THEMES.get(self.config_obj.rider_theme, RIDER_THEMES[DEFAULT_RIDER_THEME])
         )
         # ZX's whole gimmick is going monochrome. Swapping in a grey copy
         # of the theme HERE means every color made from it below comes out
         # grey automatically -- widgets and drawn pictures alike.
-        if theme.tier3_effect == "stealth_mute":
+        if theme.tier3_effect == EnforcementEffect.STEALTH_MUTE:
             theme = dataclasses.replace(
                 theme,
                 primary=(desaturate(theme.primary[0]), desaturate(theme.primary[1])),
@@ -343,124 +432,44 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         # the lockdown words, the era strip, and the sounds.
         self.current_era = theme.era
 
-        self.current_tier1_effect = theme.tier1_effect
-        self.current_tier2_effect = theme.tier2_effect
-        self.current_tier3_effect = theme.tier3_effect
-        self.current_tier4_effect = theme.tier4_effect
-        self.current_tier5_effect = theme.tier5_effect
-        # Standard Mode swaps in STANDARD_THEME above, so this reads "none"
-        # there automatically -- no Wizard gestures, no buddy link.
-        self.current_tier6_effect = theme.tier6_effect
+        # The picked Rider's powers, one per Tier, as typed values.
+        # Standard Mode swaps in STANDARD_THEME above, so every one of them
+        # is NONE there automatically -- no Wizard gestures, no buddy link.
+        self.abilities: RiderAbilities = theme.abilities
 
-        if self.current_tier4_effect == "chiptune_alert":
+        if self.abilities.display is DisplayEffect.CHIPTUNE_ALERT:
             self._active_display_font = load_pixel_font()
         else:
             self._active_display_font = DISPLAY_FONT
         self.rider_primary_pair = theme.primary
         self.rider_secondary_pair = theme.secondary
-        # Stronger's glow uses the Rider's own primary (a red); Kiva's
-        # night wash uses the secondary (the amber gold).
-        self.color_tier1_effect_pair = (
-            theme.primary if theme.tier1_effect == "border_glow" else theme.secondary
-        )
 
-        bg_light_color, bg_dark_color = self.palette.app_bg
-        # A flat fill is the calm, modern base for every Rider. The Tier 1
-        # and Tier 3 effects are painted on top of it (see below).
-        self._base_bg_light = make_flat_fill(BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, bg_light_color)
-        self._base_bg_dark = make_flat_fill(BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT, bg_dark_color)
-        if self.config_obj.standard_mode:
-            border_light, border_dark = self.palette.card_border
-            divider_light = make_flat_fill(DIVIDER_WIDTH, DIVIDER_HEIGHT, border_light)
-            divider_dark = make_flat_fill(DIVIDER_WIDTH, DIVIDER_HEIGHT, border_dark)
-        else:
-            (primary_light, primary_dark), (secondary_light, secondary_dark) = (
-                theme.primary, theme.secondary)
-            divider_light = make_panel_divider(
-                DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_light, secondary_light, era=theme.era)
-            divider_dark = make_panel_divider(
-                DIVIDER_WIDTH, DIVIDER_HEIGHT, primary_dark, secondary_dark, era=theme.era)
-        self._base_divider_light = divider_light
-        self._base_divider_dark = divider_dark
-
-        if hasattr(self, "_bg_image"):
-            self._divider_image.configure(light_image=divider_light, dark_image=divider_dark)
-        else:
-            self._bg_image = ctk.CTkImage(
-                light_image=self._base_bg_light, dark_image=self._base_bg_dark,
-                size=(BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT),
-            )
-            self._divider_image = ctk.CTkImage(
-                light_image=divider_light, dark_image=divider_dark,
-                size=(DIVIDER_WIDTH, DIVIDER_HEIGHT),
-            )
-        # A new theme drops the old Tier 1 picture's size and colors.
-        if hasattr(self, "_progress_shape_image"):
-            del self._progress_shape_image
-        self._bg_key = None      # new colors: the background must be redrawn
+        self.visuals.apply_theme(theme, self.palette, self.config_obj.standard_mode)
         self._refresh_background_effect(self.session.progress)
 
     def _refresh_background_effect(self, progress_fraction: float) -> None:
-        """
-        Redraw the background picture with Stronger's glow, Kiva's night
-        tint, or Gaim's dimming, if this Rider has one. Those only show
-        DURING a focus block. Everyone else just gets the plain picture.
-        """
-        in_focus = self.session.phase is Phase.FOCUS
-        active_effect = self.current_tier1_effect if in_focus else "none"
-        if active_effect not in ("border_glow", "night_overlay"):
-            active_effect = "none"
-        lock_on = self.current_tier3_effect == "lock_overlay" and in_focus
-        # Drawing this picture is the slowest thing the timer does, so it
-        # is only redrawn when what it shows really changes: Stronger's
-        # glow moves in GLOW_STEPS small steps, and everything else only
-        # changes when a focus block starts or stops (or Ryuki flips).
-        step = (round(GLOW_STEPS * max(0.0, min(1.0, progress_fraction)))
-                if active_effect == "border_glow" else 0)
-        painted = active_effect != "none" or lock_on
-        key = (active_effect, step, lock_on, self._is_mirrored and painted)
-        if key == getattr(self, "_bg_key", None):
-            return
-        self._bg_key = key
-        if not painted:
-            self._bg_image.configure(light_image=self._base_bg_light, dark_image=self._base_bg_dark)
-            return
-        progress_fraction = step / GLOW_STEPS
-        effect_color_light, effect_color_dark = self.color_tier1_effect_pair
-        bg_light = apply_tier1_background_effect(
-            self._base_bg_light, active_effect, effect_color_light, progress_fraction,
+        """Stronger's glow, Kiva's night tint, or Gaim's dimming on the
+        background, during a focus block (see ui/effects.py)."""
+        self.visuals.refresh_background(
+            BackgroundState(
+                progress_effect=self.abilities.progress,
+                enforcement_effect=self.abilities.enforcement,
+                in_focus=self.session.phase is Phase.FOCUS,
+                mirrored=self._is_mirrored,
+                progress=progress_fraction,
+            )
         )
-        bg_dark = apply_tier1_background_effect(
-            self._base_bg_dark, active_effect, effect_color_dark, progress_fraction,
-        )
-        if lock_on:
-            bg_light = apply_gaim_lock_overlay(bg_light, True)
-            bg_dark = apply_gaim_lock_overlay(bg_dark, True)
-        if self._is_mirrored:
-            bg_light = ImageOps.mirror(bg_light)
-            bg_dark = ImageOps.mirror(bg_dark)
-        self._bg_image.configure(light_image=bg_light, dark_image=bg_dark)
 
     def _sync_mirror_divider(self) -> None:
         """Ryuki's flip for the era strip under the top bar."""
-        if not hasattr(self, "_base_divider_light"):
-            return
-        if self._is_mirrored:
-            self._divider_image.configure(
-                light_image=ImageOps.mirror(self._base_divider_light),
-                dark_image=ImageOps.mirror(self._base_divider_dark),
-            )
-        else:
-            self._divider_image.configure(
-                light_image=self._base_divider_light, dark_image=self._base_divider_dark,
-            )
+        self.visuals.sync_divider(self._is_mirrored)
 
     # ================================================================== #
     # Ryuki's mirror (see ui/mirror.py)
     # ================================================================== #
     @property
     def _is_mirrored(self) -> bool:
-        return self.current_tier4_effect == "mirror_flip" and self.session.phase.is_break
+        return self.abilities.display is DisplayEffect.MIRROR_FLIP and self.session.phase.is_break
 
     # Short names kept for the rest of the app: put a widget down through
     # the mirror-aware layout helper.
@@ -504,10 +513,17 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         icon = load_app_icon()
         if icon is not None:
             self._brand_image = ctk.CTkImage(light_image=icon, dark_image=icon, size=(24, 24))
-            self.layout.pack(ctk.CTkLabel(brand, text="", image=self._brand_image, width=24, font=t.font()),
-                             side="left", padx=(0, t.SPACE_2))
-        self.brand_label = ctk.CTkLabel(brand, text="LOCK IN", text_color=p.text_primary,
-                                        font=t.font(family=DISPLAY_FONT, size=15, weight="bold"))
+            self.layout.pack(
+                ctk.CTkLabel(brand, text="", image=self._brand_image, width=24, font=t.font()),
+                side="left",
+                padx=(0, t.SPACE_2),
+            )
+        self.brand_label = ctk.CTkLabel(
+            brand,
+            text="LOCK IN",
+            text_color=p.text_primary,
+            font=t.font(family=DISPLAY_FONT, size=15, weight="bold"),
+        )
         self.layout.pack(self.brand_label, side="left")
 
         badges = Box(self.topbar)
@@ -519,39 +535,69 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self._badges_frame = badges
 
         # ---- the era strip ------------------------------------------------ #
-        self._divider_label = ctk.CTkLabel(self, text="", image=self._divider_image, height=DIVIDER_HEIGHT, font=t.font())
-        self.layout.grid(self._divider_label, total_columns=2, row=1, column=0, columnspan=2,
-                         sticky="ew")
+        self._divider_label = ctk.CTkLabel(
+            self, text="", image=self.visuals.divider_image, height=DIVIDER_HEIGHT, font=t.font()
+        )
+        self.layout.grid(
+            self._divider_label, total_columns=2, row=1, column=0, columnspan=2, sticky="ew"
+        )
 
         # ---- the page area ------------------------------------------------ #
         self.content = ctk.CTkFrame(self, fg_color=p.app_bg, corner_radius=0)
         self.layout.grid(self.content, total_columns=2, row=2, column=1, sticky="nsew")
         # Made FIRST so it sits behind everything else in the page area.
-        self._bg_label = ctk.CTkLabel(self.content, text="", image=self._bg_image, font=t.font())
+        self._bg_label = ctk.CTkLabel(
+            self.content, text="", image=self.visuals.bg_image, font=t.font()
+        )
         self._bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         self.content.bind("<Configure>", self._on_content_resized, add="+")
 
         # A short pop-up message. Starts hidden; _show_banner reveals it.
-        self.banner = ctk.CTkLabel(self.content, text="", corner_radius=t.CONTROL_RADIUS,
-                                   height=40, font=t.font(size=13), wraplength=640,
-                                   justify="left", anchor="w")
+        self.banner = ctk.CTkLabel(
+            self.content,
+            text="",
+            corner_radius=t.CONTROL_RADIUS,
+            height=40,
+            font=t.font(size=13),
+            wraplength=640,
+            justify="left",
+            anchor="w",
+        )
         # The "a new version is ready" strip. Unlike the banner, it stays
         # until you act on it. Starts hidden.
-        self.update_frame = ctk.CTkFrame(self.content, fg_color=t.INFO_SOFT,
-                                         corner_radius=t.CONTROL_RADIUS,
-                                         border_width=1, border_color=t.INFO)
-        self.update_label = ctk.CTkLabel(self.update_frame, text="", text_color=t.INFO,
-                                         font=t.font(size=12, weight="bold"), anchor="w")
-        self.layout.pack(self.update_label, side="left", padx=(12, 6), pady=8, fill="x", expand=True)
+        self.update_frame = ctk.CTkFrame(
+            self.content,
+            fg_color=t.INFO_SOFT,
+            corner_radius=t.CONTROL_RADIUS,
+            border_width=1,
+            border_color=t.INFO,
+        )
+        self.update_label = ctk.CTkLabel(
+            self.update_frame,
+            text="",
+            text_color=t.INFO,
+            font=t.font(size=12, weight="bold"),
+            anchor="w",
+        )
+        self.layout.pack(
+            self.update_label, side="left", padx=(12, 6), pady=8, fill="x", expand=True
+        )
         self.update_restart_button = ctk.CTkButton(
-            self.update_frame, text="Restart now", width=110, height=30,
-            fg_color=t.INFO, text_color="#FFFFFF", command=self._on_restart_update_clicked, font=t.font()
+            self.update_frame,
+            text="Restart now",
+            width=110,
+            height=30,
+            fg_color=t.INFO,
+            text_color="#FFFFFF",
+            command=self._on_restart_update_clicked,
+            font=t.font(),
         )
         self.layout.pack(self.update_restart_button, side="right", padx=(0, 10), pady=8)
 
         self.page_host = ctk.CTkFrame(self.content, fg_color=p.app_bg, corner_radius=t.CARD_RADIUS)
-        self.layout.pack(self.page_host, fill="both", expand=True,
-                         padx=CONTENT_MARGIN, pady=CONTENT_MARGIN)
+        self.layout.pack(
+            self.page_host, fill="both", expand=True, padx=CONTENT_MARGIN, pady=CONTENT_MARGIN
+        )
         self._apply_shell_columns()
 
     def _apply_shell_palette(self) -> None:
@@ -575,16 +621,13 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self.grid_columnconfigure(1 - content_column, weight=0)
 
     def _on_content_resized(self, event) -> None:
-        """Stretch the background picture to match the page area. Skips
-        the work unless the size really changed (dragging a window edge
-        fires this a lot). CustomTkinter reports this from the frame's
-        inner drawing area, so the size is read from the frame itself."""
-        new_size = (max(self.content.winfo_width(), 1), max(self.content.winfo_height(), 1))
-        if self._bg_image.cget("size") != new_size:
-            self._bg_image.configure(size=new_size)
-        width = max(self.winfo_width(), 1)
-        if self._divider_image.cget("size") != (width, DIVIDER_HEIGHT):
-            self._divider_image.configure(size=(width, DIVIDER_HEIGHT))
+        """Stretch the background picture to match the page area.
+        CustomTkinter reports this from the frame's inner drawing area, so
+        the size is read from the frame itself."""
+        self.visuals.resize(
+            (max(self.content.winfo_width(), 1), max(self.content.winfo_height(), 1)),
+            max(self.winfo_width(), 1),
+        )
 
     # ================================================================== #
     # Pages and the side bar
@@ -603,19 +646,24 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self._page_order = []
         # These pictures were tied to the old Focus page's widgets; the new
         # page makes its own on its first redraw.
-        for name in ("_progress_shape_image", "_zero_ui_image"):
-            if hasattr(self, name):
-                delattr(self, name)
+        self.visuals.forget_page_images()
         if self.sidebar is not None:
             self._retire(self.sidebar)
         self._apply_shell_palette()
 
-        self.sidebar = Sidebar(self, self.palette, layout=self.layout,
-                               on_select=self.navigate,
-                               rider_heading="Rider Gear" if self._is_tokusatsu() else "Rider")
+        self.sidebar = Sidebar(
+            self,
+            self.palette,
+            layout=self.layout,
+            on_select=self.navigate,
+            rider_heading="Rider Gear" if self._is_tokusatsu() else "Rider",
+        )
         self.layout.grid(self.sidebar, total_columns=2, row=2, column=0, sticky="nsw")
-        routes = build_routes(self.current_tier5_effect, self.current_tier6_effect,
-                              known_tier5_effects=TIER5_BUILDERS)
+        routes = build_routes(
+            self.abilities.productivity,
+            self.abilities.interaction,
+            known_tier5_effects=TIER5_BUILDERS,
+        )
         self.sidebar.set_routes(routes)
         if initial or not self.LAZY_FOCUS_PAGE:
             self._page(FIRST_ROUTE_ID)
@@ -691,13 +739,12 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         page = self._page(route_id)
         self._forget_old_pages(route_id)
         if page.frame.winfo_manager() != "place":
-            self.layout.place(page.frame, relx=0.5, rely=0, anchor="n",
-                              relwidth=1, relheight=1)
+            self.layout.place(page.frame, relx=0.5, rely=0, anchor="n", relwidth=1, relheight=1)
         page.frame.lift()
         try:
             page.on_show()
         except Exception:
-            pass
+            logger.exception("Showing the %s page failed", route_id)
 
     def _hide_page(self, route_id: str) -> None:
         # Nothing to do: the next page is simply raised on top of this one.
@@ -784,27 +831,16 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     # The current-task picker
     # ================================================================== #
     def _refresh_current_task_picker(self) -> None:
-        """Rebuild the menu's choices from the open tasks. The label -> id
-        matching (including two tasks with the same name) is done by
-        build_task_picker_entries(), which is tested on its own."""
+        """Rebuild the menu's choices from the open tasks (see TaskController)."""
         if not self._focus_ready:
             return
-        open_tasks = self.tasks.open()
-        values, self._task_menu_ids = build_task_picker_entries(open_tasks)
+        values, showing = self.controller.tasks_ctl.menu()
         menu = self.current_task_menu
         menu.configure(values=values)
-        if self.current_task_id not in {task.id for task in open_tasks}:
-            # The picked task was finished or deleted -- fall back to
-            # "No task" instead of pointing at a task that's gone.
-            self.current_task_id = None
-            menu.set("No task")
-        else:
-            label = next((k for k, v in self._task_menu_ids.items()
-                          if v == self.current_task_id), "No task")
-            menu.set(label)
+        menu.set(showing)
 
     def _on_current_task_selected(self, name: str) -> None:
-        self.current_task_id = self._task_menu_ids.get(name)  # None for "No task"
+        self.controller.tasks_ctl.select(name)
 
     def _render_tasks(self) -> None:
         page = self.pages.get("tasks")
@@ -816,10 +852,12 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     # ================================================================== #
     def _pump(self) -> None:
         """
-        The one loop that runs the whole app: move the timer forward, read
-        the waiting lines, then redraw the screen. It schedules itself
-        again every time, so it never gets stuck waiting on anything.
+        The one loop that runs the whole app: move the timer forward, hand
+        out the notes the background helpers left, then redraw the screen.
+        It schedules itself again every time, so it never gets stuck.
         """
+        if self._closing:
+            return
         try:
             for event in self.session.tick():
                 if event is Event.PHASE_ENDED:
@@ -827,122 +865,57 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 elif event is Event.PHASE_STARTED:
                     self._on_phase_started()
 
-            self._drain_window_queue()
-            self._drain_camera_queue()
-            self._drain_claude_queue()
-            self._drain_banner_queue()
-            self._drain_update_queue()
+            self._dispatch_events()
             self._drain_buddy_link()
             self._refresh_timer_widgets()
+        except Exception:
+            logger.exception("A heartbeat step failed")
         finally:
             # Always schedule the next beat, even if something above broke
             # -- otherwise one bad moment would freeze the app forever.
-            self.after(self.UI_TICK_MS, self._pump)
+            self._after("pump", self.UI_TICK_MS, self._pump)
 
-    def _drain_window_queue(self) -> None:
-        """Look at every window the background checker noticed, and judge each one."""
-        latest: Optional[WindowInfo] = None
-        while True:
-            try:
-                latest = self._window_queue.get_nowait()
-            except queue.Empty:
-                break
+    def _dispatch_events(self) -> int:
+        """Hand every waiting note to its handler, on this (the screen's)
+        thread. Returns how many there were."""
+        return self.controller.events.dispatch_pending()
 
-            if self.session.phase is not Phase.FOCUS or not self.session.is_running:
-                continue
-            if not self.config_obj.enforcement_enabled:
-                continue
+    def _on_window_seen(self, event: WindowSeen) -> None:
+        """The window watcher saw you on a window: judge it, and act."""
+        decision = self.controller.enforcement.judge_window(
+            event.window, self.controller.focus_running
+        )
+        if decision is not None:
+            self._apply_decision(decision)
+        self._update_watch_label(event.window)
 
-            # Never block someone just for looking at Lock In itself.
-            if "lock in" in (latest.title or "").lower():
-                continue
+    def _on_phone_sample(self, event: PhoneSample) -> None:
+        """The camera took one look: act on what it saw."""
+        decision = self.controller.enforcement.judge_phone(
+            event.seen, self.controller.focus_running
+        )
+        if decision is not None:
+            self._apply_decision(decision)
 
-            verdict = judge(latest, self.config_obj, self.model, self.claude)
-            action = self.enforcer.update(verdict, latest)
+    def _apply_decision(self, decision: Decision) -> None:
+        if decision.new_activity_row:
+            self._render_activity()
+        if decision.action is not Action.NONE:
+            self._perform(decision.action, decision.window, seconds=decision.seconds)
 
-            # If our own model isn't sure, quietly ask Claude in the
-            # background. The answer is ready by the next check.
-            if (self.config_obj.claude_fallback_enabled
-                    and verdict.reason is Reason.CLASSIFIER
-                    and verdict.confidence < self.config_obj.classifier_threshold):
-                self.claude.judge_async(latest.text, self._claude_queue.put)
+    def _on_claude_answered(self, event: ClaudeAnswered) -> None:
+        """Claude's answer arrived: it also goes into the training data,
+        so over time the local model needs to ask less and less."""
+        self.controller.enforcement.learn_from_claude(event.text, event.verdict)
 
-            # Write down EVERY window, not just the blocked ones, so
-            # train.py can also show the distractions that slipped past.
-            if self.config_obj.record_observations:
-                predicted, confidence = self.model.predict(latest.text)
-                self.observations.record(
-                    text=latest.text,
-                    process=latest.process_name,
-                    title=latest.title,
-                    predicted=predicted,
-                    confidence=confidence,
-                    blocked=verdict.blocked,
-                )
-
-            self._log_activity(latest, verdict)
-            if action is not Action.NONE:
-                self._perform(action, latest)
-
-        if latest is not None:
-            self._update_watch_label(latest)
-
-    def _drain_camera_queue(self) -> None:
-        """Look at every phone-sighting sample PhoneWatcher noticed, and act on it."""
-        while True:
-            try:
-                phone_seen = self._camera_queue.get_nowait()
-            except queue.Empty:
-                return
-
-            # A sample can still be waiting from the instant before a
-            # pause/switch-off -- skip it rather than act on it.
-            if self.session.phase is not Phase.FOCUS or not self.session.is_running:
-                continue
-            if not self.config_obj.camera_monitoring_enabled:
-                continue
-            if not self.config_obj.enforcement_enabled:
-                continue
-
-            verdict = Verdict(phone_seen, Reason.CAMERA, 1.0)
-            action = self.camera_enforcer.update(phone_seen)
-            if phone_seen:
-                self._log_activity(CameraEnforcer.PHONE_WINDOW, verdict)
-            if action is not Action.NONE:
-                self._perform(action, CameraEnforcer.PHONE_WINDOW,
-                              seconds=self.camera_enforcer.seconds_on_phone)
-
-    def _drain_claude_queue(self) -> None:
-        """
-        Claude's answers arrive here from a background thread. Every real,
-        fresh answer also goes into the training data, so over time the
-        local model needs to ask less and less.
-        """
-        while True:
-            try:
-                text, verdict = self._claude_queue.get_nowait()
-            except queue.Empty:
-                return
-            if verdict.source != "claude":
-                continue        # errors and "couldn't ask" results teach us nothing
-            self.observations.record(text=text, predicted=verdict.label,
-                                     confidence=verdict.confidence)
-            self.observations.label_by_text(text, verdict.label)
-            self.observations.save()
-
-    def _drain_banner_queue(self) -> None:
-        """Notifier can be called from any thread; its banner messages land here."""
-        while True:
-            try:
-                title, body, urgency = self._banner_queue.get_nowait()
-            except queue.Empty:
-                return
-            self._show_banner(f"{title} — {body}", urgency)
+    def _on_banner_requested(self, event: BannerRequested) -> None:
+        """The notifier can be called from any thread; its banners land here."""
+        self._show_banner(f"{event.title} — {event.body}", event.urgency)
 
     # ================================================================== #
     # Doing something about a blocked window
     # ================================================================== #
-    def _perform(self, action: Action, window: WindowInfo, seconds: Optional[float] = None) -> None:
+    def _perform(self, action: Action, window: WindowInfo, seconds: float | None = None) -> None:
         """Turn a step on the ladder into something you actually see or hear."""
         if seconds is None:
             seconds = self.enforcer.seconds_on_blocked_app
@@ -967,7 +940,7 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
             if window.handle is not None:
                 minimize_window(window.handle)
             # Bring our own window forward, so the timer is what you see now.
-            self.after(120, self._raise_self)
+            self._after("raise_self", 120, self._raise_self)
 
         elif action is Action.LOCKDOWN:
             self.notifier.notify(title, body, urgency="high")
@@ -980,42 +953,34 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     # ================================================================== #
     def _on_phase_started(self) -> None:
         """Turn on watching for FOCUS, turn it off for everything else."""
-        self.enforcer.reset()
-        self.camera_enforcer.reset()
+        self.controller.enforcement.reset()
+        self.controller.focus.phase_started()
         phase = self.session.phase
 
-        if phase is Phase.FOCUS:
-            self._focus_block_start = datetime.now()
-            self._focus_block_planned_seconds = self.session.total_seconds
-
-        if phase is Phase.FOCUS and self.current_tier3_effect == "stealth_mute":
+        if phase is Phase.FOCUS and self.abilities.enforcement is EnforcementEffect.STEALTH_MUTE:
             # ZX's Ninja Stealth: get out of the way the moment focus starts.
             self.iconify()
 
-        if self.current_tier3_effect == "lock_overlay":
+        if self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY:
             # Gaim locks the window in front of everything for the block,
             # and lets go the moment it's not FOCUS any more.
             self.attributes("-topmost", phase is Phase.FOCUS)
 
-        if self.current_tier3_effect == "zero_ui":
+        if self.abilities.enforcement is EnforcementEffect.ZERO_UI:
             self._sync_zero_ui_visibility()
             self.config_obj.zero_grace_mode = phase is Phase.FOCUS
 
         if phase is Phase.FOCUS and self.session.is_running:
-            self.monitor.resume()
+            self.controller.resume_watching()
             self.ambient.start_if_applicable()
-            if self.config_obj.camera_monitoring_enabled:
-                self.camera_watcher.resume()
-            if self.current_tier4_effect == "ghost_widget":
+            if self.abilities.display is DisplayEffect.GHOST_WIDGET:
                 self._show_ghost_widget()
         else:
-            self.monitor.pause()
-            self.camera_watcher.pause()
+            # _on_skip() never calls _on_phase_ended() (where the sound is
+            # normally stopped), so this branch stops it too.
+            self.controller.pause_watching()
             self._close_lockdown()
             self._hide_ghost_widget()
-            # _on_skip() never calls _on_phase_ended() (where ambient.stop()
-            # normally lives), so this branch has to stop it too.
-            self.ambient.stop()
 
         if phase is not Phase.IDLE:
             label = label_for(phase, self._effective_terminology())
@@ -1034,47 +999,17 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self._sync_mirror_divider()
 
     def _log_focus_block_if_any(self, completed: bool) -> None:
-        """Writes one history entry for the focus block being timed, if
-        there is one -- from _on_phase_ended (finished), _on_skip, and
-        _on_reset (both cut short). Does nothing when no focus block is
-        in progress."""
-        if self._focus_block_start is None:
-            return
-        now = datetime.now()
-        if completed:
-            duration = self._focus_block_planned_seconds
-        else:
-            elapsed = self._focus_block_planned_seconds - self.session.remaining_seconds
-            duration = max(0, elapsed)
-            if duration == 0:
-                # Entering FOCUS and skipping it without ever pressing Start
-                # isn't a session you worked. Don't log a zero-second row.
-                self._focus_block_start = None
-                return
-        try:
-            self.history.record(SessionRecord(
-                start=self._focus_block_start.isoformat(timespec="seconds"),
-                end=now.isoformat(timespec="seconds"),
-                duration_seconds=duration,
-                task_id=self.current_task_id,
-                completed=completed,
-            ))
-        except OSError:
-            # A disk problem (full disk, a locked file, cloud sync) must
-            # never stop the cleanup that runs right after this. Only
-            # OSError is swallowed -- a real bug still shows up.
-            pass
-        self._focus_block_start = None
+        """Write the focus block being timed into history, if there is one
+        (see FocusController.log_block)."""
+        self.controller.focus.log_block(completed)
 
     def _on_phase_ended(self) -> None:
-        self.monitor.pause()
-        self.ambient.stop()
-        self.camera_watcher.pause()
+        self.controller.pause_watching()
         self._close_lockdown()
         self._hide_ghost_widget()
-        if self.current_tier3_effect == "lock_overlay":
+        if self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY:
             self.attributes("-topmost", False)
-        if self.current_tier3_effect == "zero_ui":
+        if self.abilities.enforcement is EnforcementEffect.ZERO_UI:
             self._sync_zero_ui_visibility()
             self.config_obj.zero_grace_mode = False
         # Disk writes go LAST, after all the cleanup above, so a failing
@@ -1089,7 +1024,7 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 try:
                     page.refresh()
                 except Exception:
-                    pass
+                    logger.exception("Refreshing the %s page failed", route_id)
 
         self._sync_mirror_layout()
         self._sync_mirror_divider()
@@ -1099,7 +1034,10 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     # ================================================================== #
     def _on_toggle(self) -> None:
         # X's gimmick: starting fresh (not resuming) needs a goal first.
-        if self.current_tier3_effect == "goal_gate" and self.session.phase is Phase.IDLE:
+        if (
+            self.abilities.enforcement is EnforcementEffect.GOAL_GATE
+            and self.session.phase is Phase.IDLE
+        ):
             self._show_goal_gate()
             return
         self._do_toggle()
@@ -1114,27 +1052,11 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         # check and update things ourselves here.
         if not was_running and self.session.is_running:
             if self.session.phase is Phase.FOCUS:
-                # A FOCUS phase is often entered, then sits paused until you
-                # press Start. History goes by `start`, so take the start
-                # time again at the real "began working" moment -- but only
-                # if nothing has counted down yet (not a resume mid-block).
-                if self.session.remaining_seconds >= self._focus_block_planned_seconds:
-                    self._focus_block_start = datetime.now()
-                if self.current_task_id is not None:
-                    try:
-                        self.tasks.set_status(self.current_task_id, TaskStatus.IN_PROGRESS)
-                    except OSError:
-                        # A disk failure here must not stop the watching
-                        # below from starting.
-                        pass
+                if self.controller.focus.work_resumed():
                     self._render_tasks()
-                self.monitor.resume()
-                if self.config_obj.camera_monitoring_enabled:
-                    self.camera_watcher.resume()
+                self.controller.resume_watching()
         else:
-            self.monitor.pause()
-            self.camera_watcher.pause()
-            self.ambient.stop()
+            self.controller.pause_watching()
 
         self._refresh_timer_widgets()
 
@@ -1150,11 +1072,8 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     def _on_reset(self) -> None:
         self._log_focus_block_if_any(completed=False)
         self.session.reset()
-        self.enforcer.reset()
-        self.camera_enforcer.reset()
-        self.monitor.pause()
-        self.ambient.stop()
-        self.camera_watcher.pause()
+        self.controller.enforcement.reset()
+        self.controller.pause_watching()
         self._close_lockdown()
         self._hide_ghost_widget()
         # Reset during a Ryuki break must flip the window back, too.
@@ -1168,12 +1087,10 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     def _zeztz_hotkeys_active(self) -> bool:
         """False unless Zeztz is picked, and also while you're typing in a
         text box -- otherwise 's' or 'r' would type AND skip/reset."""
-        if self.current_tier4_effect != "hotkeys":
+        if self.abilities.display is not DisplayEffect.HOTKEYS:
             return False
         focused = self.focus_get()
-        if focused is not None and focused.winfo_class() in ("Entry", "Text"):
-            return False
-        return True
+        return focused is None or focused.winfo_class() not in ("Entry", "Text")
 
     def _on_zeztz_space(self, event=None) -> None:
         if self._zeztz_hotkeys_active():
@@ -1190,63 +1107,20 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     # ================================================================== #
     # The activity list, and teaching the model as you go
     # ================================================================== #
-    def _log_activity(self, window: WindowInfo, verdict) -> None:
-        """
-        Adds a window to the list -- every window, not just blocked ones --
-        combining it with the row above if it's the very same app again.
-        """
-        key = window.display
-        if self.activity and self.activity[-1]["key"] == key:
-            self.activity[-1]["count"] += 1
-            self.activity[-1]["blocked"] = verdict.blocked
-            self.activity[-1]["reason"] = verdict.reason
-            self.activity[-1]["confidence"] = verdict.confidence
-            return
-
-        entry = {
-            "key": key,
-            "text": window.text,
-            "time": datetime.now().strftime("%H:%M"),
-            "reason": verdict.reason,
-            "confidence": verdict.confidence,
-            "blocked": verdict.blocked,
-            "count": 1,
-            "corrected": None,
-        }
-        self.activity.append(entry)
-        self.activity = self.activity[-40:]     # only keep the most recent entries
-        self._render_activity()
-
     def _render_activity(self) -> None:
         page = self.pages.get("activity")
         if page is not None:
             page.render()
 
     def _correct(self, entry: dict, label: str) -> None:
-        """
-        Teaches the model from one click, and saves it right away. The
-        very next check already uses what it just learned.
-        """
-        self.model.learn(entry["text"], label)
-        self.model.save(MODEL_PATH)
-        entry["corrected"] = label
-
-        # Also save this into the training data, so `train.py` doesn't ask
-        # about a window you already corrected here.
-        self.observations.label_by_text(entry["text"], label)
-        self.observations.save()
-
-        # "This was studying" is a strong hint the app should just always
-        # be allowed -- so we do that for you right away.
-        process = entry["key"].split(" — ")[0].strip().lower()
-        if label == STUDY and process and process not in self.config_obj.normalised_allowlist():
-            self.config_obj.allowlist.append(process)
-            self.config_obj.save()
+        """Teaches the model from one click, and saves it right away. The
+        very next check already uses what it just learned."""
+        allowed = self.controller.enforcement.correct(entry, label)
+        if allowed:
             self._sync_list_boxes()
-            self._show_banner(f"Learned. Also allow-listed {process}.", "low")
+            self._show_banner(f"Learned. Also allow-listed {allowed}.", "low")
         else:
             self._show_banner("Learned.", "low")
-
         self._update_model_stats()
         self._render_activity()
 
@@ -1275,7 +1149,7 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
     def _focus_look(self) -> str:
         if self._zero_ui_on:
             return "zero_ui"
-        if self.current_tier4_effect == "dashboard_cards":
+        if self.abilities.display is DisplayEffect.DASHBOARD_CARDS:
             return "dashboard"
         return "normal"
 
@@ -1284,7 +1158,7 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         nothing if that's already showing)."""
         if not self._focus_ready:
             return
-        mode = "shape" if self.current_tier1_effect in SHAPE_EFFECTS else "bar"
+        mode = "shape" if self.abilities.progress in SHAPE_EFFECTS else "bar"
         self.focus_page.restack(self._focus_look(), mode)
 
     # Old name, kept: shows the plain bar or the Tier 1 shape.
@@ -1296,7 +1170,10 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         a draining green field and three tiny buttons, and the side bar
         hides. Any other time (break, idle) everything looks normal.
         """
-        active = self.current_tier3_effect == "zero_ui" and self.session.phase is Phase.FOCUS
+        active = (
+            self.abilities.enforcement is EnforcementEffect.ZERO_UI
+            and self.session.phase is Phase.FOCUS
+        )
         if active != self._zero_ui_on:
             self._zero_ui_on = active
             if active:
@@ -1313,7 +1190,8 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 self.reset_button.configure(text="⟲")
             else:
                 self.start_button.configure(
-                    text="Pause" if self.session.is_running else self._henshin_word())
+                    text="Pause" if self.session.is_running else self._henshin_word()
+                )
                 self.skip_button.configure(text="Skip")
                 self.reset_button.configure(text="Reset")
             if not active:
@@ -1359,10 +1237,15 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
             page.blocking_card.set("ON", detail, t.SUCCESS)
         else:
             page.blocking_card.set("OFF", "Nothing gets blocked", t.DANGER)
-        watching = self._watching_text if (self.session.phase is Phase.FOCUS
-                                           and self.monitor.is_active) else ""
-        page.watch_card.set(watching or "Nothing yet",
-                            "The window you're on" if watching else "Only during a focus block")
+        watching = (
+            self._watching_text
+            if (self.session.phase is Phase.FOCUS and self.monitor.is_active)
+            else ""
+        )
+        page.watch_card.set(
+            watching or "Nothing yet",
+            "The window you're on" if watching else "Only during a focus block",
+        )
 
     def _set_kabuto_revealed(self, revealed: bool) -> None:
         """Called on hover enter/leave over the timer digits."""
@@ -1383,17 +1266,22 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         page = self.focus_page
 
         driver_text = self._driver_label_text()
-        if phase is Phase.FOCUS and self.current_tier3_effect == "goal_gate" and self.current_goal_text:
+        if (
+            phase is Phase.FOCUS
+            and self.abilities.enforcement is EnforcementEffect.GOAL_GATE
+            and self.current_goal_text
+        ):
             driver_text = self.current_goal_text.upper()
         page.timer.driver_label.configure(text=driver_text)
 
         hide_kabuto_digits = (
-            self.current_tier4_effect == "hidden_timer"
+            self.abilities.display is DisplayEffect.HIDDEN_TIMER
             and phase is Phase.FOCUS
             and not self._kabuto_revealed
         )
         page.timer.time_label.configure(
-            text="--:--" if hide_kabuto_digits else self.session.format_remaining())
+            text="--:--" if hide_kabuto_digits else self.session.format_remaining()
+        )
 
         # The bar uses the vivid Rider color; the WORDS use the
         # always-readable version, so pale Riders like Fourze stay legible.
@@ -1412,7 +1300,7 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
 
         if phase is Phase.FOCUS:
             # Agito: the color wakes up brighter over the block.
-            if self.current_tier1_effect == "color_interpolation":
+            if self.abilities.progress is ProgressEffect.COLOR_INTERPOLATION:
                 primary_light, primary_dark = self.rider_primary_pair
                 fill_color = (
                     interpolate_agito_color(progress_fraction, primary_light),
@@ -1420,40 +1308,47 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 )
             # Drive: bend the NUMBER fed to the bar, so it starts slow and
             # speeds up near the end.
-            if self.current_tier1_effect == "accelerating_fill":
+            if self.abilities.progress is ProgressEffect.ACCELERATING_FILL:
                 progress_fraction = ease_drive_progress(progress_fraction)
 
         suffix = " (paused)" if self.session.is_paused and phase is not Phase.IDLE else ""
         page.timer.phase_label.configure(text=label + suffix, text_color=text_color)
 
         self._sync_focus_layout()
-        if self.current_tier1_effect in SHAPE_EFFECTS:
+        if self.abilities.progress in SHAPE_EFFECTS:
             self._refresh_progress_shape(progress_fraction)
         else:
             self.progress.set(progress_fraction)
             self.progress.configure(progress_color=fill_color)
 
-        if (self.current_tier1_effect in ("border_glow", "night_overlay")
-                or self.current_tier3_effect == "lock_overlay"
-                or self.current_tier4_effect == "mirror_flip"):
+        if (
+            self.abilities.progress in (ProgressEffect.BORDER_GLOW, ProgressEffect.NIGHT_OVERLAY)
+            or self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY
+            or self.abilities.display is DisplayEffect.MIRROR_FLIP
+        ):
             self._refresh_background_effect(progress_fraction)
 
-        if self.current_tier3_effect == "zero_ui" and phase is Phase.FOCUS:
+        if self.abilities.enforcement is EnforcementEffect.ZERO_UI and phase is Phase.FOCUS:
             self._refresh_zero_ui_drain(progress_fraction)
             self.start_button.configure(text="⏸" if self.session.is_running else "▶")
         else:
             self.start_button.configure(
-                text="Pause" if self.session.is_running else self._henshin_word())
+                text="Pause" if self.session.is_running else self._henshin_word()
+            )
 
         done = self.session.completed_focus_blocks
         until_long = self.session.blocks_until_long_break
         if self._is_tokusatsu():
-            streak_text = f"{done} mission{'s' if done != 1 else ''} complete · Full Recovery in {until_long}"
+            streak_text = (
+                f"{done} mission{'s' if done != 1 else ''} complete · Full Recovery in {until_long}"
+            )
         else:
-            streak_text = f"{done} session{'s' if done != 1 else ''} complete · Long break in {until_long}"
+            streak_text = (
+                f"{done} session{'s' if done != 1 else ''} complete · Long break in {until_long}"
+            )
         page.timer.streak_label.configure(text=streak_text)
 
-        if self.current_tier4_effect == "dashboard_cards":
+        if self.abilities.display is DisplayEffect.DASHBOARD_CARDS:
             # Zero-One: the same numbers, as four cards.
             cards = page.dashboard_cards
             cards["status"].set(label)
@@ -1471,15 +1366,20 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         self._refresh_ghost_widget()
 
     def _refresh_outside_focus(self, phase: Phase, label: str, progress_fraction: float) -> None:
-        if phase is Phase.FOCUS and self.current_tier1_effect == "accelerating_fill":
+        if phase is Phase.FOCUS and self.abilities.progress is ProgressEffect.ACCELERATING_FILL:
             progress_fraction = ease_drive_progress(progress_fraction)
-        if (self.current_tier1_effect in ("border_glow", "night_overlay")
-                or self.current_tier3_effect == "lock_overlay"
-                or self.current_tier4_effect == "mirror_flip"):
+        if (
+            self.abilities.progress in (ProgressEffect.BORDER_GLOW, ProgressEffect.NIGHT_OVERLAY)
+            or self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY
+            or self.abilities.display is DisplayEffect.MIRROR_FLIP
+        ):
             self._refresh_background_effect(progress_fraction)
         self._refresh_top_badges(phase, label)
-        hidden = (self.current_tier4_effect == "hidden_timer" and phase is Phase.FOCUS
-                  and not self._kabuto_revealed)
+        hidden = (
+            self.abilities.display is DisplayEffect.HIDDEN_TIMER
+            and phase is Phase.FOCUS
+            and not self._kabuto_revealed
+        )
         title_time = "--:--" if hidden else self.session.format_remaining()
         self.title(f"{title_time} · {label} — Lock In")
         self._refresh_ghost_widget()
@@ -1494,57 +1394,30 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
         else:
             words = f"{label} active" if not self._is_tokusatsu() else label
             self.phase_badge.set(words, "accent")
-        locked = self.current_tier3_effect == "lock_overlay" and phase is Phase.FOCUS
+        locked = (
+            self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY and phase is Phase.FOCUS
+        )
         if locked and not self.lock_badge.winfo_manager():
             self.layout.pack(self.lock_badge, side="right", padx=(0, t.SPACE_2))
         elif not locked and self.lock_badge.winfo_manager():
             self.lock_badge.pack_forget()
 
     def _refresh_progress_shape(self, progress_fraction: float) -> None:
-        """Redraw the picture for a Tier 1 Rider with its own progress
-        shape -- a light-mode and a dark-mode version, as always. Skipped
-        when the picture would come out the same as last time (the bar
-        only moves about one pixel every few seconds)."""
-        key = (self.current_tier1_effect, round(progress_fraction * PROGRESS_SHAPE_WIDTH))
-        if key == getattr(self, "_shape_key", None) and hasattr(self, "_progress_shape_image"):
-            return
-        self._shape_key = key
-        primary_light, primary_dark = self.rider_primary_pair
-        secondary_light, secondary_dark = self.rider_secondary_pair
-        light_image = render_progress(
-            self.current_tier1_effect, PROGRESS_SHAPE_WIDTH, PROGRESS_SHAPE_HEIGHT,
-            progress_fraction, primary_light, secondary_light, False,
+        """A Tier 1 Rider's progress shape (drawn in ui/effects.py)."""
+        image = self.visuals.progress_shape(
+            self.abilities.progress,
+            progress_fraction,
+            self.rider_primary_pair,
+            self.rider_secondary_pair,
         )
-        dark_image = render_progress(
-            self.current_tier1_effect, PROGRESS_SHAPE_WIDTH, PROGRESS_SHAPE_HEIGHT,
-            progress_fraction, primary_dark, secondary_dark, True,
-        )
-        if hasattr(self, "_progress_shape_image"):
-            self._progress_shape_image.configure(light_image=light_image, dark_image=dark_image)
-        else:
-            self._progress_shape_image = ctk.CTkImage(
-                light_image=light_image, dark_image=dark_image,
-                size=(PROGRESS_SHAPE_WIDTH, PROGRESS_SHAPE_HEIGHT),
-            )
-        if self.progress_shape.cget("image") is not self._progress_shape_image:
-            self.progress_shape.configure(image=self._progress_shape_image)
+        if self.progress_shape.cget("image") is not image:
+            self.progress_shape.configure(image=image)
 
     def _refresh_zero_ui_drain(self, progress_fraction: float) -> None:
-        """Redraw Amazon's draining field. Its green never depends on
-        light/dark mode, so both halves get the same picture."""
-        key = round(progress_fraction * ZERO_UI_HEIGHT)
-        if key == getattr(self, "_drain_key", None) and hasattr(self, "_zero_ui_image"):
-            return
-        self._drain_key = key
-        drain = render_amazon_drain(ZERO_UI_WIDTH, ZERO_UI_HEIGHT, progress_fraction)
-        if hasattr(self, "_zero_ui_image"):
-            self._zero_ui_image.configure(light_image=drain, dark_image=drain)
-        else:
-            self._zero_ui_image = ctk.CTkImage(
-                light_image=drain, dark_image=drain, size=(ZERO_UI_WIDTH, ZERO_UI_HEIGHT),
-            )
-        if self.zero_ui_label.cget("image") is not self._zero_ui_image:
-            self.zero_ui_label.configure(image=self._zero_ui_image)
+        """Amazon's draining field (drawn in ui/effects.py)."""
+        image = self.visuals.zero_ui_drain(progress_fraction)
+        if self.zero_ui_label.cget("image") is not image:
+            self.zero_ui_label.configure(image=image)
 
     def _update_watch_label(self, window: WindowInfo) -> None:
         if self.session.phase is Phase.FOCUS and self.monitor.is_active:
@@ -1566,20 +1439,18 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 "Blocking isn't working: pywin32 and psutil aren't "
                 "installed, so the app can't see which window you're in. "
                 "Run: pip install pywin32 psutil",
-                "high", duration_ms=20000,
+                "high",
+                duration_ms=20000,
             )
 
-    def _queue_banner(self, title: str, body: str, urgency: str) -> None:
-        """Notifier calls this from any thread -- it's safe to use that way."""
-        self._banner_queue.put((title, body, urgency))
-
-    def _show_banner(self, text: str, urgency: str = "low", duration_ms: Optional[int] = None) -> None:
+    def _show_banner(self, text: str, urgency: str = "low", duration_ms: int | None = None) -> None:
         """Shows a short message at the top of the page area for a little while."""
         bg, fg = t.BANNER_COLORS.get(urgency, t.BANNER_COLORS["low"])
         self.banner.configure(text=f"   {text}", fg_color=bg, text_color=fg)
         anchor = self.update_frame if self.update_frame.winfo_manager() else self.page_host
-        self.layout.pack(self.banner, fill="x", padx=CONTENT_MARGIN, pady=(CONTENT_MARGIN, 0),
-                         before=anchor)
+        self.layout.pack(
+            self.banner, fill="x", padx=CONTENT_MARGIN, pady=(CONTENT_MARGIN, 0), before=anchor
+        )
 
         # Cancel any earlier "hide the banner" timer, so a new banner always
         # gets its own full time on screen.
@@ -1588,26 +1459,45 @@ class LockInApp(OverlaysMixin, UpdatesMixin, WizardGesturesMixin, ReviceMixin,
                 self.after_cancel(self._banner_after_id)
             except Exception:
                 pass
-        self._banner_after_id = self.after(duration_ms or self.BANNER_MS, self.banner.pack_forget)
+        self._banner_after_id = self.after(duration_ms or self.BANNER_MS, self._hide_banner)
+
+    def _hide_banner(self) -> None:
+        self._banner_after_id = None
+        try:
+            self.banner.pack_forget()
+        except Exception:
+            pass
 
     # ================================================================== #
     def _on_close(self) -> None:
-        """Saves everything and shuts down the background helpers cleanly."""
-        try:
-            self.config_obj.save()
-            self.model.save(MODEL_PATH)
-            self.observations.save()
-        finally:
+        """Saves everything, stops every background helper, cancels every
+        timer, and closes the window. Safe to call twice: the second call
+        does nothing. One step failing never stops the steps after it."""
+        if self._closing:
+            return
+        self._closing = True
+        failed = self.controller.shutdown()
+        if failed:
+            logger.warning("Some clean-up steps failed while closing: %s", ", ".join(failed))
+        for after_id in [*self._after_ids.values(), self._banner_after_id, self._retire_after]:
+            if after_id is not None:
+                try:
+                    self.after_cancel(after_id)
+                except Exception:
+                    pass
+        self._after_ids.clear()
+        for close in (self._close_lockdown, self._hide_ghost_widget):
             try:
-                self.buddy_link.close()
+                close()
             except Exception:
-                pass
-            self.monitor.stop()
-            self.ambient.stop()
-            self.camera_watcher.stop()
+                logger.exception("Closing an extra window failed")
+        try:
             self.destroy()
+        except Exception:
+            logger.exception("Destroying the window failed")
 
 
 def run() -> None:
     """This is what main.py calls to actually open the app."""
+    setup_logging()
     LockInApp().mainloop()

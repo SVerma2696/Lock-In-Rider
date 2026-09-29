@@ -81,7 +81,7 @@ def test_allowlist_beats_the_classifier(config, model):
 
 
 def test_classifier_catches_unlisted_distractions(config, model):
-    config.allowlist = []      # take chrome off the list, so the model has to decide
+    config.allowlist = []  # take chrome off the list, so the model has to decide
     v = judge(win("chrome.exe", "TikTok For You page - Google Chrome"), config, model)
     assert v.blocked
     assert v.reason is Reason.CLASSIFIER
@@ -158,11 +158,13 @@ def test_allowlist_matches_process_without_exe_suffix(config, model):
 # --------------------------------------------------------------------------- #
 def blocked_verdict():
     from lock_in.enforcer import Verdict
+
     return Verdict(True, Reason.BLOCKLIST, 1.0)
 
 
 def clean_verdict():
     from lock_in.enforcer import Verdict
+
     return Verdict(False, Reason.ALLOWLIST, 1.0)
 
 
@@ -228,7 +230,7 @@ def test_escalation_is_rate_limited(enforcer, clock):
     assert enforcer.update(blocked_verdict(), w) is Action.WARN
 
     fired = 0
-    for _ in range(8):                      # 8 more checks, 1 second apart
+    for _ in range(8):  # 8 more checks, 1 second apart
         clock.advance(1)
         if enforcer.update(blocked_verdict(), w) is not Action.NONE:
             fired += 1
@@ -256,7 +258,7 @@ def test_strikes_decay_after_sustained_clean_time(enforcer, clock):
     assert enforcer.strikes == 2
 
     good = win("code.exe", "main.py")
-    enforcer.update(clean_verdict(), good)      # this is when the good behavior clock starts
+    enforcer.update(clean_verdict(), good)  # this is when the good behavior clock starts
     clock.advance(31)
     enforcer.update(clean_verdict(), good)
     assert enforcer.strikes == 1
@@ -298,116 +300,231 @@ def test_seconds_on_blocked_app_tracks_the_visit(enforcer, clock):
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("action", [Action.WARN, Action.NAG, Action.MINIMIZE, Action.LOCKDOWN])
 def test_every_rung_has_message_copy(action):
-    title, body = message_for(action, app="discord.exe", remaining="12:30",
-                              seconds=20, lockdown=15)
+    title, body = message_for(action, app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
     assert title and body
-    assert "{" not in body          # make sure every blank in the message got filled in
+    assert "{" not in body  # make sure every blank in the message got filled in
 
 
 def test_message_copy_matches_serious_tokusatsu_tone():
-    title, body = message_for(Action.WARN, terminology="tokusatsu", app="discord.exe",
-                              remaining="12:30", seconds=20, lockdown=15)
+    title, body = message_for(
+        Action.WARN,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == "Off Mission"
     assert body == "discord.exe is not part of the mission. 12:30 remains in this Henshin block."
 
-    title, body = message_for(Action.NAG, terminology="tokusatsu", app="discord.exe",
-                              remaining="12:30", seconds=20, lockdown=15)
+    title, body = message_for(
+        Action.NAG,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == "Repeated Violation"
     assert body == "20s on discord.exe. 12:30 until the mission ends — hold the line."
 
-    title, body = message_for(Action.MINIMIZE, terminology="tokusatsu", app="discord.exe",
-                              remaining="12:30", seconds=20, lockdown=15)
+    title, body = message_for(
+        Action.MINIMIZE,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == "Window Neutralized"
     assert body == "discord.exe minimized. 12:30 remaining. This was your directive."
 
-    title, body = message_for(Action.LOCKDOWN, terminology="tokusatsu", app="discord.exe",
-                              remaining="12:30", seconds=20, lockdown=15)
+    title, body = message_for(
+        Action.LOCKDOWN,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == "Full Lockdown"
     assert body == "Screen sealed for 15s. Recover, then resume the mission."
 
 
 def test_message_copy_defaults_to_professional_tone():
     """No terminology given should read exactly like asking for "professional"."""
-    default = message_for(Action.WARN, app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
-    professional = message_for(Action.WARN, terminology="professional", app="discord.exe",
-                               remaining="12:30", seconds=20, lockdown=15)
+    default = message_for(
+        Action.WARN, app="discord.exe", remaining="12:30", seconds=20, lockdown=15
+    )
+    professional = message_for(
+        Action.WARN,
+        terminology="professional",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert default == professional
 
 
 def test_professional_tone_is_the_same_regardless_of_era():
     """Professional mode has one voice -- era only matters in tokusatsu mode."""
-    showa = message_for(Action.WARN, era="Showa", terminology="professional", app="discord.exe",
-                        remaining="12:30", seconds=20, lockdown=15)
-    reiwa = message_for(Action.WARN, era="Reiwa", terminology="professional", app="discord.exe",
-                        remaining="12:30", seconds=20, lockdown=15)
+    showa = message_for(
+        Action.WARN,
+        era="Showa",
+        terminology="professional",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
+    reiwa = message_for(
+        Action.WARN,
+        era="Reiwa",
+        terminology="professional",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert showa == reiwa
 
 
 def test_professional_tone_does_not_use_tokusatsu_words():
-    _, body = message_for(Action.WARN, terminology="professional", app="discord.exe",
-                          remaining="12:30", seconds=20, lockdown=15)
+    _, body = message_for(
+        Action.WARN,
+        terminology="professional",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert "Henshin" not in body
     assert "mission" not in body.lower()
 
 
 def test_default_era_is_heisei():
     """No era given (in tokusatsu mode) should read exactly like asking for Heisei."""
-    default = message_for(Action.WARN, terminology="tokusatsu", app="discord.exe",
-                          remaining="12:30", seconds=20, lockdown=15)
-    heisei = message_for(Action.WARN, era="Heisei", terminology="tokusatsu", app="discord.exe",
-                         remaining="12:30", seconds=20, lockdown=15)
+    default = message_for(
+        Action.WARN,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
+    heisei = message_for(
+        Action.WARN,
+        era="Heisei",
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert default == heisei
 
 
 @pytest.mark.parametrize("era", ["Showa", "Heisei", "Reiwa"])
 @pytest.mark.parametrize("action", [Action.WARN, Action.NAG, Action.MINIMIZE, Action.LOCKDOWN])
 def test_every_era_has_message_copy_for_every_rung(era, action):
-    title, body = message_for(action, era=era, terminology="tokusatsu", app="discord.exe",
-                              remaining="12:30", seconds=20, lockdown=15)
+    title, body = message_for(
+        action,
+        era=era,
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title and body
     assert "{" not in body
 
 
 def test_showa_and_reiwa_have_a_different_voice_than_heisei():
     """The whole point of era copy is that it doesn't all read the same."""
-    heisei_title, _ = message_for(Action.WARN, era="Heisei", terminology="tokusatsu",
-                                  app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
-    showa_title, _ = message_for(Action.WARN, era="Showa", terminology="tokusatsu",
-                                 app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
-    reiwa_title, _ = message_for(Action.WARN, era="Reiwa", terminology="tokusatsu",
-                                 app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
+    heisei_title, _ = message_for(
+        Action.WARN,
+        era="Heisei",
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
+    showa_title, _ = message_for(
+        Action.WARN,
+        era="Showa",
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
+    reiwa_title, _ = message_for(
+        Action.WARN,
+        era="Reiwa",
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert len({heisei_title, showa_title, reiwa_title}) == 3
 
 
 def test_unknown_era_falls_back_to_heisei_instead_of_crashing():
-    title, _ = message_for(Action.WARN, era="Not A Real Era", terminology="tokusatsu",
-                           app="discord.exe", remaining="12:30", seconds=20, lockdown=15)
+    title, _ = message_for(
+        Action.WARN,
+        era="Not A Real Era",
+        terminology="tokusatsu",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == "Off Mission"
 
 
 def test_unknown_terminology_falls_back_to_professional_instead_of_crashing():
-    title, _ = message_for(Action.WARN, terminology="Not A Real Mode", app="discord.exe",
-                           remaining="12:30", seconds=20, lockdown=15)
-    professional_title, _ = message_for(Action.WARN, terminology="professional", app="discord.exe",
-                                        remaining="12:30", seconds=20, lockdown=15)
+    title, _ = message_for(
+        Action.WARN,
+        terminology="Not A Real Mode",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
+    professional_title, _ = message_for(
+        Action.WARN,
+        terminology="professional",
+        app="discord.exe",
+        remaining="12:30",
+        seconds=20,
+        lockdown=15,
+    )
     assert title == professional_title
 
 
 @pytest.mark.parametrize("era", ["Showa", "Heisei", "Reiwa"])
 def test_every_era_has_a_lockdown_screen_label(era):
     from lock_in.enforcer import lockdown_label_for
+
     label = lockdown_label_for(era, terminology="tokusatsu")
-    assert label and label == label.upper()   # the lockdown screen shouts, on purpose
+    assert label and label == label.upper()  # the lockdown screen shouts, on purpose
 
 
 def test_lockdown_label_falls_back_for_unknown_era():
     from lock_in.enforcer import lockdown_label_for
-    assert lockdown_label_for("Not A Real Era", terminology="tokusatsu") == \
-        lockdown_label_for("Heisei", terminology="tokusatsu")
+
+    assert lockdown_label_for("Not A Real Era", terminology="tokusatsu") == lockdown_label_for(
+        "Heisei", terminology="tokusatsu"
+    )
 
 
 def test_lockdown_label_defaults_to_professional():
     from lock_in.enforcer import lockdown_label_for
+
     assert lockdown_label_for("Heisei") == lockdown_label_for("Heisei", terminology="professional")
     assert lockdown_label_for("Heisei") != lockdown_label_for("Heisei", terminology="tokusatsu")
 
@@ -434,6 +551,7 @@ class StubClaude:
 def test_claude_not_consulted_when_feature_disabled(config, model):
     """Even with a remembered answer ready to go, turned off means turned off."""
     from lock_in.claude_fallback import ClaudeVerdict
+
     config.allowlist = []
     config.claude_fallback_enabled = False
     stub = StubClaude({"ambiguous window": ClaudeVerdict(DISTRACTION, 0.9, "claude")})
@@ -444,9 +562,10 @@ def test_claude_not_consulted_when_feature_disabled(config, model):
 def test_claude_breaks_ties_when_local_model_is_unsure(config, model):
     """A confident local answer never needs Claude's help; an unsure one does."""
     from lock_in.claude_fallback import ClaudeVerdict
+
     config.allowlist = []
     config.claude_fallback_enabled = True
-    config.classifier_threshold = 0.999      # force everything into "unsure"
+    config.classifier_threshold = 0.999  # force everything into "unsure"
 
     window = win("unknown.exe", "some ambiguous productivity tool window")
     stub = StubClaude({window.text: ClaudeVerdict(DISTRACTION, 0.85, "claude")})
@@ -461,17 +580,18 @@ def test_claude_cache_miss_falls_back_to_local_verdict(config, model):
     config.allowlist = []
     config.claude_fallback_enabled = True
     config.classifier_threshold = 0.999
-    stub = StubClaude({})     # nothing remembered yet
+    stub = StubClaude({})  # nothing remembered yet
     v = judge(win("unknown.exe", "some ambiguous window"), config, model, stub)
     assert v.reason is Reason.CLASSIFIER
-    assert not v.blocked      # being unsure defaults to letting it through, never blocking
+    assert not v.blocked  # being unsure defaults to letting it through, never blocking
 
 
 def test_allowlist_beats_claude(config, model):
     """The lists you set yourself always outrank any model, local or remote."""
     from lock_in.claude_fallback import ClaudeVerdict
+
     config.claude_fallback_enabled = True
-    window = win("chrome.exe", "Stray Kids MV - YouTube")   # chrome.exe is on the allow list
+    window = win("chrome.exe", "Stray Kids MV - YouTube")  # chrome.exe is on the allow list
     stub = StubClaude({window.text: ClaudeVerdict(DISTRACTION, 0.99, "claude")})
     v = judge(window, config, model, stub)
     assert not v.blocked
@@ -480,8 +600,9 @@ def test_allowlist_beats_claude(config, model):
 
 def test_blocklist_beats_claude(config, model):
     from lock_in.claude_fallback import ClaudeVerdict
+
     config.claude_fallback_enabled = True
-    window = win("discord.exe", "some window")   # discord.exe is on the block list
+    window = win("discord.exe", "some window")  # discord.exe is on the block list
     stub = StubClaude({window.text: ClaudeVerdict(STUDY, 0.99, "claude")})
     v = judge(window, config, model, stub)
     assert v.blocked
@@ -491,6 +612,7 @@ def test_blocklist_beats_claude(config, model):
 def test_confident_local_verdict_beats_claude(config, model):
     """Claude only breaks ties — it can't overrule a confident local answer."""
     from lock_in.claude_fallback import ClaudeVerdict
+
     config.allowlist = []
     config.claude_fallback_enabled = True
     # We leave the threshold at its default (0.8) — the starter-trained model
@@ -499,8 +621,8 @@ def test_confident_local_verdict_beats_claude(config, model):
     window = win("unknown.exe", "general #chat - Discord")
     stub = StubClaude({window.text: ClaudeVerdict(STUDY, 0.99, "claude")})
     v = judge(window, config, model, stub)
-    assert v.reason is Reason.CLASSIFIER      # not CLAUDE — it was never even asked
-    assert v.blocked                          # the local model's own answer wins
+    assert v.reason is Reason.CLASSIFIER  # not CLAUDE — it was never even asked
+    assert v.blocked  # the local model's own answer wins
 
 
 def test_claude_none_behaves_exactly_like_before(config, model):

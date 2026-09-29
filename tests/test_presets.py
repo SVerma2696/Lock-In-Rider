@@ -20,28 +20,61 @@ def test_super1_has_exactly_5_presets():
 def test_super1_preset_values():
     by_name = {p.name_tokusatsu: p for p in SUPER1_PRESETS}
     assert by_name["Super Hand"] == TimerPreset(
-        "Super Hand", "Development (25m)", 25, 5, 15, 4,
+        "Super Hand",
+        "Development (25m)",
+        25,
+        5,
+        15,
+        4,
         "General software development",
     )
     assert by_name["Power Hand"] == TimerPreset(
-        "Power Hand", "Hardware/Embedded (50m)", 50, 10, 20, 3,
+        "Power Hand",
+        "Hardware/Embedded (50m)",
+        50,
+        10,
+        20,
+        3,
         "Hardware & embedded engineering",
     )
     assert by_name["Elek Hand"] == TimerPreset(
-        "Elek Hand", "Admin (15m)", 15, 5, 15, 4,
+        "Elek Hand",
+        "Admin (15m)",
+        15,
+        5,
+        15,
+        4,
         "Admin & correspondence",
     )
     assert by_name["Cold/Thermal Hand"] == TimerPreset(
-        "Cold/Thermal Hand", "Logic/AI (45m)", 45, 10, 20, 3,
+        "Cold/Thermal Hand",
+        "Logic/AI (45m)",
+        45,
+        10,
+        20,
+        3,
         "Logic & AI implementation",
     )
     assert by_name["Radar Hand"] == TimerPreset(
-        "Radar Hand", "Research (30m)", 30, 5, 15, 4,
+        "Radar Hand",
+        "Research (30m)",
+        30,
+        5,
+        15,
+        4,
         "Network analysis & research",
     )
 
 
 def test_gavv_micro_sprint_values():
-    assert GAVV_MICRO_SPRINT == TimerPreset(
-        "Bite-Sized Mode", "Micro-Sprint Mode", 10, 8, 15, 2,
+    assert (
+        TimerPreset(
+            "Bite-Sized Mode",
+            "Micro-Sprint Mode",
+            10,
+            8,
+            15,
+            2,
+        )
+        == GAVV_MICRO_SPRINT
     )

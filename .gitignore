@@ -8,10 +8,17 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Test and coverage output
+# Test, coverage, and checking-tool output
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Made when the project is installed with `pip install -e .`
+*.egg-info/
 
 # PyInstaller build output (from build.bat)
 build/
@@ -49,6 +56,13 @@ app_icon_square.png
 # always downloads and unpacks in the OS temp folder, never this one.
 *.old
 lockin_update_tmp/
+
+# Release downloads and their fingerprint files. The release build makes
+# these on GitHub (see .github/workflows/release.yml); a copy made while
+# testing here doesn't belong in the project.
+LockIn-*.zip
+LockIn-*.tar.gz
+*.sha256
 
 # A throwaway settings folder for tests/smoke_ui.py, so running it never
 # changes your real settings, tasks, or history (see that file).

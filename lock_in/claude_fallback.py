@@ -35,13 +35,16 @@ or missing API key should never break your Pomodoro timer.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Any
 
 from .classifier import DISTRACTION, STUDY
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You classify a computer window as either study-related or a distraction, "
@@ -62,7 +65,7 @@ class ClaudeVerdict:
 
     label: str
     confidence: float
-    source: str          # "claude" | "cache" | "unavailable" | "error"
+    source: str  # "claude" | "cache" | "unavailable" | "error"
     detail: str = ""
 
 
@@ -79,9 +82,9 @@ class ClaudeFallback:
 
     def __init__(self, config) -> None:
         self.config = config
-        self._client = None
-        self._client_error: Optional[str] = None
-        self._cache: dict[str, Tuple[ClaudeVerdict, float]] = {}
+        self._client: Any = None
+        self._client_error: str | None = None
+        self._cache: dict[str, tuple[ClaudeVerdict, float]] = {}
         self._inflight: set[str] = set()
         self._lock = threading.Lock()
 
@@ -112,7 +115,7 @@ class ClaudeFallback:
             return False
         try:
             self._client = anthropic.Anthropic()
-        except Exception as exc:                       # for example, a bad key
+        except Exception as exc:  # for example, a bad key
             self._client_error = str(exc)
             return False
         return True
@@ -151,7 +154,7 @@ class ClaudeFallback:
         self._cache_set(text, verdict)
         return verdict
 
-    def peek(self, text: str) -> Optional[ClaudeVerdict]:
+    def peek(self, text: str) -> ClaudeVerdict | None:
         """
         Check if we already remember an answer for this text — instantly,
         without ever touching the internet.
@@ -192,7 +195,8 @@ class ClaudeFallback:
                 try:
                     on_result(text, verdict)
                 except Exception:
-                    pass       # a broken callback must not crash this background thread
+                    # A broken callback must not crash this background thread.
+                    logger.exception("Handing on a Claude answer failed")
             finally:
                 with self._lock:
                     self._inflight.discard(text)
@@ -207,9 +211,7 @@ class ClaudeFallback:
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": f"Window: {text}"}],
             )
-            raw = "".join(
-                block.text for block in response.content if block.type == "text"
-            ).strip()
+            raw = "".join(block.text for block in response.content if block.type == "text").strip()
             data = json.loads(raw)
 
             label = data.get("label", "").strip().lower()
@@ -217,7 +219,7 @@ class ClaudeFallback:
                 return ClaudeVerdict(STUDY, 0.5, "error", f"unexpected label: {label!r}")
 
             confidence = float(data.get("confidence", 0.75))
-            confidence = min(1.0, max(0.5, confidence))    # keep it in a sensible range
+            confidence = min(1.0, max(0.5, confidence))  # keep it in a sensible range
             return ClaudeVerdict(label, confidence, "claude")
 
         except json.JSONDecodeError:
@@ -231,7 +233,7 @@ class ClaudeFallback:
     # ------------------------------------------------------------------ #
     # Remembering answers, so we don't ask (and pay for) the same thing twice
     # ------------------------------------------------------------------ #
-    def _cache_get(self, text: str) -> Optional[ClaudeVerdict]:
+    def _cache_get(self, text: str) -> ClaudeVerdict | None:
         with self._lock:
             entry = self._cache.get(text)
             if entry is None:
@@ -244,7 +246,7 @@ class ClaudeFallback:
 
     def _cache_set(self, text: str, verdict: ClaudeVerdict) -> None:
         if verdict.source != "claude":
-            return          # don't remember failures — a one-time hiccup shouldn't stick around
+            return  # don't remember failures — a one-time hiccup shouldn't stick around
         ttl = self.config.claude_cache_minutes * 60
         with self._lock:
             self._cache[text] = (verdict, time.monotonic() + ttl)

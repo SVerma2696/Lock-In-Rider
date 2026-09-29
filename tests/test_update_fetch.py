@@ -27,10 +27,12 @@ class FakeResponse:
 
 def install_fake_urlopen(monkeypatch, result):
     """result is either a FakeResponse to return, or an Exception instance to raise."""
+
     def fake_urlopen(request, timeout=None):
         if isinstance(result, Exception):
             raise result
         return result
+
     monkeypatch.setattr(update_fetch.urllib.request, "urlopen", fake_urlopen)
 
 

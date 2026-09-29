@@ -11,6 +11,7 @@ def _iso(days_ago: int) -> str:
 
 # --- week_pairs -------------------------------------------------------- #
 
+
 def test_week_pairs_always_returns_exactly_seven_entries():
     assert len(week_pairs({}, TODAY)) == 7
 
@@ -63,6 +64,7 @@ def test_week_pairs_pairs_correctly_across_a_year_boundary():
 
 
 # --- compare_sentence -------------------------------------------------- #
+
 
 def test_compare_sentence_when_this_week_is_more():
     assert compare_sentence(this_seconds=6000, last_seconds=0) == (
@@ -121,11 +123,14 @@ def test_compare_sentence_is_never_harsh():
 
 # --- wiring ------------------------------------------------------------- #
 
+
 def test_week_compare_is_registered_with_the_tier5_builders():
     from lock_in.tier5 import TIER5_BUILDERS, w
+
     assert TIER5_BUILDERS["week_compare"] is w.build
 
 
 def test_week_compare_has_the_week_tab_label():
     from lock_in.ui import _TIER5_TAB_LABELS
+
     assert _TIER5_TAB_LABELS["week_compare"] == "Week"

@@ -22,12 +22,17 @@ enforcer.py / monitor.py boundary elsewhere in this app:
 from __future__ import annotations
 
 import importlib.util
+import logging
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any
 
+from .diagnostics import log_once
 from .enforcer import Action, Enforcer, Reason, Verdict, WindowInfo
+
+logger = logging.getLogger(__name__)
 
 _ASSETS_DIR = Path(__file__).parent / "assets"
 MODEL_PB_PATH = _ASSETS_DIR / "phone_detector.pb"
@@ -44,16 +49,19 @@ MODEL_PBTXT_PATH = _ASSETS_DIR / "phone_detector.pbtxt"
 # so it's loaded by _cv2() the first time the camera is really used.
 CAMERA_BACKEND_AVAILABLE = (
     importlib.util.find_spec("cv2") is not None
-    and MODEL_PB_PATH.exists() and MODEL_PBTXT_PATH.exists()
+    and MODEL_PB_PATH.exists()
+    and MODEL_PBTXT_PATH.exists()
 )
 
 
 def _cv2():
     """Load OpenCV the first time it's needed (Python remembers it after)."""
-    import cv2  # type: ignore
+    import cv2
+
     return cv2
 
-PHONE_CLASS_ID = 77                     # COCO's class id for "cell phone"
+
+PHONE_CLASS_ID = 77  # COCO's class id for "cell phone"
 DETECTION_CONFIDENCE_THRESHOLD = 0.5
 DETECTION_INPUT_SIZE = (300, 300)
 SAMPLE_INTERVAL_SECONDS = 4.0
@@ -72,7 +80,7 @@ class PhoneDetector:
         self._net = net
 
     @classmethod
-    def from_files(cls, pb_path: Path, pbtxt_path: Path) -> "PhoneDetector":
+    def from_files(cls, pb_path: Path, pbtxt_path: Path) -> PhoneDetector:
         net = _cv2().dnn.readNetFromTensorflow(str(pb_path), str(pbtxt_path))
         return cls(net)
 
@@ -113,8 +121,8 @@ class PhoneWatcher:
     def __init__(
         self,
         callback: Callable[[bool], None],
-        detector: Optional[PhoneDetector] = None,
-        camera_factory: Optional[Callable[[], object]] = None,
+        detector: PhoneDetector | None = None,
+        camera_factory: Callable[[], object] | None = None,
         interval: float = SAMPLE_INTERVAL_SECONDS,
     ) -> None:
         self._callback = callback
@@ -123,11 +131,11 @@ class PhoneWatcher:
         self._camera_factory = camera_factory or (lambda: _cv2().VideoCapture(0))
         self.interval = interval
 
-        self._cap = None
-        self._thread: Optional[threading.Thread] = None
+        self._cap: Any = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._paused = threading.Event()
-        self._paused.set()   # start paused -- nothing to check until a focus block begins
+        self._paused.set()  # start paused -- nothing to check until a focus block begins
         self._cam_lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
@@ -169,7 +177,7 @@ class PhoneWatcher:
                 try:
                     self._cap.release()
                 except Exception:
-                    pass
+                    log_once(logger, "camera-release", "Letting go of the camera failed")
                 self._cap = None
 
     def _ensure_detector(self) -> None:
@@ -177,6 +185,7 @@ class PhoneWatcher:
             try:
                 self._detector = PhoneDetector.from_files(MODEL_PB_PATH, MODEL_PBTXT_PATH)
             except Exception:
+                logger.warning("The phone detector couldn't load", exc_info=True)
                 self._detector_unavailable = True
 
     @property
@@ -192,12 +201,13 @@ class PhoneWatcher:
         if self._detector is None:
             return
         with self._cam_lock:
-            if self._paused.is_set():      # a pause landed while we were setting up
+            if self._paused.is_set():  # a pause landed while we were setting up
                 return
             if self._cap is None:
                 try:
                     self._cap = self._camera_factory()
                 except Exception:
+                    log_once(logger, "camera-open", "The camera couldn't be opened")
                     self._cap = None
                     return
             try:
@@ -216,6 +226,7 @@ class PhoneWatcher:
             try:
                 self._step()
             except Exception:
+                log_once(logger, "camera-step", "A camera check failed")
                 # A camera or model hiccup must not silently kill the
                 # background thread -- the next sample, a few seconds
                 # later, deserves a fresh chance to work.

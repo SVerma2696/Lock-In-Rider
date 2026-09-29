@@ -37,7 +37,6 @@ import random
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 from lock_in.classifier import (
     DISTRACTION,
@@ -46,8 +45,8 @@ from lock_in.classifier import (
     NaiveBayesClassifier,
     tokenize,
 )
-from lock_in.config import Config, MODEL_PATH, OBSERVATIONS_PATH
-from lock_in.observations import Observation, ObservationStore
+from lock_in.config import MODEL_PATH, OBSERVATIONS_PATH, Config
+from lock_in.observations import ObservationStore
 
 # --------------------------------------------------------------------------- #
 # Little helpers for printing nice, colorful text
@@ -71,7 +70,7 @@ def heading(text: str) -> None:
     print(DIM + "─" * min(len(text), 60) + RESET)
 
 
-def colour_label(label: Optional[str]) -> str:
+def colour_label(label: str | None) -> str:
     if label == STUDY:
         return f"{GREEN}study{RESET}"
     if label == DISTRACTION:
@@ -82,7 +81,7 @@ def colour_label(label: Optional[str]) -> str:
 # --------------------------------------------------------------------------- #
 # record
 # --------------------------------------------------------------------------- #
-def cmd_record(args: List[str]) -> int:
+def cmd_record(args: list[str]) -> int:
     """
     Watches your active window and writes it down, until you stop it.
 
@@ -128,8 +127,10 @@ def cmd_record(args: List[str]) -> int:
                     is_new = record["key"] not in seen_this_run
                     seen_this_run.add(record["key"])
                     marker = f"{CYAN}new{RESET}" if is_new else f"{DIM}seen{RESET}"
-                    print(f"  [{marker}] {window.display[:58]:<58} "
-                          f"{colour_label(predicted)} {confidence:.0%}")
+                    print(
+                        f"  [{marker}] {window.display[:58]:<58} "
+                        f"{colour_label(predicted)} {confidence:.0%}"
+                    )
 
             # Save regularly, so force-closing the window doesn't lose everything.
             if len(seen_this_run) % 25 == 0:
@@ -141,8 +142,10 @@ def cmd_record(args: List[str]) -> int:
 
     store.save()
     stats = store.stats()
-    print(f"\n{GREEN}Saved.{RESET} {len(seen_this_run)} distinct windows this run, "
-          f"{stats['pending']} total waiting to be labelled.")
+    print(
+        f"\n{GREEN}Saved.{RESET} {len(seen_this_run)} distinct windows this run, "
+        f"{stats['pending']} total waiting to be labelled."
+    )
     print(f"Next: {BOLD}python train.py label{RESET}")
     return 0
 
@@ -150,7 +153,7 @@ def cmd_record(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # label
 # --------------------------------------------------------------------------- #
-def cmd_label(args: List[str]) -> int:
+def cmd_label(args: list[str]) -> int:
     """
     Walks you through unlabelled windows one at a time, most-seen ones first.
 
@@ -174,14 +177,18 @@ def cmd_label(args: List[str]) -> int:
         pending = pending[:limit]
 
     if not pending:
-        print(f"{GREEN}Nothing to label.{RESET} "
-              f"Run the app (or `train.py record`) to collect some windows first.")
+        print(
+            f"{GREEN}Nothing to label.{RESET} "
+            f"Run the app (or `train.py record`) to collect some windows first."
+        )
         return 0
 
     heading(f"Labelling {len(pending)} windows")
-    print(f"{BOLD}s{RESET} = study   {BOLD}d{RESET} = distraction   "
-          f"{BOLD}enter{RESET} = accept the model's guess   "
-          f"{BOLD}k{RESET} = skip   {BOLD}q{RESET} = save and quit\n")
+    print(
+        f"{BOLD}s{RESET} = study   {BOLD}d{RESET} = distraction   "
+        f"{BOLD}enter{RESET} = accept the model's guess   "
+        f"{BOLD}k{RESET} = skip   {BOLD}q{RESET} = save and quit\n"
+    )
 
     labelled = 0
     agreed = 0
@@ -196,16 +203,13 @@ def cmd_label(args: List[str]) -> int:
         guess, confidence = model.predict(record.text)
 
         print(f"{DIM}[{index}/{len(pending)}]{RESET} {BOLD}{record.display[:70]}{RESET}")
-        print(f"     seen {record.count}×  ·  model says {colour_label(guess)} "
-              f"({confidence:.0%})")
+        print(f"     seen {record.count}×  ·  model says {colour_label(guess)} ({confidence:.0%})")
 
         # Show the words behind the guess, so it's never a mystery — you can
         # double check it makes sense before agreeing.
         top = model.explain(record.text, top_n=4)
         if top:
-            rendered = ", ".join(
-                f"{token}{'+' if weight > 0 else '-'}" for token, weight in top
-            )
+            rendered = ", ".join(f"{token}{'+' if weight > 0 else '-'}" for token, weight in top)
             print(f"     {DIM}signal: {rendered}{RESET}")
 
         try:
@@ -254,7 +258,7 @@ def cmd_label(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # rebuild
 # --------------------------------------------------------------------------- #
-def cmd_rebuild(args: List[str]) -> int:
+def cmd_rebuild(args: list[str]) -> int:
     """
     Trains the model again from nothing: starter examples + every window
     you've labelled.
@@ -291,7 +295,7 @@ def cmd_rebuild(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # stats
 # --------------------------------------------------------------------------- #
-def cmd_stats(args: List[str]) -> int:
+def cmd_stats(args: list[str]) -> int:
     """Shows the model's size, its label balance, and its most telling words."""
     store = ObservationStore(OBSERVATIONS_PATH)
     model = NaiveBayesClassifier.load(MODEL_PATH)
@@ -299,9 +303,11 @@ def cmd_stats(args: List[str]) -> int:
 
     heading("Model")
     total = sum(model.label_counts.values())
-    print(f"Examples:    {total}  "
-          f"({model.label_counts[STUDY]} study / "
-          f"{model.label_counts[DISTRACTION]} distraction)")
+    print(
+        f"Examples:    {total}  "
+        f"({model.label_counts[STUDY]} study / "
+        f"{model.label_counts[DISTRACTION]} distraction)"
+    )
     print(f"Vocabulary:  {len(model.vocabulary)} tokens")
 
     # Balance matters: a model taught mostly with study examples gets used
@@ -309,8 +315,10 @@ def cmd_stats(args: List[str]) -> int:
     if total:
         skew = abs(model.label_counts[STUDY] - model.label_counts[DISTRACTION]) / total
         if skew > 0.4:
-            print(f"{YELLOW}Warning: classes are {skew:.0%} skewed. "
-                  f"Label more of the smaller class.{RESET}")
+            print(
+                f"{YELLOW}Warning: classes are {skew:.0%} skewed. "
+                f"Label more of the smaller class.{RESET}"
+            )
 
     heading("Observations")
     print(f"Distinct windows:  {stats['total']}")
@@ -329,7 +337,7 @@ def cmd_stats(args: List[str]) -> int:
     return 0
 
 
-def _token_weights(model: NaiveBayesClassifier) -> List[Tuple[str, float]]:
+def _token_weights(model: NaiveBayesClassifier) -> list[tuple[str, float]]:
     """
     Gives a weight to every word the model knows, most-distracting first.
 
@@ -351,7 +359,7 @@ def _token_weights(model: NaiveBayesClassifier) -> List[Tuple[str, float]]:
 # --------------------------------------------------------------------------- #
 # eval
 # --------------------------------------------------------------------------- #
-def cmd_eval(args: List[str]) -> int:
+def cmd_eval(args: list[str]) -> int:
     """
     Tests the model fairly: teach it a random 70% of your examples, then
     quiz it on the other 30% it's never seen.
@@ -428,15 +436,21 @@ def cmd_eval(args: List[str]) -> int:
     print()
     for label in (DISTRACTION, STUDY):
         print(f"{colour_label(label)}")
-        print(f"  precision  {mean(precisions[label]):.1%}   "
-              f"{DIM}(when it says this, how often it's right){RESET}")
-        print(f"  recall     {mean(recalls[label]):.1%}   "
-              f"{DIM}(of all real cases, how many it caught){RESET}")
+        print(
+            f"  precision  {mean(precisions[label]):.1%}   "
+            f"{DIM}(when it says this, how often it's right){RESET}"
+        )
+        print(
+            f"  recall     {mean(recalls[label]):.1%}   "
+            f"{DIM}(of all real cases, how many it caught){RESET}"
+        )
 
     overlap = mean(overlaps)
     print()
-    print(f"Vocabulary overlap:    {overlap:.0%}   "
-          f"{DIM}(share of test-title words the model had seen before){RESET}")
+    print(
+        f"Vocabulary overlap:    {overlap:.0%}   "
+        f"{DIM}(share of test-title words the model had seen before){RESET}"
+    )
 
     print()
     # We check these in order of importance. Low overlap matters most: no
@@ -455,11 +469,15 @@ def cmd_eval(args: List[str]) -> int:
         print(f"  {DIM}Meanwhile the block/allow lists do the real work — they're")
         print(f"  exact matches and don't need training at all.{RESET}")
     elif distraction_recall < 0.7:
-        print(f"{YELLOW}Low distraction recall — it's missing things. "
-              f"Label more distraction examples, or lower classifier_threshold.{RESET}")
+        print(
+            f"{YELLOW}Low distraction recall — it's missing things. "
+            f"Label more distraction examples, or lower classifier_threshold.{RESET}"
+        )
     elif study_precision < 0.8:
-        print(f"{YELLOW}It's interrupting you while you work. "
-              f"Label more study examples, or raise classifier_threshold.{RESET}")
+        print(
+            f"{YELLOW}It's interrupting you while you work. "
+            f"Label more study examples, or raise classifier_threshold.{RESET}"
+        )
     else:
         print(f"{GREEN}Healthy. Both classes are being handled well.{RESET}")
 
@@ -472,7 +490,7 @@ def cmd_eval(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # test
 # --------------------------------------------------------------------------- #
-def cmd_test(args: List[str]) -> int:
+def cmd_test(args: list[str]) -> int:
     """Guesses on one window title, and shows the words behind the guess."""
     text = " ".join(a for a in args if not a.startswith("--")).strip()
     if not text:
@@ -501,7 +519,7 @@ def cmd_test(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # import / export
 # --------------------------------------------------------------------------- #
-def cmd_import(args: List[str]) -> int:
+def cmd_import(args: list[str]) -> int:
     """
     Brings in a whole batch of `label,text` rows from a CSV or TSV file.
 
@@ -521,7 +539,7 @@ def cmd_import(args: List[str]) -> int:
         return 1
 
     delimiter = "\t" if path.suffix.lower() == ".tsv" else ","
-    pairs: List[Tuple[str, str]] = []
+    pairs: list[tuple[str, str]] = []
     skipped = 0
 
     with path.open(encoding="utf-8", newline="") as handle:
@@ -554,7 +572,7 @@ def cmd_import(args: List[str]) -> int:
     return 0
 
 
-def cmd_export(args: List[str]) -> int:
+def cmd_export(args: list[str]) -> int:
     """Saves your labelled data to a CSV file — for backups, or editing in a spreadsheet."""
     paths = [a for a in args if not a.startswith("--")]
     target = Path(paths[0]) if paths else Path("lockin_training_data.csv")
@@ -566,8 +584,15 @@ def cmd_export(args: List[str]) -> int:
         writer = csv.writer(handle)
         writer.writerow(["label", "text", "process", "count", "first_seen"])
         for record in sorted(rows, key=lambda r: r.count, reverse=True):
-            writer.writerow([record.label, record.text, record.get("process", ""),
-                             record.count, record.get("first_seen", "")])
+            writer.writerow(
+                [
+                    record.label,
+                    record.text,
+                    record.get("process", ""),
+                    record.count,
+                    record.get("first_seen", ""),
+                ]
+            )
 
     print(f"{GREEN}Exported {len(rows)} labelled examples to {target}{RESET}")
     return 0
@@ -576,7 +601,7 @@ def cmd_export(args: List[str]) -> int:
 # --------------------------------------------------------------------------- #
 # purge
 # --------------------------------------------------------------------------- #
-def cmd_purge(args: List[str]) -> int:
+def cmd_purge(args: list[str]) -> int:
     """Removes unlabelled windows — a clean start, without losing anything you already labelled."""
     store = ObservationStore(OBSERVATIONS_PATH)
     pending = len(store.pending())
@@ -586,8 +611,11 @@ def cmd_purge(args: List[str]) -> int:
         return 0
 
     if "--yes" not in args:
-        answer = input(f"Delete {pending} unlabelled observations? "
-                       f"(labels are kept) [y/N] ").strip().lower()
+        answer = (
+            input(f"Delete {pending} unlabelled observations? (labels are kept) [y/N] ")
+            .strip()
+            .lower()
+        )
         if not answer.startswith("y"):
             print("Cancelled.")
             return 0
@@ -621,7 +649,7 @@ def usage() -> None:
     print(f"  observations: {OBSERVATIONS_PATH}")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
 
     if not argv or argv[0] in ("-h", "--help", "help"):

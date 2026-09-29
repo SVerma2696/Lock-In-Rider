@@ -13,8 +13,9 @@ import sys
 
 def modules_loaded_by(import_line: str) -> set:
     code = f"import sys\n{import_line}\nprint(','.join(sys.modules))"
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                         check=True, cwd=".")
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True, cwd="."
+    )
     return set(out.stdout.strip().split(","))
 
 
@@ -28,5 +29,6 @@ def test_opening_the_app_code_does_not_load_opencv_or_web_requests():
 
 def test_camera_feature_check_does_not_load_opencv():
     loaded = modules_loaded_by(
-        "import lock_in.camera_enforcer as c; print(c.CAMERA_BACKEND_AVAILABLE)")
+        "import lock_in.camera_enforcer as c; print(c.CAMERA_BACKEND_AVAILABLE)"
+    )
     assert "cv2" not in loaded

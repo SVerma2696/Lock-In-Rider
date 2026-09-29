@@ -21,7 +21,13 @@ from datetime import date, timedelta
 
 import customtkinter as ctk
 
-from ._shared import format_day_heading, format_hm, format_time_range, resolve_task_name, sorted_blocks
+from ._shared import (
+    format_day_heading,
+    format_hm,
+    format_time_range,
+    resolve_task_name,
+    sorted_blocks,
+)
 
 # The same colors ui.py uses (COLOR_BREAK / COLOR_WARN / COLOR_IDLE):
 # green = good, amber = careful, gray = quiet. They are copied here
@@ -50,7 +56,9 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     prev_button = ctk.CTkButton(header, text="< Prev", width=90)
     prev_button.pack(side="left")
     heading_label = ctk.CTkLabel(
-        header, text="", font=ctk.CTkFont(size=14, weight="bold"),
+        header,
+        text="",
+        font=ctk.CTkFont(size=14, weight="bold"),
         text_color=theme.primary_text_pair,
     )
     heading_label.pack(side="left", expand=True)
@@ -76,7 +84,9 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
         blocks = sorted_blocks(history.for_date(day))
         if not blocks:
             ctk.CTkLabel(
-                rows_frame, text="No focus blocks on this day.", text_color=_MUTED_COLOR,
+                rows_frame,
+                text="No focus blocks on this day.",
+                text_color=_MUTED_COLOR,
             ).pack(anchor="w", pady=20)
             return
 
@@ -86,7 +96,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
             row.pack(fill="x", pady=3)
 
             ctk.CTkLabel(
-                row, text="●", text_color=dot_color, width=20,
+                row,
+                text="●",
+                text_color=dot_color,
+                width=20,
                 font=ctk.CTkFont(size=14),
             ).pack(side="left", padx=(10, 0))
 
@@ -98,11 +111,17 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
                 f"{format_hm(record.duration_seconds)}"
             )
             ctk.CTkLabel(
-                left, text=title, anchor="w", font=ctk.CTkFont(size=12, weight="bold"),
+                left,
+                text=title,
+                anchor="w",
+                font=ctk.CTkFont(size=12, weight="bold"),
             ).pack(anchor="w")
             ctk.CTkLabel(
-                left, text=resolve_task_name(record.task_id, tasks), anchor="w",
-                font=ctk.CTkFont(size=10), text_color=_MUTED_COLOR,
+                left,
+                text=resolve_task_name(record.task_id, tasks),
+                anchor="w",
+                font=ctk.CTkFont(size=10),
+                text_color=_MUTED_COLOR,
             ).pack(anchor="w")
 
     def go(delta: int) -> None:

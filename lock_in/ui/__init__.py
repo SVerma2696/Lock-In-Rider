@@ -21,6 +21,11 @@ from .task_picker import build_task_picker_entries
 _TIER5_TAB_LABELS = TIER5_ROUTE_LABELS
 
 __all__ = [
-    "LockInApp", "run", "flip_grid_kwargs", "flip_pack_kwargs", "flip_place_kwargs",
-    "build_task_picker_entries", "TIER5_ROUTE_LABELS",
+    "LockInApp",
+    "run",
+    "flip_grid_kwargs",
+    "flip_pack_kwargs",
+    "flip_place_kwargs",
+    "build_task_picker_entries",
+    "TIER5_ROUTE_LABELS",
 ]

@@ -20,14 +20,13 @@ import json
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 REPO = "SVerma2696/Lock-In-Rider"
 _API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 _USER_AGENT = "Lock-In-Auto-Updater"
 
 
-def fetch_latest_release(timeout: float = 5.0) -> Optional[dict]:
+def fetch_latest_release(timeout: float = 5.0) -> dict | None:
     """GET the GitHub API's 'latest release' endpoint. Returns the
     parsed JSON dict, or None on ANY failure -- timeout, non-200, a
     response that isn't valid JSON, no internet at all."""
@@ -46,6 +45,24 @@ def fetch_latest_release(timeout: float = 5.0) -> Optional[dict]:
     try:
         return json.loads(body)
     except Exception:
+        return None
+
+
+def fetch_text(url: str, max_bytes: int, timeout: float = 10.0) -> str | None:
+    """GET a small text file (like a .sha256 fingerprint). None on ANY
+    failure, including a file bigger than `max_bytes` or one that isn't
+    plain text."""
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = response.read(max_bytes + 1)
+    except Exception:  # broad on purpose -- see fetch_latest_release above
+        return None
+    if len(body) > max_bytes:
+        return None
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
         return None
 
 

@@ -38,28 +38,38 @@ ZERO_UI_HEIGHT = 120
 
 
 class TimerDisplay(Box):
-    def __init__(self, master, palette: t.Palette, *, layout, font_family: str,
-                 label_font_family: str) -> None:
+    def __init__(
+        self, master, palette: t.Palette, *, layout, font_family: str, label_font_family: str
+    ) -> None:
         super().__init__(master)
         self.phase_label = ctk.CTkLabel(
-            self, text="Standing By", text_color=palette.text_secondary,
+            self,
+            text="Standing By",
+            text_color=palette.text_secondary,
             font=t.font(family=font_family, size=t.FONT_PHASE, weight="bold"),
         )
         layout.pack(self.phase_label, pady=(0, 0))
 
         self.time_label = ctk.CTkLabel(
-            self, text="25:00", text_color=palette.text_primary,
+            self,
+            text="25:00",
+            text_color=palette.text_primary,
             font=t.font(family=font_family, size=t.FONT_TIMER, weight="bold"),
         )
         layout.pack(self.time_label, pady=(0, 0))
 
         self.streak_label = ctk.CTkLabel(
-            self, text="", text_color=palette.text_muted, font=t.font(size=t.FONT_SMALL + 1),
+            self,
+            text="",
+            text_color=palette.text_muted,
+            font=t.font(size=t.FONT_SMALL + 1),
         )
         layout.pack(self.streak_label)
 
         self.driver_label = ctk.CTkLabel(
-            self, text="", text_color=palette.secondary_text,
+            self,
+            text="",
+            text_color=palette.secondary_text,
             font=t.font(family=label_font_family, size=10, weight="bold"),
         )
         layout.pack(self.driver_label, pady=(2, 0))
@@ -75,13 +85,17 @@ class ProgressArea(Box):
         super().__init__(master)
         self._layout = layout
         self.progress = ctk.CTkProgressBar(
-            self, height=8, corner_radius=4, width=PROGRESS_SHAPE_WIDTH,
-            fg_color=palette.control_bg, progress_color=palette.accent,
+            self,
+            height=8,
+            corner_radius=4,
+            width=PROGRESS_SHAPE_WIDTH,
+            fg_color=palette.control_bg,
+            progress_color=palette.accent,
         )
         self.progress.set(0)
         self.progress_shape = ctk.CTkLabel(self, text="", image=None, font=t.font())
         self.zero_ui_label = ctk.CTkLabel(self, text="", image=None, font=t.font())
-        self._mode = None
+        self._mode: str | None = None
 
     def show(self, mode: str) -> None:
         """mode is "bar", "shape", or "zero_ui". Hides the other two."""

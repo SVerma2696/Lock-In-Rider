@@ -20,7 +20,6 @@ every other tab.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 
 import customtkinter as ctk
 
@@ -28,7 +27,7 @@ from ..history import HistoryStore, SessionRecord
 from ..tasks import Task
 
 
-def last_worked_date(records: list[SessionRecord]) -> Optional[date]:
+def last_worked_date(records: list[SessionRecord]) -> date | None:
     """The calendar day of the most recent block in `records` (by start
     time), or None if `records` is empty."""
     if not records:
@@ -45,6 +44,7 @@ def neglect_order(open_tasks: list[Task], history: HistoryStore, today: date) ->
     sorts first; ties are broken by created_at, oldest first. `today`
     is accepted for a consistent signature with build()'s other calls,
     but the order itself is relative and doesn't need it."""
+
     def sort_key(task: Task):
         last = last_worked_date(history.for_task(task.id))
         has_date = last is not None
@@ -53,7 +53,7 @@ def neglect_order(open_tasks: list[Task], history: HistoryStore, today: date) ->
     return sorted(open_tasks, key=sort_key)
 
 
-def days_ago_phrase(last: Optional[date], today: date) -> str:
+def days_ago_phrase(last: date | None, today: date) -> str:
     """None -> 'never started'; today -> 'today'; one day back ->
     'yesterday'; anything older -> '{n} days ago'. Never negative, even
     if `last` is somehow after `today`."""
@@ -87,7 +87,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     open_tasks = tasks.open()
     if not open_tasks:
         ctk.CTkLabel(
-            frame, text="No open tasks yet. Add one on the Tasks page.",
+            frame,
+            text="No open tasks yet. Add one on the Tasks page.",
             text_color=theme.primary_text_pair,
         ).pack(anchor="w", pady=(4, 0))
         return
@@ -100,20 +101,28 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         row = ctk.CTkFrame(frame, fg_color="transparent")
         row.pack(fill="x", pady=(0, 8), anchor="w")
         ctk.CTkLabel(
-            row, text=f"{index}. {task.name}", text_color=text_color,
-            font=ctk.CTkFont(weight="bold"), anchor="w",
+            row,
+            text=f"{index}. {task.name}",
+            text_color=text_color,
+            font=ctk.CTkFont(weight="bold"),
+            anchor="w",
         ).pack(anchor="w")
         last = last_worked_date(history.for_task(task.id))
         ctk.CTkLabel(
-            row, text=days_ago_phrase(last, today),
-            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11), anchor="w",
+            row,
+            text=days_ago_phrase(last, today),
+            text_color=("gray40", "gray60"),
+            font=ctk.CTkFont(size=11),
+            anchor="w",
         ).pack(anchor="w")
 
     ctk.CTkLabel(
         frame,
         text="Ranked by which task you've worked on least recently — "
-             "nothing here is saved, it's worked out fresh every time "
-             "you open this page.",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
-        justify="left", wraplength=400,
+        "nothing here is saved, it's worked out fresh every time "
+        "you open this page.",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
+        justify="left",
+        wraplength=400,
     ).pack(anchor="w", pady=(6, 0))

@@ -51,7 +51,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     open_tasks = tasks.open()
     if not open_tasks:
         ctk.CTkLabel(
-            frame, text="No open tasks yet. Add one on the Tasks page.",
+            frame,
+            text="No open tasks yet. Add one on the Tasks page.",
             text_color=theme.primary_text_pair,
         ).pack(anchor="w", pady=(4, 0))
         return
@@ -62,13 +63,19 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         card = ctk.CTkFrame(frame, fg_color="transparent")
         card.pack(fill="x", pady=(0, 10))
         ctk.CTkLabel(
-            card, text=task.name, text_color=text_color,
-            font=ctk.CTkFont(weight="bold"), anchor="w",
+            card,
+            text=task.name,
+            text_color=text_color,
+            font=ctk.CTkFont(weight="bold"),
+            anchor="w",
         ).pack(anchor="w")
 
         combo_label = ctk.CTkLabel(
-            card, text="", text_color=theme.secondary,
-            font=ctk.CTkFont(size=11, weight="bold"), anchor="w",
+            card,
+            text="",
+            text_color=theme.secondary,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            anchor="w",
         )
         combo_label.pack(anchor="w")
 
@@ -81,7 +88,7 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
             current = tasks.get(task_id)
             if current is None:
                 return
-            for button, checked in zip(buttons, current.phases):
+            for button, checked in zip(buttons, current.phases, strict=False):
                 button.configure(
                     fg_color=theme.secondary if checked else _EMPTY_BOX,
                     hover_color=theme.secondary if checked else _EMPTY_BOX,
@@ -92,12 +99,17 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
             def toggle() -> None:
                 tasks.toggle_phase(task_id, index)
                 refresh()
+
             return toggle
 
         for index, label in enumerate(PHASE_LABELS):
             button = ctk.CTkButton(
-                buttons_row, text=label, width=80,
-                fg_color=_EMPTY_BOX, hover_color=_EMPTY_BOX, text_color=text_color,
+                buttons_row,
+                text=label,
+                width=80,
+                fg_color=_EMPTY_BOX,
+                hover_color=_EMPTY_BOX,
+                text_color=text_color,
                 command=make_toggle(task.id, index, refresh_card),
             )
             button.pack(side="left", padx=(0, 6))
@@ -108,8 +120,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     ctk.CTkLabel(
         frame,
         text="Plan, Work, Review — check them in any order. A full combo "
-             "is just for fun; you still mark the task itself done on the "
-             "Tasks page.",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
-        justify="left", wraplength=400,
+        "is just for fun; you still mark the task itself done on the "
+        "Tasks page.",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
+        justify="left",
+        wraplength=400,
     ).pack(anchor="w", pady=(6, 0))

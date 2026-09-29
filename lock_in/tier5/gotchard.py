@@ -55,8 +55,12 @@ BADGES: list[Badge] = [
     Badge("ten_hours", "Ten Hours", "Focus for 10 hours in all.", "total_seconds", 36000),
     Badge("task_done", "Task Done", "Check off a task.", "tasks_done", 1),
     Badge("goal_done", "Goal Done", "Reach your daily goal once.", "longest_run", 1),
-    Badge("three_days", "Three in a Row", "Reach your daily goal 3 days in a row.", "longest_run", 3),
-    Badge("seven_days", "Seven in a Row", "Reach your daily goal 7 days in a row.", "longest_run", 7),
+    Badge(
+        "three_days", "Three in a Row", "Reach your daily goal 3 days in a row.", "longest_run", 3
+    ),
+    Badge(
+        "seven_days", "Seven in a Row", "Reach your daily goal 7 days in a row.", "longest_run", 7
+    ),
 ]
 
 
@@ -79,19 +83,20 @@ def longest_goal_run(totals: dict[str, int], goal_seconds: int) -> int:
     right, and a long history is sorted once instead of walked one day
     at a time, so it never loops forever."""
     goal_days = sorted(
-        date.fromisoformat(day) for day, seconds in totals.items()
-        if seconds >= goal_seconds
+        date.fromisoformat(day) for day, seconds in totals.items() if seconds >= goal_seconds
     )
     if not goal_days:
         return 0
     longest = current = 1
-    for previous, day in zip(goal_days, goal_days[1:]):
+    for previous, day in zip(goal_days, goal_days[1:], strict=False):
         current = current + 1 if day == previous + timedelta(days=1) else 1
         longest = max(longest, current)
     return longest
 
 
-def progress(totals: dict[str, int], block_count: int, goal_seconds: int, tasks_done: int) -> Progress:
+def progress(
+    totals: dict[str, int], block_count: int, goal_seconds: int, tasks_done: int
+) -> Progress:
     """Turn the raw history into the five numbers the badges compare
     against their targets. `totals` is history.total_seconds_by_day()
     and `block_count` is len(history.all())."""
@@ -200,15 +205,23 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     header = ctk.CTkFrame(frame, fg_color="transparent")
     header.pack(fill="x", pady=(4, 0))
     ctk.CTkLabel(header, text="Badges", text_color=text_color, anchor="w").pack(
-        side="left", fill="x", expand=True)
+        side="left", fill="x", expand=True
+    )
     ctk.CTkLabel(
-        header, text=f"{have} of {len(BADGES)}", text_color=text_color,
-        anchor="e", font=big_font,
+        header,
+        text=f"{have} of {len(BADGES)}",
+        text_color=text_color,
+        anchor="e",
+        font=big_font,
     ).pack(side="right")
 
     ctk.CTkLabel(
-        frame, text=badge_sentence(have, len(BADGES), new_names),
-        text_color=text_color, justify="left", wraplength=400, anchor="w",
+        frame,
+        text=badge_sentence(have, len(BADGES), new_names),
+        text_color=text_color,
+        justify="left",
+        wraplength=400,
+        anchor="w",
     ).pack(anchor="w", pady=(6, 12))
 
     # --- the 3-by-3 grid ------------------------------------------------ #
@@ -222,33 +235,50 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         row, column = divmod(index, 3)
         is_won = badge.id in won
         card = ctk.CTkFrame(
-            grid, corner_radius=8,
+            grid,
+            corner_radius=8,
             fg_color=theme.secondary if is_won else _EMPTY_CARD,
         )
         card.grid(row=row, column=column, padx=4, pady=4, sticky="nsew")
         name_color = won_text_color if is_won else _EMPTY_NAME
         body_color = won_text_color if is_won else _EMPTY_BODY
         ctk.CTkLabel(
-            card, text=badge.name, text_color=name_color,
-            font=ctk.CTkFont(weight="bold"), wraplength=120, justify="left",
+            card,
+            text=badge.name,
+            text_color=name_color,
+            font=ctk.CTkFont(weight="bold"),
+            wraplength=120,
+            justify="left",
         ).pack(anchor="w", padx=10, pady=(10, 2))
         ctk.CTkLabel(
-            card, text=badge.hint, text_color=body_color,
-            font=ctk.CTkFont(size=11), wraplength=120, justify="left",
+            card,
+            text=badge.hint,
+            text_color=body_color,
+            font=ctk.CTkFont(size=11),
+            wraplength=120,
+            justify="left",
         ).pack(anchor="w", padx=10)
         ctk.CTkLabel(
-            card, text="Got it!" if is_won else "Not yet", text_color=body_color,
-            font=ctk.CTkFont(size=11, weight="bold"), wraplength=120, justify="left",
+            card,
+            text="Got it!" if is_won else "Not yet",
+            text_color=body_color,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            wraplength=120,
+            justify="left",
         ).pack(anchor="w", padx=10, pady=(2, 10))
 
     # --- captions --------------------------------------------------------- #
     ctk.CTkLabel(
-        frame, text="Every focus block counts, finished or not · a badge is yours to keep",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
+        frame,
+        text="Every focus block counts, finished or not · a badge is yours to keep",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
     ).pack(anchor="w", pady=(10, 0))
     ctk.CTkLabel(
         frame,
         text=f"Goal badges use your daily goal of {format_hm(goal_seconds)}. Pick Geats to change it.",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
-        justify="left", wraplength=400,
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
+        justify="left",
+        wraplength=400,
     ).pack(anchor="w")

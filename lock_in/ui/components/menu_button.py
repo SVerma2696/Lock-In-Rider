@@ -17,7 +17,7 @@ It answers the same few calls the old menus did: `set()`, `get()`, and
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import customtkinter as ctk
 from customtkinter.windows.widgets.core_widget_classes import DropdownMenu
@@ -27,29 +27,51 @@ from ..icons import icon_image
 
 
 class MenuButton(ctk.CTkButton):
-    def __init__(self, master, palette: t.Palette, *, values: List[str],
-                 command: Optional[Callable[[str], None]] = None, width: int = 240,
-                 height: int = 32, font=None, anchor: str = "w") -> None:
+    def __init__(
+        self,
+        master,
+        palette: t.Palette,
+        *,
+        values: list[str],
+        command: Callable[[str], None] | None = None,
+        width: int = 240,
+        height: int = 32,
+        font=None,
+        anchor: str = "w",
+    ) -> None:
         self._menu_values = list(values)
         self._on_pick = command
         self._value = self._menu_values[0] if self._menu_values else ""
         super().__init__(
-            master, text=self._value, width=width, height=height, anchor=anchor,
-            corner_radius=t.CONTROL_RADIUS, fg_color=palette.control_bg,
-            hover_color=palette.control_hover, text_color=palette.text_primary,
-            image=icon_image("chevron_down", palette.text_secondary, 14), compound="right",
-            font=font or t.font(size=t.FONT_BODY), command=self._open,
+            master,
+            text=self._value,
+            width=width,
+            height=height,
+            anchor=anchor,
+            corner_radius=t.CONTROL_RADIUS,
+            fg_color=palette.control_bg,
+            hover_color=palette.control_hover,
+            text_color=palette.text_primary,
+            image=icon_image("chevron_down", palette.text_secondary, 14),
+            compound="right",
+            font=font or t.font(size=t.FONT_BODY),
+            command=self._open,
         )
         self._dropdown = DropdownMenu(
-            master=self, values=self._menu_values, command=self._picked,
-            fg_color=palette.card_bg_elevated, hover_color=palette.control_hover,
+            master=self,
+            values=self._menu_values,
+            command=self._picked,
+            fg_color=palette.card_bg_elevated,
+            hover_color=palette.control_hover,
             text_color=palette.text_primary,
         )
 
     def _open(self) -> None:
         try:
-            self._dropdown.open(self.winfo_rootx(),
-                                self.winfo_rooty() + self._apply_widget_scaling(self._current_height))
+            self._dropdown.open(
+                self.winfo_rootx(),
+                self.winfo_rooty() + self._apply_widget_scaling(self._current_height),
+            )
         except Exception:
             pass
 

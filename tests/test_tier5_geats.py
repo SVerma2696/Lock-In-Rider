@@ -24,6 +24,7 @@ def _totals(*days_ago_and_seconds: tuple[int, int], today: date = TODAY) -> dict
 
 # --- streak_days ------------------------------------------------------- #
 
+
 def test_streak_with_no_history_is_zero():
     assert streak_days({}, TODAY, HOUR) == 0
 
@@ -64,20 +65,20 @@ def test_a_day_one_second_under_the_goal_is_not_done():
 
 
 def test_a_missed_day_ends_the_streak():
-    totals = _totals((0, HOUR), (1, HOUR), (3, HOUR))   # day 2 is missing
+    totals = _totals((0, HOUR), (1, HOUR), (3, HOUR))  # day 2 is missing
     assert streak_days(totals, TODAY, HOUR) == 2
 
 
 def test_streak_across_a_month_boundary():
     today = date(2026, 10, 2)
     totals = _totals((0, HOUR), (1, HOUR), (2, HOUR), (3, HOUR), today=today)
-    assert streak_days(totals, today, HOUR) == 4   # Oct 2, Oct 1, Sep 30, Sep 29
+    assert streak_days(totals, today, HOUR) == 4  # Oct 2, Oct 1, Sep 30, Sep 29
 
 
 def test_streak_across_a_year_boundary():
     today = date(2027, 1, 2)
     totals = _totals((0, HOUR), (1, HOUR), (2, HOUR), (3, HOUR), today=today)
-    assert streak_days(totals, today, HOUR) == 4   # Jan 2, Jan 1, Dec 31, Dec 30
+    assert streak_days(totals, today, HOUR) == 4  # Jan 2, Jan 1, Dec 31, Dec 30
 
 
 def test_a_very_long_streak_is_counted_and_stops_at_the_first_day():
@@ -95,6 +96,7 @@ def test_a_bigger_goal_re_judges_old_days():
 
 
 # --- week_dots --------------------------------------------------------- #
+
 
 def test_week_dots_always_returns_exactly_seven_entries():
     assert len(week_dots({}, TODAY, HOUR)) == 7
@@ -121,11 +123,12 @@ def test_week_dots_mark_the_days_that_reached_the_goal():
 def test_week_dots_exactly_at_the_goal_is_done_and_one_second_under_is_not():
     totals = _totals((0, HOUR), (1, HOUR - 1))
     flags = [done for _, done in week_dots(totals, TODAY, HOUR)]
-    assert flags[-1] is True     # today, exactly at the goal
-    assert flags[-2] is False    # yesterday, one second under
+    assert flags[-1] is True  # today, exactly at the goal
+    assert flags[-2] is False  # yesterday, one second under
 
 
 # --- goal_sentence ----------------------------------------------------- #
+
 
 def test_goal_sentence_when_nothing_is_done_yet():
     assert goal_sentence(0, HOUR) == "Start a focus block to fill the bar."
@@ -156,6 +159,7 @@ def test_goal_sentence_when_the_goal_is_beaten():
 
 # --- days_in_a_row ----------------------------------------------------- #
 
+
 def test_days_in_a_row_is_singular_for_one():
     assert days_in_a_row(1) == "1 day in a row"
 
@@ -166,6 +170,7 @@ def test_days_in_a_row_is_plural_for_zero_and_many():
 
 
 # --- streak_sentence --------------------------------------------------- #
+
 
 def test_streak_sentence_with_no_streak():
     assert streak_sentence(0, False) == "No streak yet. Reach your goal today to start one!"
@@ -192,6 +197,7 @@ def test_no_sentence_is_ever_harsh():
 
 # --- stepped_goal ------------------------------------------------------ #
 
+
 def test_stepped_goal_goes_up_and_down_by_fifteen_minutes():
     assert stepped_goal(60, +1) == 75
     assert stepped_goal(60, -1) == 45
@@ -209,25 +215,30 @@ def test_stepped_goal_stops_at_twelve_hours():
 
 def test_stepped_goal_from_a_number_that_is_not_a_multiple_of_fifteen():
     assert stepped_goal(20, +1) == 35
-    assert stepped_goal(20, -1) == 15    # 5 is clamped up to the floor
+    assert stepped_goal(20, -1) == 15  # 5 is clamped up to the floor
     assert stepped_goal(718, +1) == 720  # 733 is clamped down to the ceiling
 
 
 # --- wiring ------------------------------------------------------------ #
 
+
 def test_every_tier5_builder_accepts_config():
     """ui.py passes config= to every builder, so all of them must take it."""
     import inspect
+
     from lock_in.tier5 import TIER5_BUILDERS
+
     for effect, builder in TIER5_BUILDERS.items():
         assert "config" in inspect.signature(builder).parameters, effect
 
 
 def test_goal_streak_is_registered_with_the_tier5_builders():
     from lock_in.tier5 import TIER5_BUILDERS, geats
+
     assert TIER5_BUILDERS["goal_streak"] is geats.build
 
 
 def test_goal_streak_has_the_goal_tab_label():
     from lock_in.ui import _TIER5_TAB_LABELS
+
     assert _TIER5_TAB_LABELS["goal_streak"] == "Goal"

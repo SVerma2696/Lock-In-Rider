@@ -27,13 +27,16 @@ all blocking without ever telling you.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 import threading
-import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
+from .diagnostics import log_once
 from .enforcer import WindowInfo
+
+logger = logging.getLogger(__name__)
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
@@ -48,16 +51,16 @@ _psutil = None
 
 if IS_WINDOWS:
     try:
-        import win32gui as _win32gui          # type: ignore
+        import win32con as _win32con  # type: ignore
+        import win32gui as _win32gui  # type: ignore
         import win32process as _win32process  # type: ignore
-        import win32con as _win32con          # type: ignore
     except ImportError:  # pragma: no cover - depends on install
         _win32gui = _win32process = _win32con = None
 
 try:
     # psutil turns a process ID number into a program name. Windows already
     # used it; now Linux uses it too, so block/allow lists work there.
-    import psutil as _psutil              # type: ignore
+    import psutil as _psutil  # type: ignore
 except ImportError:  # pragma: no cover - depends on install
     _psutil = None
 
@@ -104,19 +107,21 @@ def _active_window_macos() -> WindowInfo:
     """
     script = (
         'tell application "System Events"\n'
-        '  set frontApp to name of first application process whose frontmost is true\n'
-        '  try\n'
-        '    set winTitle to name of front window of application process frontApp\n'
-        '  on error\n'
+        "  set frontApp to name of first application process whose frontmost is true\n"
+        "  try\n"
+        "    set winTitle to name of front window of application process frontApp\n"
+        "  on error\n"
         '    set winTitle to ""\n'
-        '  end try\n'
+        "  end try\n"
         '  return frontApp & "|" & winTitle\n'
-        'end tell'
+        "end tell"
     )
     try:
         out = subprocess.run(
             ["osascript", "-e", script],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         ).stdout.strip()
         app, _, title = out.partition("|")
         return WindowInfo(process_name=app.lower(), title=title)
@@ -138,14 +143,18 @@ def _active_window_linux() -> WindowInfo:
     try:
         title = subprocess.run(
             ["xdotool", "getactivewindow", "getwindowname"],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         ).stdout.strip()
 
         process_name = ""
         try:
             pid_text = subprocess.run(
                 ["xdotool", "getactivewindow", "getwindowpid"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             ).stdout.strip()
             if pid_text and _psutil is not None:
                 process_name = _psutil.Process(int(pid_text)).name()
@@ -173,7 +182,7 @@ def get_active_window() -> WindowInfo:
 # --------------------------------------------------------------------------- #
 # Doing things to windows
 # --------------------------------------------------------------------------- #
-def minimize_window(handle: Optional[int]) -> bool:
+def minimize_window(handle: int | None) -> bool:
     """
     Shrink the currently active window down, out of the way. Returns True
     if it probably worked.
@@ -205,7 +214,9 @@ def minimize_window(handle: Optional[int]) -> bool:
         try:
             script = 'tell application "System Events" to keystroke "m" using command down'
             result = subprocess.run(
-                ["osascript", "-e", script], timeout=2, capture_output=True,
+                ["osascript", "-e", script],
+                timeout=2,
+                capture_output=True,
             )
             return result.returncode == 0
         except Exception:
@@ -218,7 +229,8 @@ def minimize_window(handle: Optional[int]) -> bool:
         try:
             result = subprocess.run(
                 ["xdotool", "getactivewindow", "windowminimize"],
-                timeout=2, capture_output=True,
+                timeout=2,
+                capture_output=True,
             )
             return result.returncode == 0
         except Exception:
@@ -227,7 +239,7 @@ def minimize_window(handle: Optional[int]) -> bool:
     return False
 
 
-def bring_to_front(handle: Optional[int]) -> bool:
+def bring_to_front(handle: int | None) -> bool:
     """
     Bring our own app's window to the front, above everything else.
 
@@ -246,11 +258,21 @@ def bring_to_front(handle: Optional[int]) -> bool:
             _win32gui.SetForegroundWindow(handle)
         except Exception:
             _win32gui.SetWindowPos(
-                handle, _win32con.HWND_TOPMOST, 0, 0, 0, 0,
+                handle,
+                _win32con.HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
                 _win32con.SWP_NOMOVE | _win32con.SWP_NOSIZE | _win32con.SWP_SHOWWINDOW,
             )
             _win32gui.SetWindowPos(
-                handle, _win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
+                handle,
+                _win32con.HWND_NOTOPMOST,
+                0,
+                0,
+                0,
+                0,
                 _win32con.SWP_NOMOVE | _win32con.SWP_NOSIZE | _win32con.SWP_SHOWWINDOW,
             )
         return True
@@ -277,10 +299,10 @@ class ActiveWindowMonitor:
     def __init__(self, callback: Callable[[WindowInfo], None], interval: float = 1.0) -> None:
         self._callback = callback
         self.interval = interval
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._paused = threading.Event()
-        self._paused.set()   # start paused — nothing to check until a focus block begins
+        self._paused.set()  # start paused — nothing to check until a focus block begins
 
     # ------------------------------------------------------------------ #
     def start(self) -> None:
@@ -318,8 +340,9 @@ class ActiveWindowMonitor:
                 try:
                     self._callback(get_active_window())
                 except Exception:
-                    # If the callback breaks, blocking must not silently stop working.
-                    pass
+                    # If the callback breaks, blocking must not silently stop
+                    # working. Logged once (no window titles are logged).
+                    log_once(logger, "monitor-callback", "Reading the active window failed")
             # Waiting this way lets stop() interrupt the wait instantly,
             # instead of always waiting out the full second.
             self._stop.wait(self.interval)

@@ -63,7 +63,7 @@ def test_tokenize_drops_non_chrome_browser_names_too():
 # --------------------------------------------------------------------------- #
 def test_untrained_model_has_no_opinion():
     label, confidence = NaiveBayesClassifier().predict("YouTube")
-    assert label == STUDY               # assume it's fine unless we know otherwise
+    assert label == STUDY  # assume it's fine unless we know otherwise
     assert confidence == 0.5
 
 
@@ -107,7 +107,7 @@ def test_confidence_is_a_valid_probability(model):
 
 def test_unknown_text_stays_near_the_middle(model):
     _, confidence = model.predict("zzzz qqqq wwww")
-    assert confidence < 0.75    # none of these words are familiar, so no strong opinion
+    assert confidence < 0.75  # none of these words are familiar, so no strong opinion
 
 
 # --------------------------------------------------------------------------- #

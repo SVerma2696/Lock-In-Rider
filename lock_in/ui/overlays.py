@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import customtkinter as ctk
 
-from . import theme as t
 from ..enforcer import lockdown_label_for
+from ..rider_effects import EnforcementEffect
+from . import theme as t
+from .host import AppHost
 
 
-class OverlaysMixin:
+class OverlaysMixin(AppHost):
     # ------------------------------------------------------------------ #
     def _raise_self(self) -> None:
         """
@@ -35,7 +37,7 @@ class OverlaysMixin:
             self.deiconify()
             self.lift()
             self.attributes("-topmost", True)
-            self.after(400, lambda: self.attributes("-topmost", False))
+            self._after("unpin", 400, lambda: self.attributes("-topmost", False))
         except Exception:
             pass
 
@@ -60,33 +62,44 @@ class OverlaysMixin:
         except Exception:
             overlay.geometry(f"{self.winfo_screenwidth()}x{self.winfo_screenheight()}+0+0")
         overlay.configure(fg_color=t.OVERLAY_BG)
-        overlay.protocol("WM_DELETE_WINDOW", lambda: None)   # the X button on this window does nothing
+        overlay.protocol(
+            "WM_DELETE_WINDOW", lambda: None
+        )  # the X button on this window does nothing
         self._lockdown_window = overlay
         pack = self.layout.pack
 
         pack(
-            ctk.CTkLabel(overlay, text=lockdown_label_for(self.current_era, self._effective_terminology()),
-                         font=t.font(size=54, weight="bold"),
-                         text_color=self.color_lockdown_text),
+            ctk.CTkLabel(
+                overlay,
+                text=lockdown_label_for(self.current_era, self._effective_terminology()),
+                font=t.font(size=54, weight="bold"),
+                text_color=self.color_lockdown_text,
+            ),
             pady=(220, 10),
         )
 
         remaining_word = "mission" if self._is_tokusatsu() else "session"
         pack(
-            ctk.CTkLabel(overlay, text=f"{self.session.format_remaining()} left in this {remaining_word}",
-                         font=t.font(size=20), text_color=t.OVERLAY_TEXT)
+            ctk.CTkLabel(
+                overlay,
+                text=f"{self.session.format_remaining()} left in this {remaining_word}",
+                font=t.font(size=20),
+                text_color=t.OVERLAY_TEXT,
+            )
         )
 
-        countdown = ctk.CTkLabel(overlay, text="", font=t.font(size=16),
-                                 text_color=t.OVERLAY_MUTED)
+        countdown = ctk.CTkLabel(overlay, text="", font=t.font(size=16), text_color=t.OVERLAY_MUTED)
         pack(countdown, pady=26)
 
-        if self.current_tier3_effect == "code_unlock":
-            code_entry = ctk.CTkEntry(overlay, width=140, justify="center",
-                                      font=t.font(size=16))
+        if self.abilities.enforcement is EnforcementEffect.CODE_UNLOCK:
+            code_entry = ctk.CTkEntry(overlay, width=140, justify="center", font=t.font(size=16))
             pack(code_entry, pady=(4, 4))
-            code_hint = ctk.CTkLabel(overlay, text="Enter code to unlock early",
-                                     font=t.font(size=11), text_color=t.OVERLAY_MUTED)
+            code_hint = ctk.CTkLabel(
+                overlay,
+                text="Enter code to unlock early",
+                font=t.font(size=11),
+                text_color=t.OVERLAY_MUTED,
+            )
             pack(code_hint, pady=(0, 12))
 
             def check_code(event=None) -> None:
@@ -100,17 +113,27 @@ class OverlaysMixin:
 
         end_button_text = "Abort Mission" if self._is_tokusatsu() else "End Session"
         pack(
-            ctk.CTkButton(overlay, text=end_button_text, width=200,
-                          fg_color="transparent", border_width=1,
-                          text_color=t.OVERLAY_MUTED, hover_color=t.OVERLAY_HOVER,
-                          command=self._end_session_from_lockdown, font=t.font())
+            ctk.CTkButton(
+                overlay,
+                text=end_button_text,
+                width=200,
+                fg_color="transparent",
+                border_width=1,
+                text_color=t.OVERLAY_MUTED,
+                hover_color=t.OVERLAY_HOVER,
+                command=self._end_session_from_lockdown,
+                font=t.font(),
+            )
         )
 
         remaining = {"value": self.config_obj.lockdown_seconds}
+        this_screen = overlay
 
         def step() -> None:
-            """Count down the lockdown screen's own timer, then close itself."""
-            if self._lockdown_window is None:
+            """Count down the lockdown screen's own timer, then close itself.
+            Stops as soon as THIS screen is gone -- a countdown left over
+            from an earlier lockdown must never touch a newer one."""
+            if self._lockdown_window is not this_screen:
                 return
             if remaining["value"] <= 0:
                 self._close_lockdown()
@@ -160,13 +183,21 @@ class OverlaysMixin:
 
         title = "DEEP SETUP" if self._is_tokusatsu() else "Set your goal"
         pack(
-            ctk.CTkLabel(overlay, text=title, font=t.font(size=40, weight="bold"),
-                         text_color=self.color_lockdown_text),
+            ctk.CTkLabel(
+                overlay,
+                text=title,
+                font=t.font(size=40, weight="bold"),
+                text_color=self.color_lockdown_text,
+            ),
             pady=(220, 20),
         )
         pack(
-            ctk.CTkLabel(overlay, text="What are you working on this block?",
-                         font=t.font(size=16), text_color=t.OVERLAY_TEXT),
+            ctk.CTkLabel(
+                overlay,
+                text="What are you working on this block?",
+                font=t.font(size=16),
+                text_color=t.OVERLAY_TEXT,
+            ),
             pady=(0, 16),
         )
 
@@ -188,9 +219,20 @@ class OverlaysMixin:
 
         entry.bind("<Return>", submit)
         begin_word = "Begin" if self._is_tokusatsu() else "Start"
-        pack(ctk.CTkButton(overlay, text=begin_word, width=200, height=40,
-                           fg_color=self.palette.accent, hover_color=self.palette.accent_hover,
-                           text_color=self.palette.accent_on, command=submit, font=t.font()), pady=20)
+        pack(
+            ctk.CTkButton(
+                overlay,
+                text=begin_word,
+                width=200,
+                height=40,
+                fg_color=self.palette.accent,
+                hover_color=self.palette.accent_hover,
+                text_color=self.palette.accent_on,
+                command=submit,
+                font=t.font(),
+            ),
+            pady=20,
+        )
 
     # ------------------------------------------------------------------ #
     # Kamen Rider Ghost's floating clock
@@ -205,14 +247,16 @@ class OverlaysMixin:
         widget.geometry("140x50+80+80")
 
         self._ghost_time_label = ctk.CTkLabel(
-            widget, text=self.session.format_remaining(),
+            widget,
+            text=self.session.format_remaining(),
             font=t.font(family=self.display_font, size=22, weight="bold"),
             text_color=self.color_focus_text,
         )
         self._ghost_time_label.pack(pady=(6, 2))
 
-        self._ghost_progress = ctk.CTkProgressBar(widget, height=4, corner_radius=2,
-                                                  progress_color=self.palette.accent)
+        self._ghost_progress = ctk.CTkProgressBar(
+            widget, height=4, corner_radius=2, progress_color=self.palette.accent
+        )
         self._ghost_progress.set(self.session.progress)
         self._ghost_progress.pack(fill="x", padx=8, pady=(0, 6))
 

@@ -67,14 +67,17 @@ def test_pick_asset_returns_none_for_unknown_platform():
 
 def _release(tag: str, assets=None) -> dict:
     if assets is None:
-        assets = [{"name": "LockIn-Windows.zip", "browser_download_url": "http://example.com/win.zip"}]
+        assets = [
+            {"name": "LockIn-Windows.zip", "browser_download_url": "http://example.com/win.zip"}
+        ]
     return {"tag_name": tag, "assets": assets}
 
 
 def test_check_for_update_returns_info_when_newer_and_asset_matches():
     info = check_for_update("2.5.2", _release("v2.5.3"), "win32")
     assert info == UpdateInfo(
-        version="2.5.3", asset_name="LockIn-Windows.zip",
+        version="2.5.3",
+        asset_name="LockIn-Windows.zip",
         download_url="http://example.com/win.zip",
     )
 
@@ -99,9 +102,12 @@ def test_check_for_update_returns_none_when_asset_has_no_download_url():
 
 
 def test_check_for_update_returns_none_when_asset_download_url_is_empty():
-    release = _release("v2.5.3", assets=[
-        {"name": "LockIn-Windows.zip", "browser_download_url": ""},
-    ])
+    release = _release(
+        "v2.5.3",
+        assets=[
+            {"name": "LockIn-Windows.zip", "browser_download_url": ""},
+        ],
+    )
     assert check_for_update("2.5.2", release, "win32") is None
 
 
@@ -109,8 +115,14 @@ def test_check_for_update_returns_none_when_asset_download_url_is_empty():
 # --- button needs to tell "up to date" apart from "couldn't check". ------
 
 from lock_in.updater import (
-    CHECK_AVAILABLE, CHECK_DOWNLOAD_FAILED, CHECK_FAILED, CHECK_NO_FILE,
-    CHECK_UP_TO_DATE, CheckResult, check_message, classify_check,
+    CHECK_AVAILABLE,
+    CHECK_DOWNLOAD_FAILED,
+    CHECK_FAILED,
+    CHECK_NO_FILE,
+    CHECK_UP_TO_DATE,
+    CheckResult,
+    check_message,
+    classify_check,
 )
 
 
@@ -140,7 +152,8 @@ def test_classify_check_available_carries_info_and_version():
     assert result.status == CHECK_AVAILABLE
     assert result.latest == "2.5.5"
     assert result.info == UpdateInfo(
-        version="2.5.5", asset_name="LockIn-Windows.zip",
+        version="2.5.5",
+        asset_name="LockIn-Windows.zip",
         download_url="http://example.com/win.zip",
     )
 

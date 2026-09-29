@@ -13,14 +13,17 @@ picture and decides where to put it on the screen.
 
 from __future__ import annotations
 
+import functools
 import random
 import sys
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import ParamSpec
 
 from PIL import Image, ImageDraw
 
+from .rider_effects import ProgressEffect
 from .rider_themes import darken
 
 # Where the app's own picture lives, and where its title-bar/notification
@@ -72,6 +75,7 @@ def load_pixel_font() -> str:
     font_path = Path(__file__).parent / "assets" / "press_start_2p.ttf"
     try:
         import ctypes
+
         FR_PRIVATE = 0x10
         result = ctypes.windll.gdi32.AddFontResourceExW(str(font_path), FR_PRIVATE, 0)
         if result:
@@ -82,11 +86,38 @@ def load_pixel_font() -> str:
     return "Consolas"
 
 
+P = ParamSpec("P")
+
+
+def cached_picture(maxsize: int) -> Callable[[Callable[P, Image.Image]], Callable[P, Image.Image]]:
+    """Remember the last `maxsize` pictures a drawing function made, by
+    its exact inputs, and hand back a COPY each time -- so whoever gets
+    the picture can change it freely without spoiling the saved one.
+
+    Only for functions whose picture depends on nothing but their inputs
+    (no clock, no randomness), and only where drawing is slow enough to
+    matter."""
+
+    def wrap(draw: Callable[P, Image.Image]) -> Callable[P, Image.Image]:
+        remembered = functools.lru_cache(maxsize=maxsize)(draw)
+
+        @functools.wraps(draw)
+        def copy_of(*args: P.args, **kwargs: P.kwargs) -> Image.Image:
+            return remembered(*args, **kwargs).copy()  # type: ignore[arg-type]
+
+        copy_of.cache_info = remembered.cache_info  # type: ignore[attr-defined]
+        copy_of.cache_clear = remembered.cache_clear  # type: ignore[attr-defined]
+        return copy_of
+
+    return wrap
+
+
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
 
 
+@cached_picture(maxsize=16)  # drawn one pixel at a time: slow, so remembered
 def make_glow(width: int, height: int, color: str, strength: float = 180) -> Image.Image:
     """
     Make a soft, see-through blob of color — like a glow-stick sitting
@@ -100,6 +131,7 @@ def make_glow(width: int, height: int, color: str, strength: float = 180) -> Ima
     r, g, b = _hex_to_rgb(color)
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels = image.load()
+    assert pixels is not None  # a brand-new picture can always be drawn on
     cx, cy = width / 2, height / 2
 
     for y in range(height):
@@ -110,13 +142,13 @@ def make_glow(width: int, height: int, color: str, strength: float = 180) -> Ima
             # direction — not just at the far corners.
             dx = (x - cx) / cx
             dy = (y - cy) / cy
-            dist = (dx ** 2 + dy ** 2) ** 0.5
+            dist = (dx**2 + dy**2) ** 0.5
             closeness = max(0.0, 1.0 - dist)
             # Raised to the 4th power (instead of squared) so the fade-out
             # happens fast near the edge — that keeps even the very last
             # sliver of color too faint to notice, instead of leaving a
             # barely-visible rectangle where the picture ends.
-            alpha = int(strength * (closeness ** 4))
+            alpha = int(strength * (closeness**4))
             pixels[x, y] = (r, g, b, alpha)
 
     return image
@@ -136,7 +168,11 @@ def make_flat_fill(width: int, height: int, hex_color: str, alpha: int = 255) ->
 
 
 def make_background_texture(
-    width: int, height: int, primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    primary: str,
+    secondary: str,
+    dark: bool,
     era: str = "Heisei",
 ) -> Image.Image:
     """
@@ -231,8 +267,13 @@ def _draw_circuit_pattern(draw: ImageDraw.ImageDraw, width: int, height: int, co
             draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=color)
 
 
+@cached_picture(maxsize=16)  # remade on every Rider switch; small, so remembered
 def make_panel_divider(
-    width: int, height: int, primary: str, secondary: str, era: str = "Heisei",
+    width: int,
+    height: int,
+    primary: str,
+    secondary: str,
+    era: str = "Heisei",
 ) -> Image.Image:
     """
     Make a thin, good-looking strip for the small gap between two
@@ -306,8 +347,13 @@ def _draw_circuit_divider(draw: ImageDraw.ImageDraw, width: int, height: int, co
 
 
 def make_hours_chart(
-    width: int, height: int, day_values: list[tuple[str, int]],
-    primary: str, secondary: str, dark: bool, era: str = "Showa",
+    width: int,
+    height: int,
+    day_values: list[tuple[str, int]],
+    primary: str,
+    secondary: str,
+    dark: bool,
+    era: str = "Showa",
 ) -> Image.Image:
     """
     Draw a simple bar chart: one bar per day, oldest on the left,
@@ -363,8 +409,13 @@ def make_hours_chart(
 
 
 def make_week_compare_chart(
-    width: int, height: int, pairs: list[tuple[str, int, int]],
-    this_color: str, last_color: str, dark: bool, era: str = "Showa",
+    width: int,
+    height: int,
+    pairs: list[tuple[str, int, int]],
+    this_color: str,
+    last_color: str,
+    dark: bool,
+    era: str = "Showa",
 ) -> Image.Image:
     """
     Draw a paired bar chart: one GROUP per day, oldest on the left and
@@ -429,7 +480,7 @@ def make_week_compare_chart(
     return image
 
 
-def load_app_icon() -> Optional[Image.Image]:
+def load_app_icon() -> Image.Image | None:
     """
     Load the app's own picture, padded onto a square, see-through canvas.
 
@@ -463,6 +514,7 @@ def load_app_icon() -> Optional[Image.Image]:
 # keeps the plain native progress bar ui.py already had.
 # ===================================================================== #
 
+
 def _lerp_hex(start: str, end: str, fraction: float) -> str:
     """Slide a color from `start` to `end`. fraction=0 gives back
     `start` exactly, fraction=1 gives back `end` exactly, and anything
@@ -490,8 +542,12 @@ def interpolate_agito_color(progress_fraction: float, primary: str) -> str:
 
 
 def render_windmill_progress(
-    width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     The original Kamen Rider's whole origin is wind power, so his
@@ -523,8 +579,12 @@ def render_windmill_progress(
 
 
 def render_rising_bar_progress(
-    width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     Skyrider's whole thing is gliding. So instead of the usual
@@ -573,8 +633,12 @@ def _fourze_star_positions(width: int, height: int) -> list[tuple[int, int]]:
 
 
 def render_constellation_progress(
-    width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     Fourze is a space show, so instead of a normal bar this draws a
@@ -607,8 +671,12 @@ def render_constellation_progress(
 
 
 def render_vials_progress(
-    width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     Build's whole gimmick is combining two Fullbottles. So this draws
@@ -635,10 +703,12 @@ def render_vials_progress(
     fill_height = round((bottom - top) * progress_fraction)
     if fill_height > 0:
         draw.rectangle(
-            [left1, bottom - fill_height, left1 + vial_width, bottom], fill=(r1, g1, b1, 220),
+            [left1, bottom - fill_height, left1 + vial_width, bottom],
+            fill=(r1, g1, b1, 220),
         )
         draw.rectangle(
-            [left2, bottom - fill_height, left2 + vial_width, bottom], fill=(r2, g2, b2, 220),
+            [left2, bottom - fill_height, left2 + vial_width, bottom],
+            fill=(r2, g2, b2, 220),
         )
 
     if progress_fraction >= 0.95:
@@ -649,8 +719,12 @@ def render_vials_progress(
 
 
 def render_bookmark_progress(
-    width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     Saber's whole gimmick is an e-reader, so instead of a normal bar
@@ -675,7 +749,8 @@ def render_bookmark_progress(
 
     draw.polygon(
         [(left, top), (right, top), (right, notch), (width // 2, tip), (left, notch)],
-        outline=(r2, g2, b2, 140), width=1,
+        outline=(r2, g2, b2, 140),
+        width=1,
     )
 
     fill_bottom = top + round((notch - top) * progress_fraction)
@@ -695,15 +770,15 @@ def ease_drive_progress(progress_fraction: float) -> float:
     1 at the very start and very end, same as real progress.
     """
     progress_fraction = max(0.0, min(1.0, progress_fraction))
-    return progress_fraction ** 2
+    return progress_fraction**2
 
 
 _SHAPE_RENDERERS = {
-    "windmill": render_windmill_progress,
-    "rising_bar": render_rising_bar_progress,
-    "constellation": render_constellation_progress,
-    "vials": render_vials_progress,
-    "bookmark": render_bookmark_progress,
+    ProgressEffect.WINDMILL: render_windmill_progress,
+    ProgressEffect.RISING_BAR: render_rising_bar_progress,
+    ProgressEffect.CONSTELLATION: render_constellation_progress,
+    ProgressEffect.VIALS: render_vials_progress,
+    ProgressEffect.BOOKMARK: render_bookmark_progress,
 }
 
 # The only 6 tier1_effect values that need a picture instead of the
@@ -714,8 +789,13 @@ SHAPE_EFFECTS = frozenset(_SHAPE_RENDERERS)
 
 
 def render_progress(
-    effect: str, width: int, height: int, progress_fraction: float,
-    primary: str, secondary: str, dark: bool,
+    effect: str,
+    width: int,
+    height: int,
+    progress_fraction: float,
+    primary: str,
+    secondary: str,
+    dark: bool,
 ) -> Image.Image:
     """
     Draw whichever of the 6 shapes this Rider uses. Only ever called
@@ -723,11 +803,15 @@ def render_progress(
     keeps using the plain native progress bar, which never touches
     this function at all.
     """
-    return _SHAPE_RENDERERS[effect](width, height, progress_fraction, primary, secondary, dark)
+    return _SHAPE_RENDERERS[ProgressEffect(effect)](
+        width, height, progress_fraction, primary, secondary, dark
+    )
 
 
 def render_border_glow_overlay(
-    base_image: Image.Image, color: str, intensity_fraction: float,
+    base_image: Image.Image,
+    color: str,
+    intensity_fraction: float,
 ) -> Image.Image:
     """
     Paint a soft glow around the edge of `base_image`, like Stronger
@@ -775,7 +859,10 @@ def render_night_overlay(base_image: Image.Image, color: str, alpha: int = 70) -
 
 
 def apply_tier1_background_effect(
-    base_image: Image.Image, effect: str, color: str, intensity_fraction: float = 0.0,
+    base_image: Image.Image,
+    effect: str,
+    color: str,
+    intensity_fraction: float = 0.0,
 ) -> Image.Image:
     """
     The one place that decides whether the background picture needs
@@ -785,9 +872,9 @@ def apply_tier1_background_effect(
     blend two overlapping see-through pictures correctly, so all of
     that math happens here instead, before it ever reaches a widget).
     """
-    if effect == "border_glow":
+    if effect == ProgressEffect.BORDER_GLOW:
         return render_border_glow_overlay(base_image, color, intensity_fraction)
-    if effect == "night_overlay":
+    if effect == ProgressEffect.NIGHT_OVERLAY:
         return render_night_overlay(base_image, color)
     return base_image.convert("RGBA")
 
@@ -797,18 +884,24 @@ def apply_tier1_background_effect(
 # See docs/superpowers/specs/2026-08-11-tier3-enforcement-interaction-design.md
 # ===================================================================== #
 
+
+@cached_picture(maxsize=4)  # Gaim's padlock, the same every time
 def render_padlock_glyph(size: int) -> Image.Image:
     """A simple padlock shape -- a rounded body with a curved shackle on top."""
     image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image, "RGBA")
     body_top = size * 0.45
     draw.rounded_rectangle(
-        [size * 0.2, body_top, size * 0.8, size * 0.95], radius=size * 0.08,
+        [size * 0.2, body_top, size * 0.8, size * 0.95],
+        radius=size * 0.08,
         fill=(230, 230, 230, 235),
     )
     draw.arc(
         [size * 0.3, size * 0.05, size * 0.7, body_top + size * 0.15],
-        start=180, end=360, fill=(230, 230, 230, 235), width=max(2, round(size * 0.08)),
+        start=180,
+        end=360,
+        fill=(230, 230, 230, 235),
+        width=max(2, round(size * 0.08)),
     )
     return image
 

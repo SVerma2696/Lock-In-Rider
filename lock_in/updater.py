@@ -16,8 +16,8 @@ this module says one is available.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
+from .update_verify import checksum_asset_name
 
 ASSET_NAMES = {
     "win32": "LockIn-Windows.zip",
@@ -30,12 +30,15 @@ ASSET_NAMES = {
 class UpdateInfo:
     """Everything ui.py needs to know about an update that's available."""
 
-    version: str          # "2.5.3" -- no leading "v"
-    asset_name: str        # "LockIn-Windows.zip"
-    download_url: str      # straight from the release's asset list
+    version: str  # "2.5.3" -- no leading "v"
+    asset_name: str  # "LockIn-Windows.zip"
+    download_url: str  # straight from the release's asset list
+    # The matching "LockIn-Windows.zip.sha256" fingerprint file's link, or
+    # None if the release didn't publish one (then nothing is installed).
+    checksum_url: str | None = None
 
 
-def parse_version(tag: str) -> Optional[tuple]:
+def parse_version(tag: str) -> tuple | None:
     """'v2.5.3' -> (2, 5, 3). None if it doesn't look like a version --
     an unparseable tag is treated as "nothing to offer", never as
     "obviously newer, update anyway"."""
@@ -61,20 +64,24 @@ def is_newer(current: str, latest_tag: str) -> bool:
     return latest_parsed > current_parsed
 
 
-def pick_asset(assets: list, platform: str) -> Optional[dict]:
+def _asset_named(assets: list, name: str) -> dict | None:
+    for asset in assets:
+        if isinstance(asset, dict) and asset.get("name") == name:
+            return asset
+    return None
+
+
+def pick_asset(assets: list, platform: str) -> dict | None:
     """assets is the GitHub API's raw list of {"name", "browser_download_url"}
     dicts for one release. None if this platform isn't in ASSET_NAMES,
     or none of the assets has the matching name."""
     wanted = ASSET_NAMES.get(platform)
     if wanted is None:
         return None
-    for asset in assets:
-        if asset.get("name") == wanted:
-            return asset
-    return None
+    return _asset_named(assets, wanted)
 
 
-def check_for_update(current_version: str, release_data: dict, platform: str) -> Optional[UpdateInfo]:
+def check_for_update(current_version: str, release_data: dict, platform: str) -> UpdateInfo | None:
     """release_data is one GitHub 'latest release' API response, already
     parsed from JSON (a dict with at least "tag_name" and "assets").
     Returns None for: not newer, malformed tag, or no matching asset
@@ -94,19 +101,23 @@ def check_for_update(current_version: str, release_data: dict, platform: str) ->
     if not asset_name or not download_url:
         return None
     version = parse_version(tag)
+    assert version is not None  # is_newer() above already parsed it
+    checksum = _asset_named(release_data.get("assets", []), checksum_asset_name(asset_name))
     return UpdateInfo(
         version=".".join(str(p) for p in version),
         asset_name=asset_name,
         download_url=download_url,
+        checksum_url=(checksum or {}).get("browser_download_url") or None,
     )
 
 
-# The five things a "Check for updates now" click can end up as.
-CHECK_FAILED = "failed"                    # couldn't reach GitHub / unreadable answer
-CHECK_UP_TO_DATE = "up_to_date"            # already on the newest one
-CHECK_NO_FILE = "no_file"                  # newer exists, but not for this computer
+# The six things a "Check for updates now" click can end up as.
+CHECK_FAILED = "failed"  # couldn't reach GitHub / unreadable answer
+CHECK_UP_TO_DATE = "up_to_date"  # already on the newest one
+CHECK_NO_FILE = "no_file"  # newer exists, but not for this computer
 CHECK_DOWNLOAD_FAILED = "download_failed"  # newer exists, the download didn't finish
-CHECK_AVAILABLE = "available"              # newer exists and it's ready
+CHECK_UNVERIFIED = "unverified"  # downloaded, but its fingerprint didn't check out
+CHECK_AVAILABLE = "available"  # newer exists and it's ready
 
 
 @dataclass
@@ -114,11 +125,11 @@ class CheckResult:
     """How one update check ended -- the button's whole answer."""
 
     status: str
-    info: Optional[UpdateInfo] = None   # set only when status is CHECK_AVAILABLE
-    latest: Optional[str] = None        # "2.5.5", when a newer version was seen
+    info: UpdateInfo | None = None  # set only when status is CHECK_AVAILABLE
+    latest: str | None = None  # "2.5.5", when a newer version was seen
 
 
-def classify_check(current_version: str, release_data: Optional[dict], platform: str) -> CheckResult:
+def classify_check(current_version: str, release_data: dict | None, platform: str) -> CheckResult:
     """Same decision as check_for_update, but says WHY when there's nothing
     to offer -- check_for_update returns a bare None for "already newest"
     and "no file for your computer" alike, which is fine for the quiet
@@ -147,13 +158,22 @@ def check_message(result: CheckResult, current_version: str, can_restart: bool) 
     if result.status == CHECK_UP_TO_DATE:
         return f"You already have the newest Lock In (v{current_version})."
     if result.status == CHECK_NO_FILE:
-        return (f"A newer Lock In (v{result.latest}) is out, but there's "
-                "no download for your computer yet.")
+        return (
+            f"A newer Lock In (v{result.latest}) is out, but there's "
+            "no download for your computer yet."
+        )
     if result.status == CHECK_DOWNLOAD_FAILED:
-        return (f"Found Lock In v{result.latest}, but it wouldn't finish "
-                "downloading. Try again in a little while.")
+        return (
+            f"Found Lock In v{result.latest}, but it wouldn't finish "
+            "downloading. Try again in a little while."
+        )
+    if result.status == CHECK_UNVERIFIED:
+        return (
+            f"Found Lock In v{result.latest}, but its safety check didn't pass, "
+            "so it wasn't installed. You can get it from the Releases page."
+        )
     if result.status == CHECK_AVAILABLE:
         if can_restart:
-            return f"Found Lock In v{result.latest}! Press \"Restart now\" at the top."
+            return f'Found Lock In v{result.latest}! Press "Restart now" at the top.'
         return f"Found Lock In v{result.latest}! Get it from the Releases page."
     return "Couldn't check just now. Try again in a little while."

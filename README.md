@@ -21,6 +21,45 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## 🧰 New in v3.0.2: sturdier on the inside
+
+Everything looks and works the same as before: all 38 Riders, every
+power in Tiers 0–6, Standard Mode, and light and dark mode. This update
+tidied up the inside of the app so it's safer and easier to build on.
+
+- **Updates are checked before they're installed.** Every release now
+  comes with a fingerprint of its download. Lock In downloads the
+  update, works out the fingerprint of what it got, and only installs it
+  if the two match exactly. A download that was cut short or changed on
+  the way is thrown away.
+- **Saving can't leave a broken file behind.** Your settings, tasks,
+  history, and the learned model are written into a spare file first,
+  then swapped in with one quick step. If the computer crashes midway,
+  you keep the last complete copy.
+- **A broken settings file can't crash the app.** Every value in
+  `config.json` is checked when Lock In opens. A value that makes no
+  sense (like a focus block of -5 minutes) is swapped for its normal
+  default, and everything else is kept.
+- **Fixed some crashes on opening.** Lock In used to crash at start-up
+  if `config.json`, `model.json`, or `observations.jsonl` held the wrong
+  kind of data. It now just starts fresh for that one file.
+- **Fixed losing a focus block after a crash.** If the app crashed while
+  saving a focus block, the next block used to be lost too. Now only
+  the one that was cut off is lost.
+- **A small private log file.** If something goes wrong quietly (an
+  update, the camera, the buddy link), it's noted in a small log file in
+  Lock In's settings folder, so it can be looked into later. The log
+  never records window titles, task names, or anything you typed. See
+  [Config](#-config).
+- **Closing is always clean.** Every background helper stops, the camera
+  is always let go, and closing twice is harmless.
+- **Picking a new Rider is safer to build on.** Each Rider's powers are
+  now named values instead of loose words, so a typo is caught straight
+  away instead of a power silently not working. Every Rider is checked
+  automatically by the tests.
+
+---
+
 ## 🛠️ New in v3.0.1: two fixes
 
 - **"Restart now" works again.** Before, pressing the blue Restart now
@@ -151,6 +190,9 @@ sentence right under the button, what it found:
 - "You already have the newest Lock In" — nothing to do.
 - "Found Lock In v… Press Restart now at the top" — the same notice and
   Restart button as above just appeared.
+- "Found Lock In v…, but its safety check didn't pass" — the download
+  didn't match its fingerprint (see below), so it wasn't installed. You
+  can still get that version from the Releases page.
 - "Couldn't check just now" — usually no internet. Try again later.
 
 The button works even if you turned the automatic check off. It only
@@ -172,6 +214,14 @@ asks when you press it.
   a small "update available" note, just without the restart button.
 - After an update, a file called `Lock In.exe.old` sits next to the app.
   That's the old version, kept just in case. You can delete it.
+- **Every update is checked before it's installed.** Each release comes
+  with a small fingerprint file (for example `LockIn-Windows.zip.sha256`).
+  A fingerprint is a long code worked out from every byte of a file, so
+  changing even one byte changes it completely. Lock In works out the
+  fingerprint of the download itself and only installs the update if it
+  matches exactly. If the fingerprint file is missing, unreadable, or
+  doesn't match, the update is thrown away. An unchecked update is never
+  installed.
 
 ### If an update didn't work
 
@@ -252,11 +302,30 @@ Lock In/
 ├── train.py                    Training CLI (record / label / rebuild / eval / …).
 │
 ├── lock_in/                    The application package.
-│   ├── __init__.py             Marks this folder as a package.
+│   ├── __init__.py             The version number, and a map of this folder.
+│   │
+│   │   ── the "deciding" layer: no screen code, fully tested ──
+│   ├── application/
+│   │   ├── controller.py        AppController: builds and owns the timer, tasks,
+│   │   │                        history, blocking, camera, Claude helper,
+│   │   │                        notifications, and Revice's link.
+│   │   ├── events.py            The one mailbox background helpers post notes to
+│   │   │                        (WindowSeen, PhoneSample, BannerRequested, …).
+│   │   ├── lifecycle.py         Stopping every helper cleanly, even if one fails.
+│   │   ├── task_controller.py   Which task the next focus block is for.
+│   │   ├── focus_controller.py  Writing each focus block into history.
+│   │   ├── enforcement_controller.py  Judging windows and phones; the Activity list.
+│   │   ├── buddy_controller.py  Revice's buddy link, without the screen.
+│   │   └── update_service.py    One update check: fetch, fingerprint, download,
+│   │                            check, unpack.
+│   ├── storage/                 Crash-safe saving: write a spare file, then swap.
+│   │   ├── json_store.py        Whole files (settings, tasks, the model).
+│   │   └── jsonl_store.py       One-line-per-entry files (history, observations).
 │   │
 │   │   ── pure logic, stdlib only, fully unit-tested ──
 │   ├── config.py               Settings dataclass, JSON persistence, block/allow
 │   │                           defaults, and the %APPDATA% path resolution.
+│   ├── config_validation.py    One rule per setting; a bad value becomes its default.
 │   ├── session.py              Pomodoro state machine. Injectable clock, so tests
 │   │                           run four-hour sessions instantly.
 │   ├── classifier.py           Naive Bayes study/distraction model, tokenizer,
@@ -267,19 +336,25 @@ Lock In/
 │   │                           which have been labelled. Backs train.py.
 │   ├── tasks.py                 The task list: add/edit/complete tasks and their
 │   │                           checklist subtasks, saved as tasks.json.
+│   ├── task_picker.py           The Focus page's "current task" menu words.
 │   ├── history.py               The diary of every completed, skipped, or reset
 │   │                           focus block, saved as sessions.jsonl. Each block
 │   │                           has its own id so Zi-O can fix or delete it.
-│   ├── rider_themes.py         Kamen Rider color palettes for the theme toggle.
+│   ├── rider_effects.py         The typed names of every Rider power, one list
+│   │                           per Tier (ProgressEffect … InteractionEffect).
+│   ├── rider_themes.py         Every Rider: colors, era, year, and powers
+│   │                           (RiderTheme, RiderAbilities, RiderDefinition).
 │   ├── wizard_gestures.py      Draws-a-line-or-circle math for Wizard's mouse gestures.
 │   ├── revice_sync.py           Revice's rules: the code check, messages, and
 │   │                           the Pull History merge (no network, no window).
-│   ├── visuals.py               Display font pick, plus Pillow-generated glow,
-│   │                           background art, and app-icon loading.
+│   ├── visuals.py               Display font pick, plus Pillow-generated pictures
+│   │                           (the slow ones are remembered, see cached_picture).
 │   ├── updater.py               Pure version-compare/asset-pick logic for
 │   │                           auto-update, plus the plain-words answer the
 │   │                           "Check for updates now" button shows
 │   │                           (no network, no filesystem).
+│   ├── update_verify.py         The SHA-256 fingerprint check every update must pass.
+│   ├── diagnostics.py           The small private log file.
 │   ├── assets/
 │   │   └── app_icon.png         The app's own picture — window/taskbar icon
 │   │                           and notification icon.
@@ -289,8 +364,8 @@ Lock In/
 │   │                           Win32 backend, macOS (osascript), Linux (xdotool).
 │   ├── notifier.py             Toasts and sounds: winotify/winsound (Windows),
 │   │                           osascript/afplay (macOS), notify-send/paplay (Linux).
-│   ├── update_fetch.py          The one network call in auto-update: asks GitHub
-│   │                           for the latest release, downloads the matching file.
+│   ├── update_fetch.py          The only network calls in auto-update: asks GitHub
+│   │                           for the latest release, downloads the files.
 │   ├── update_apply.py          Unpacks the downloaded release and writes/launches
 │   │                           the per-OS relaunch script that swaps files.
 │   ├── revice_link.py           Revice's connection to a buddy's computer on
@@ -298,7 +373,11 @@ Lock In/
 │   ├── revice_tab.py            The screens on Revice's Buddy page.
 │   └── ui/                     Everything you see on screen (CustomTkinter).
 │       ├── app.py              The main window: top bar, side bar, page area,
-│       │                       and the heartbeat that runs the timer.
+│       │                       and the heartbeat. Asks the AppController for
+│       │                       everything it shows.
+│       ├── effects.py          The Rider pictures: glow, era strip, progress
+│       │                       shapes, Amazon's field.
+│       ├── host.py             What the window's add-on parts may use (types only).
 │       ├── theme.py            Every base color, size, and space, in one place.
 │       ├── router.py           The side bar's list of pages (no window needed).
 │       ├── mirror.py           Ryuki's left-right flip helpers.
@@ -306,58 +385,45 @@ Lock In/
 │       ├── overlays.py         Lockdown screen, X's goal screen, Ghost's clock.
 │       ├── updates.py          "Check for updates" and the update strip.
 │       ├── gestures.py         Wizard's mouse gestures.
-│       ├── revice.py           Revice's buddy link, from the app's side.
+│       ├── revice.py           Revice's buddy link, from the window's side.
 │       ├── preferences.py      What happens when you change a setting.
 │       ├── insights_data.py    The Insights page's totals (no window needed).
-│       ├── task_picker.py      The "current task" menu's labels.
 │       ├── components/         Cards, buttons, badges, setting rows, the side
 │       │                       bar, and the timer.
 │       └── pages/              One file per page: Focus, Tasks, Blocking,
 │                               Activity, Insights, Help, Settings, the Rider
 │                               page, and Buddy.
 │
-├── tests/
-│   ├── test_session.py         State machine: transitions, pause, skip, formatting,
-│   │                           and both wording voices' phase labels.
-│   ├── test_classifier.py      Tokenizer, prediction, online learning, persistence.
-│   ├── test_enforcer.py        Rule precedence, full escalation ladder, decay,
-│   │                           per-era and per-wording notification copy,
-│   │                           cross-platform process matching.
-│   ├── test_observations.py    De-duplication, labelling, JSONL round-trip.
-│   ├── test_tasks.py            Add/edit/complete tasks and subtasks, JSON round-trip.
-│   ├── test_history.py          Recording, filtering by day/task, JSONL round-trip,
-│   │                           block ids, and changing/deleting a block.
-│   ├── test_claude_fallback.py Caching, async lookup, failure handling — no
-│   │                           real network calls, a fake client stands in.
-│   ├── test_rider_themes.py    Palette completeness, color validity, dark-mode
-│   │                           shade generation, contrast-safe text colors.
-│   ├── test_wizard_gestures.py Line and circle recognition, ignored gestures,
-│   │                           and page stepping with no wrap-around.
-│   ├── test_revice_sync.py     Codes, the handshake, messages, status text,
-│   │                           and the add-only Pull History merge.
-│   ├── test_revice_link.py     Pairing, wrong codes, time-outs, status and
-│   │                           pull round-trips, all on 127.0.0.1.
-│   ├── test_visuals.py         Font lookup, glow shape/fade, per-era background
-│   │                           and divider differences, light/dark contrast,
-│   │                           app-icon loading/padding.
-│   ├── test_notifier.py        Era-to-sound-cue selection logic (Windows tones,
-│   │                           macOS/Linux sound tables).
-│   ├── test_ui_theme.py        Base colors, every Rider's palette, MY-TH's two
-│   │                           looks, Black's stricter dark mode.
-│   ├── test_ui_router.py       Side bar pages for every Rider, moving between
-│   │                           pages, and Wizard's gestures along them.
-│   ├── test_ui_logic.py        Icons, Insights totals, task filters, Rider rows
-│   │                           in Settings, and Ryuki's flip helper.
+├── tests/                      About 1,500 fast tests, plus the window smoke test.
+│   ├── test_rider_registry.py  Checks EVERY Rider automatically: colors, era,
+│   │                           powers, id, pages, progress pictures.
+│   ├── test_application.py     The mailbox, clean shutdown, focus records,
+│   │                           blocking decisions, the buddy link.
+│   ├── test_storage.py         Crash-safe saving and broken-file reading.
+│   ├── test_config_validation.py  Every setting's rule.
+│   ├── test_update_verify.py   Valid, wrong, missing, and garbled fingerprints.
+│   ├── test_diagnostics.py     The log file stays small and private.
+│   ├── test_packaging.py       requirements.txt and pyproject.toml agree.
+│   ├── test_*.py               One file per part of the app (session, classifier,
+│   │                           enforcer, tasks, history, themes, pages, …).
 │   └── smoke_ui.py             Opens the real window and clicks through it
 │                               (not pytest). Point your data folder somewhere
 │                               safe first -- it saves settings.
 │
-├── .github/workflows/
-│   ├── tests.yml               Runs pytest on Windows, macOS, and Linux on every push.
-│   └── release.yml             Builds and publishes installers on a version tag.
+├── scripts/
+│   └── write_checksum.py       Writes a release download's fingerprint file.
 │
-├── requirements.txt
-├── pytest.ini
+├── .github/workflows/
+│   ├── tests.yml               Ruff, mypy, tests on Python 3.11–3.13, coverage,
+│   │                           the window smoke test on Windows/macOS/Linux, and
+│   │                           a check of the libraries for known problems.
+│   ├── codeql.yml              GitHub's security scan.
+│   └── release.yml             Builds and publishes installers (and their
+│                               fingerprints) on a version tag.
+│
+├── pyproject.toml              The project's description, its libraries in groups,
+│                               and the settings for pytest, coverage, Ruff, mypy.
+├── requirements.txt            Every library a full copy uses, in one list.
 ├── run.bat                     Launches with pythonw (no console window).
 └── build.bat                   PyInstaller one-file build.
 ```
@@ -380,6 +446,14 @@ cd Lock-In-Rider
 Make sure you have Python 3.11+ installed, then run:
 ```bat
 pip install -r requirements.txt
+```
+That installs everything a full copy uses. If you'd rather pick, the
+same libraries are split into groups in `pyproject.toml`:
+```bat
+pip install -e .                  the app itself
+pip install -e ".[camera]"        plus Strict Camera Monitoring
+pip install -e ".[claude]"        plus the optional Claude helper
+pip install -e ".[dev]"           plus the tools for testing and checking
 ```
 
 ### 3. Run it
@@ -414,6 +488,26 @@ be doing anything, run `pip install -r requirements.txt` again and make sure
 it installs `pywin32` and `psutil` without errors. The app also now shows a
 red banner on startup, and a note on the Blocking page, if it can't detect
 windows — but it's worth checking directly if you're not sure.
+
+### Checking your changes
+
+These are the same checks GitHub runs on every push
+(`.github/workflows/tests.yml`). Install the tools once with
+`pip install -e ".[dev]"`, then:
+```bat
+ruff check .                     style problems
+ruff format --check .            formatting
+mypy                             types
+pytest                           the tests
+pytest --cov=lock_in             the tests, plus how much of the app they run
+```
+And the real-window smoke test, with a throwaway settings folder so it
+never touches your own (three separate lines on Windows):
+```bat
+set APPDATA=%CD%\.smoke-data
+set PYTHONPATH=.
+python tests\smoke_ui.py
+```
 
 ---
 
@@ -949,6 +1043,36 @@ The last two Riders do things no earlier Rider does. Both are built:
 
 Tier 6 is complete.
 
+### Adding a new Rider
+
+A Rider is made of two parts: **who they are** (name, era, year,
+colors) and **what they can do** (their powers). Adding one takes a few
+small steps:
+
+1. **Add them to the table** in `lock_in/rider_themes.py`: their name,
+   era, year, and a light-mode and dark-mode color for `primary` and
+   `secondary`.
+2. **Give them a power, if they have one.** Pick it by name from
+   `lock_in/rider_effects.py`, like
+   `tier4_effect=DisplayEffect.MIRROR_FLIP`. A misspelled power stops
+   the app straight away with a clear message, instead of the power
+   quietly not working.
+3. **A brand-new power** gets its own name in `rider_effects.py` first,
+   in the list for its Tier, then the code that makes it happen. For
+   example, a new Tier 5 page gets a builder in `lock_in/tier5/` and a
+   line in `TIER5_BUILDERS`, plus its side bar words and icon in
+   `lock_in/ui/router.py`.
+4. **Run the tests.** `tests/test_rider_registry.py` checks every Rider
+   automatically: valid colors, a real era, typed powers, a unique id,
+   a side bar that builds, and a progress picture that draws. It also
+   checks that every power belongs to exactly one Rider. A new Rider is
+   covered the moment it's in the table, with no new test needed.
+
+In code, ask about a power by its kind, not by comparing words:
+`if app.abilities.display is DisplayEffect.MIRROR_FLIP:`.
+`RIDERS` (by a short id like `"ex-aid-2016"`) and `RIDER_THEMES` (by
+display name, which is what `config.json` saves) both list every Rider.
+
 ### Look and feel
 
 Since v3.0.0 the screen is built from a few simple parts, all in
@@ -1303,6 +1427,24 @@ Settings, the trained model, and your training data all live in
 | `observations.jsonl` | Windows seen during focus, one JSON object per line |
 | `tasks.json` | Your task list and their checklist subtasks |
 | `sessions.jsonl` | A log of every completed, skipped, or reset focus block |
+| `logs/lock_in.log` | A small note of anything that went wrong (see below) |
+
+Every one of these files is saved safely: the new copy is written into a
+spare file first, then swapped in with one quick step, so a crash can
+never leave a half-written file behind.
+
+**When you edit `config.json` by hand:** every value is checked when
+Lock In opens. A value that makes no sense (a focus block of -5 minutes,
+a Rider that doesn't exist, a list that isn't a list) is swapped for its
+normal default, and every other setting is kept. Settings from a newer
+version that this one doesn't know are simply ignored.
+
+**The log file** keeps at most three small files (about 256 KB each)
+and throws the oldest away. It notes what went wrong, like an update or
+the camera failing, and never what you were doing: no window titles, no
+task names, nothing you typed, and nothing sent to the Claude helper. If
+you ever need more detail to track a problem down, start Lock In with
+the setting `LOCKIN_DEBUG_LOG=1`; it's off unless you turn it on.
 
 Deleting any of them regenerates it. Deleting `model.json` costs you nothing if
 your labels are still in `observations.jsonl` — just run `python train.py
@@ -1365,6 +1507,17 @@ use — never the key itself.
   win, on purpose — the goal is yours to set however you like.
 - **Only Geats can change the daily goal** — Gotchard's Badges page has no
   goal buttons of its own; it just reads whatever goal is set.
+- **The update check proves the download is complete and unchanged, not
+  who made it.** The fingerprint file comes from the same GitHub release
+  as the download. It catches a download that was cut short or altered
+  on the way. It would not catch someone who took over the GitHub
+  account itself and replaced both files. A signed release (with a
+  private key only the author holds) would cover that, and is a
+  possible later step.
+- **Screen-code tests are mostly by hand.** About 83% of the non-screen
+  code is covered by the automatic tests, but only about a third of
+  the screen code. The rest is checked by `tests/smoke_ui.py` (which
+  opens the real window) and by looking at the app.
 - **Auto-update only replaces the downloaded app** — a source checkout
   (`python main.py`) shows the same "update available" note but needs
   `git pull` instead of a restart button.

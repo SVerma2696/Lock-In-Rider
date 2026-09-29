@@ -19,9 +19,9 @@ from datetime import date
 
 import customtkinter as ctk
 
+from ...tier5 import TIER5_BUILDERS
 from .. import theme as t
 from ..components.box import Box
-from ...tier5 import TIER5_BUILDERS
 from ..router import tier5_route_label
 from .base import PAGE_PAD_X, Page, tasks_signature
 
@@ -34,11 +34,10 @@ class RiderPage(Page):
 
     def build(self) -> None:
         app = self.app
-        effect = app.current_tier5_effect
+        effect = app.abilities.productivity
         self.page_header(tier5_route_label(effect), app.config_obj.rider_theme)
         self.content = Box(self.body)
-        self.pack(self.content, fill="both", expand=True, padx=PAGE_PAD_X - 4,
-                  pady=(0, t.SPACE_4))
+        self.pack(self.content, fill="both", expand=True, padx=PAGE_PAD_X - 4, pady=(0, t.SPACE_4))
 
     def on_show(self) -> None:
         # Drawn fresh whenever your history, tasks, goal, badges, or the
@@ -60,14 +59,17 @@ class RiderPage(Page):
     def refresh(self) -> None:
         """Clear the frame and let the Rider's builder draw it again."""
         app = self.app
-        builder = TIER5_BUILDERS.get(app.current_tier5_effect)
+        builder = TIER5_BUILDERS.get(app.abilities.productivity)
         if builder is None:
             return
         for child in self.content.winfo_children():
             child.destroy()
         builder(
-            self.content, history=app.history, tasks=app.tasks,
-            theme=app._current_rider_theme, appearance_mode=ctk.get_appearance_mode(),
+            self.content,
+            history=app.history,
+            tasks=app.tasks,
+            theme=app._current_rider_theme,
+            appearance_mode=ctk.get_appearance_mode(),
             config=app.config_obj,
         )
         # Taken AFTER drawing: Gotchard may hand out a badge while drawing.

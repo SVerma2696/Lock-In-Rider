@@ -16,24 +16,25 @@ calls `on_select("tasks")` (or whichever page) and the app does the rest.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 import customtkinter as ctk
 
 from .. import theme as t
-from .box import Box
-from .text import Text
 from ..icons import icon_image
 from ..router import Route
+from .box import Box
+from .text import Text
 
 
 class SidebarButton(Box):
-    def __init__(self, master, palette: t.Palette, *, layout, route: Route,
-                 on_click: Callable[[str], None]) -> None:
+    def __init__(
+        self, master, palette: t.Palette, *, layout, route: Route, on_click: Callable[[str], object]
+    ) -> None:
         super().__init__(master)
         self.route = route
         self._palette = palette
-        self._active = None
+        self._active: bool | None = None
         self._mirrored = False
         self._icon_idle = icon_image(route.icon, palette.text_secondary, t.ICON_SIZE)
         self._icon_active = icon_image(route.icon, palette.accent_text, t.ICON_SIZE)
@@ -43,10 +44,17 @@ class SidebarButton(Box):
         layout.pack(self.indicator, side="left", padx=(0, t.SPACE_1))
 
         self.button = ctk.CTkButton(
-            self, text=f"  {route.label}", image=self._icon_idle, compound="left",
-            anchor="w", height=38, corner_radius=t.CONTROL_RADIUS,
-            fg_color="transparent", hover_color=palette.control_hover,
-            text_color=palette.text_secondary, font=t.font(size=t.FONT_BODY + 1),
+            self,
+            text=f"  {route.label}",
+            image=self._icon_idle,
+            compound="left",
+            anchor="w",
+            height=38,
+            corner_radius=t.CONTROL_RADIUS,
+            fg_color="transparent",
+            hover_color=palette.control_hover,
+            text_color=palette.text_secondary,
+            font=t.font(size=t.FONT_BODY + 1),
             command=lambda: on_click(route.id),
         )
         layout.pack(self.button, side="left", fill="x", expand=True)
@@ -70,21 +78,31 @@ class SidebarButton(Box):
         if mirrored == self._mirrored:
             return
         self._mirrored = mirrored
-        self.button.configure(anchor="e" if mirrored else "w",
-                              compound="right" if mirrored else "left",
-                              text=f"{self.route.label}  " if mirrored else f"  {self.route.label}")
+        self.button.configure(
+            anchor="e" if mirrored else "w",
+            compound="right" if mirrored else "left",
+            text=f"{self.route.label}  " if mirrored else f"  {self.route.label}",
+        )
 
 
 class Sidebar(ctk.CTkFrame):
-    def __init__(self, master, palette: t.Palette, *, layout,
-                 on_select: Callable[[str], None], rider_heading: str = "Rider") -> None:
-        super().__init__(master, fg_color=palette.sidebar_bg, corner_radius=0,
-                         width=t.SIDEBAR_WIDTH)
+    def __init__(
+        self,
+        master,
+        palette: t.Palette,
+        *,
+        layout,
+        on_select: Callable[[str], object],
+        rider_heading: str = "Rider",
+    ) -> None:
+        super().__init__(
+            master, fg_color=palette.sidebar_bg, corner_radius=0, width=t.SIDEBAR_WIDTH
+        )
         self._layout = layout
         self._palette = palette
         self._on_select = on_select
         self._rider_heading = rider_heading
-        self.buttons: Dict[str, SidebarButton] = {}
+        self.buttons: dict[str, SidebarButton] = {}
         self.pack_propagate(False)
         self.grid_propagate(False)
 
@@ -93,7 +111,7 @@ class Sidebar(ctk.CTkFrame):
         self.bottom = Box(self)
         layout.pack(self.bottom, side="bottom", fill="x", padx=t.SPACE_3, pady=(0, t.SPACE_4))
 
-    def set_routes(self, routes: List[Route], rider_heading: str = None) -> None:
+    def set_routes(self, routes: list[Route], rider_heading: str | None = None) -> None:
         """Throw away the old buttons and make one per page."""
         if rider_heading is not None:
             self._rider_heading = rider_heading
@@ -106,15 +124,23 @@ class Sidebar(ctk.CTkFrame):
             holder = self.bottom if route.section == "bottom" else self.top
             if route.section == "rider" and not heading_done:
                 heading = Text(
-                    holder, text=self._rider_heading.upper(), anchor="w",
+                    holder,
+                    text=self._rider_heading.upper(),
+                    anchor="w",
                     text_color=self._palette.text_muted,
                     font=t.font(size=10, weight="bold"),
                 )
-                self._layout.pack(heading, anchor="w", fill="x",
-                                  padx=(t.SPACE_3, t.SPACE_3), pady=(t.SPACE_4, t.SPACE_1))
+                self._layout.pack(
+                    heading,
+                    anchor="w",
+                    fill="x",
+                    padx=(t.SPACE_3, t.SPACE_3),
+                    pady=(t.SPACE_4, t.SPACE_1),
+                )
                 heading_done = True
-            button = SidebarButton(holder, self._palette, layout=self._layout,
-                                   route=route, on_click=self._on_select)
+            button = SidebarButton(
+                holder, self._palette, layout=self._layout, route=route, on_click=self._on_select
+            )
             self._layout.pack(button, fill="x", pady=1)
             self.buttons[route.id] = button
 

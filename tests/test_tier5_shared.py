@@ -3,8 +3,12 @@ from datetime import date
 from lock_in.history import SessionRecord
 from lock_in.tasks import TaskStore
 from lock_in.tier5._shared import (
-    format_day_heading, format_hm, format_time_range, last_n_days,
-    resolve_task_name, sorted_blocks,
+    format_day_heading,
+    format_hm,
+    format_time_range,
+    last_n_days,
+    resolve_task_name,
+    sorted_blocks,
 )
 
 

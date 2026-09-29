@@ -41,11 +41,12 @@ one most worth labelling carefully.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 from .classifier import tokenize
+from .storage import rewrite_jsonl
 
 
 def normalise(text: str) -> str:
@@ -77,7 +78,7 @@ class Observation(dict):
         return self.get("text", "")
 
     @property
-    def label(self) -> Optional[str]:
+    def label(self) -> str | None:
         return self.get("label")
 
     @property
@@ -107,7 +108,7 @@ class ObservationStore:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._records: Dict[str, Observation] = {}
+        self._records: dict[str, Observation] = {}
         self._dirty = False
         self.load()
 
@@ -125,10 +126,15 @@ class ObservationStore:
                 if not line:
                     continue
                 try:
-                    record = Observation(json.loads(line))
+                    raw = json.loads(line)
                 except json.JSONDecodeError:
                     # One broken line shouldn't cost you your whole training set.
                     continue
+                # A line that's valid JSON but not an entry (like `5` or
+                # `[]`) used to crash the app on opening. Skip it instead.
+                if not isinstance(raw, dict) or not isinstance(raw.get("text", ""), str):
+                    continue
+                record = Observation(raw)
                 key = record.get("key") or normalise(record.text)
                 record["key"] = key
                 self._records[key] = record
@@ -139,11 +145,8 @@ class ObservationStore:
         """Save everything, oldest windows first."""
         if not self._dirty:
             return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         ordered = sorted(self._records.values(), key=lambda r: r.get("first_seen", ""))
-        with self.path.open("w", encoding="utf-8") as handle:
-            for record in ordered:
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        rewrite_jsonl(self.path, ordered)
         self._dirty = False
 
     # ------------------------------------------------------------------ #
@@ -154,10 +157,10 @@ class ObservationStore:
         text: str,
         process: str = "",
         title: str = "",
-        predicted: Optional[str] = None,
-        confidence: Optional[float] = None,
+        predicted: str | None = None,
+        confidence: float | None = None,
         blocked: bool = False,
-    ) -> Optional[Observation]:
+    ) -> Observation | None:
         """
         Add a new window, or update one we've already seen. Gives back the
         entry, or None if there was nothing worth recording.
@@ -189,19 +192,21 @@ class ObservationStore:
             self._dirty = True
             return existing
 
-        record = Observation({
-            "key": key,
-            "text": text,
-            "process": process,
-            "title": title,
-            "count": 1,
-            "first_seen": now,
-            "last_seen": now,
-            "predicted": predicted,
-            "confidence": confidence,
-            "blocked": blocked,
-            "label": None,
-        })
+        record = Observation(
+            {
+                "key": key,
+                "text": text,
+                "process": process,
+                "title": title,
+                "count": 1,
+                "first_seen": now,
+                "last_seen": now,
+                "predicted": predicted,
+                "confidence": confidence,
+                "blocked": blocked,
+                "label": None,
+            }
+        )
         self._records[key] = record
         self._dirty = True
         return record
@@ -209,7 +214,7 @@ class ObservationStore:
     # ------------------------------------------------------------------ #
     # Labelling
     # ------------------------------------------------------------------ #
-    def set_label(self, key: str, label: Optional[str]) -> bool:
+    def set_label(self, key: str, label: str | None) -> bool:
         """Set (or clear, with None) a window's label. True if that window existed."""
         record = self._records.get(key)
         if record is None:
@@ -219,31 +224,30 @@ class ObservationStore:
         self._dirty = True
         return True
 
-    def label_by_text(self, text: str, label: Optional[str]) -> bool:
+    def label_by_text(self, text: str, label: str | None) -> bool:
         """The same as `set_label`, but you give it the raw title instead of the key."""
         return self.set_label(normalise(text), label)
 
     # ------------------------------------------------------------------ #
     # Looking things up
     # ------------------------------------------------------------------ #
-    def all(self) -> List[Observation]:
+    def all(self) -> list[Observation]:
         return list(self._records.values())
 
-    def pending(self, min_count: int = 1) -> List[Observation]:
+    def pending(self, min_count: int = 1) -> list[Observation]:
         """
         Windows still waiting to be labelled, most-seen ones first.
 
         Sorting this way puts the windows you spent the most time in at the
         top — so a few minutes of labelling gets you the most useful data.
         """
-        items = [r for r in self._records.values()
-                 if r.label is None and r.count >= min_count]
+        items = [r for r in self._records.values() if r.label is None and r.count >= min_count]
         return sorted(items, key=lambda r: r.count, reverse=True)
 
-    def labelled(self) -> List[Observation]:
+    def labelled(self) -> list[Observation]:
         return [r for r in self._records.values() if r.label is not None]
 
-    def training_pairs(self) -> List[tuple]:
+    def training_pairs(self) -> list[tuple]:
         """
         Gives back `(text, label)` pairs, ready to teach `NaiveBayesClassifier`.
 
@@ -256,9 +260,10 @@ class ObservationStore:
 
     def stats(self) -> dict:
         labelled = self.labelled()
-        by_label: Dict[str, int] = {}
+        by_label: dict[str, int] = {}
         for record in labelled:
-            by_label[record.label] = by_label.get(record.label, 0) + 1
+            if record.label:
+                by_label[record.label] = by_label.get(record.label, 0) + 1
         return {
             "total": len(self._records),
             "labelled": len(labelled),

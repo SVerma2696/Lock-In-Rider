@@ -1,22 +1,113 @@
 name: Tests
 
+# Runs on every push and pull request. Each job answers one question:
+#
+#   lint        Is the code tidy? (Ruff checks and formatting)
+#   typecheck   Do the types line up? (mypy)
+#   unit        Do the tests pass on every supported Python? (Linux)
+#   coverage    Do the tests still run enough of the app?
+#   smoke       Does the real window open and work on Windows, macOS,
+#               and Linux?
+#   audit       Do any of the libraries the app uses have known problems?
+#
+# The security scan (CodeQL) has its own file, codeql.yml.
+
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run tests
+      - run: pip install "ruff>=0.6.0"
+      - name: Ruff
+        run: ruff check .
+      - name: Formatting
+        run: ruff format --check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt "mypy>=1.10.0"
+      - name: mypy
+        run: mypy
+
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements.txt
+      - name: Unit tests
         run: pytest
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt "pytest-cov>=5.0.0"
+      - name: Coverage of everything (floor in pyproject.toml)
+        run: pytest --cov=lock_in --cov-report=term-missing
+      - name: Coverage of everything except the screen code
+        run: coverage report --omit="lock_in/ui/*,lock_in/tier5/*" --fail-under=80
+
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      # The smoke test saves settings; keep them in a throwaway folder.
+      APPDATA: ${{ github.workspace }}/.smoke-data
+      XDG_CONFIG_HOME: ${{ github.workspace }}/.smoke-data
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Unit tests
+        run: pytest
+      - name: Window smoke test (Windows and macOS)
+        if: runner.os != 'Linux'
+        run: python tests/smoke_ui.py
+      - name: Window smoke test (Linux, on a pretend screen)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          xvfb-run -a python tests/smoke_ui.py
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "pip-audit>=2.7.0"
+      - name: Check the app's libraries for known problems
+        run: pip-audit -r requirements.txt

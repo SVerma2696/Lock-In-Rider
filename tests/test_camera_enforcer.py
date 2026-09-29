@@ -7,8 +7,6 @@ import hashlib
 import numpy as np
 import pytest
 
-from lock_in.config import Config
-from lock_in.enforcer import Action, message_for
 from lock_in.camera_enforcer import (
     CAMERA_BACKEND_AVAILABLE,
     MODEL_PB_PATH,
@@ -17,6 +15,8 @@ from lock_in.camera_enforcer import (
     PhoneDetector,
     PhoneWatcher,
 )
+from lock_in.config import Config
+from lock_in.enforcer import Action, message_for
 
 EXPECTED_PB_SHA256 = "2a8d8a89d695842e60d8c6d144181100555563e21acf2fa1e8f561fec5c3c6ad"
 EXPECTED_PBTXT_SHA256 = "cfbecf9447c384403ef5cf695f4cd0bb4840c1312938280350639a9a8e82d303"
@@ -64,8 +64,9 @@ def clock() -> FakeClock:
 
 @pytest.fixture
 def config() -> Config:
-    return Config(grace_seconds=8, strike_interval_seconds=10,
-                  strike_decay_seconds=30, hard_mode=False)
+    return Config(
+        grace_seconds=8, strike_interval_seconds=10, strike_decay_seconds=30, hard_mode=False
+    )
 
 
 @pytest.fixture
@@ -102,7 +103,7 @@ def test_hard_mode_minimizes_then_locks_down(config, clock):
 def test_no_longer_seeing_a_phone_resets_the_grace_timer(camera_enforcer, clock):
     camera_enforcer.update(True)
     clock.advance(9)
-    camera_enforcer.update(True)          # strike 1 (WARN)
+    camera_enforcer.update(True)  # strike 1 (WARN)
     clock.advance(2)
     assert camera_enforcer.update(False) is Action.NONE
     assert camera_enforcer.seconds_on_phone == 0.0
@@ -111,15 +112,18 @@ def test_no_longer_seeing_a_phone_resets_the_grace_timer(camera_enforcer, clock)
 def test_reset_clears_strikes_and_the_grace_period_starts_over(camera_enforcer, clock):
     camera_enforcer.update(True)
     clock.advance(9)
-    camera_enforcer.update(True)          # strike 1 (WARN)
+    camera_enforcer.update(True)  # strike 1 (WARN)
     camera_enforcer.reset()
-    assert camera_enforcer.update(True) is Action.NONE   # back in grace period
+    assert camera_enforcer.update(True) is Action.NONE  # back in grace period
 
 
 def test_phone_window_reads_naturally_in_the_existing_messages():
     title, body = message_for(
-        Action.WARN, app=CameraEnforcer.PHONE_WINDOW.display,
-        remaining="20:00", seconds=5, lockdown=15,
+        Action.WARN,
+        app=CameraEnforcer.PHONE_WINDOW.display,
+        remaining="20:00",
+        seconds=5,
+        lockdown=15,
     )
     assert "your phone" in body
 
@@ -148,7 +152,7 @@ def test_detects_a_confident_phone():
 
 
 def test_ignores_a_confident_non_phone_class():
-    net = FakeNet([[0.0, 1.0, 0.95, 0.1, 0.1, 0.5, 0.5]])   # class 1 = "person"
+    net = FakeNet([[0.0, 1.0, 0.95, 0.1, 0.1, 0.5, 0.5]])  # class 1 = "person"
     detector = PhoneDetector(net)
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
     assert detector.detect(frame) is False
@@ -197,10 +201,11 @@ def test_camera_stays_closed_until_resumed():
         opened.append(1)
         return FakeCapture()
 
-    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
-                            camera_factory=factory)
+    watcher = PhoneWatcher(
+        callback=lambda seen: None, detector=FakeDetector(), camera_factory=factory
+    )
     watcher._step()
-    assert opened == []           # never resumed -- must not touch the camera at all
+    assert opened == []  # never resumed -- must not touch the camera at all
 
     watcher.resume()
     watcher._step()
@@ -209,8 +214,9 @@ def test_camera_stays_closed_until_resumed():
 
 def test_pausing_releases_the_camera_handle():
     cap = FakeCapture()
-    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
-                            camera_factory=lambda: cap)
+    watcher = PhoneWatcher(
+        callback=lambda seen: None, detector=FakeDetector(), camera_factory=lambda: cap
+    )
     watcher.resume()
     watcher._step()
     assert cap.released is False
@@ -221,8 +227,11 @@ def test_pausing_releases_the_camera_handle():
 
 def test_a_detected_phone_reaches_the_callback():
     seen = []
-    watcher = PhoneWatcher(callback=seen.append, detector=FakeDetector(result=True),
-                            camera_factory=lambda: FakeCapture())
+    watcher = PhoneWatcher(
+        callback=seen.append,
+        detector=FakeDetector(result=True),
+        camera_factory=lambda: FakeCapture(),
+    )
     watcher.resume()
     watcher._step()
     assert seen == [True]
@@ -230,8 +239,11 @@ def test_a_detected_phone_reaches_the_callback():
 
 def test_no_phone_also_reaches_the_callback():
     seen = []
-    watcher = PhoneWatcher(callback=seen.append, detector=FakeDetector(result=False),
-                            camera_factory=lambda: FakeCapture())
+    watcher = PhoneWatcher(
+        callback=seen.append,
+        detector=FakeDetector(result=False),
+        camera_factory=lambda: FakeCapture(),
+    )
     watcher.resume()
     watcher._step()
     assert seen == [False]
@@ -241,8 +253,9 @@ def test_a_camera_that_fails_to_open_never_crashes_a_step():
     def broken_factory():
         raise RuntimeError("camera is in use by another app")
 
-    watcher = PhoneWatcher(callback=lambda seen: None, detector=FakeDetector(),
-                            camera_factory=broken_factory)
+    watcher = PhoneWatcher(
+        callback=lambda seen: None, detector=FakeDetector(), camera_factory=broken_factory
+    )
     watcher.resume()
-    watcher._step()   # must not raise
-    watcher._step()   # must not raise a second time either
+    watcher._step()  # must not raise
+    watcher._step()  # must not raise a second time either

@@ -7,7 +7,12 @@ from lock_in.rider_themes import RIDER_THEMES, STANDARD_THEME
 from lock_in.tier5 import TIER5_BUILDERS
 from lock_in.ui.gestures import gesture_target
 from lock_in.ui.router import (
-    BUDDY_ROUTE_ID, RIDER_ROUTE_ID, TIER5_ROUTE_LABELS, Router, build_routes, route_ids,
+    BUDDY_ROUTE_ID,
+    RIDER_ROUTE_ID,
+    TIER5_ROUTE_LABELS,
+    Router,
+    build_routes,
+    route_ids,
     tier5_route_label,
 )
 
@@ -16,8 +21,7 @@ BOTTOM = ["help", "settings"]
 
 
 def routes_for(theme):
-    return build_routes(theme.tier5_effect, theme.tier6_effect,
-                        known_tier5_effects=TIER5_BUILDERS)
+    return build_routes(theme.tier5_effect, theme.tier6_effect, known_tier5_effects=TIER5_BUILDERS)
 
 
 def test_plain_rider_gets_just_the_permanent_pages_in_order():
@@ -50,8 +54,8 @@ def test_route_ids_are_unique_and_stable_not_labels():
     ids = route_ids(routes)
     assert len(ids) == len(set(ids))
     rider = next(r for r in routes if r.id == RIDER_ROUTE_ID)
-    assert rider.label == "Analytics"          # the words can change...
-    assert rider.id == "rider"                 # ...the name never does
+    assert rider.label == "Analytics"  # the words can change...
+    assert rider.id == "rider"  # ...the name never does
 
 
 @pytest.mark.parametrize("effect,label", sorted(TIER5_ROUTE_LABELS.items()))

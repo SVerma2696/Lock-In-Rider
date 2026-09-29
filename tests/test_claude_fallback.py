@@ -14,7 +14,7 @@ import time
 import pytest
 
 from lock_in.classifier import DISTRACTION, STUDY
-from lock_in.claude_fallback import ClaudeFallback, ClaudeVerdict
+from lock_in.claude_fallback import ClaudeFallback
 from lock_in.config import Config
 
 
@@ -134,7 +134,7 @@ def test_judge_rejects_unparseable_json(fallback):
     install_fake_client(fallback, lambda kwargs: FakeResponse([FakeTextBlock("not json")]))
     verdict = fallback.judge("z")
     assert verdict.source == "error"
-    assert verdict.label == STUDY          # assume it's fine by default, unless we know otherwise
+    assert verdict.label == STUDY  # assume it's fine by default, unless we know otherwise
 
 
 def test_judge_rejects_unexpected_label(fallback):
@@ -146,6 +146,7 @@ def test_judge_rejects_unexpected_label(fallback):
 def test_judge_survives_client_exceptions(fallback):
     def blow_up(kwargs):
         raise RuntimeError("connection reset")
+
     install_fake_client(fallback, blow_up)
     verdict = fallback.judge("z")
     assert verdict.source == "error"
@@ -192,7 +193,7 @@ def test_second_call_reports_cache_source(fallback):
 
 
 def test_expired_cache_entry_triggers_a_new_call(fallback):
-    fallback.config.claude_cache_minutes = 0     # expires immediately
+    fallback.config.claude_cache_minutes = 0  # expires immediately
     client = install_fake_client(fallback, lambda kwargs: reply(STUDY, 0.9))
     fallback.judge("same window")
     time.sleep(0.01)
@@ -263,12 +264,15 @@ def test_judge_async_does_not_block_the_caller(fallback):
     def slow(kwargs):
         time.sleep(0.3)
         return reply(STUDY, 0.9)
+
     install_fake_client(fallback, slow)
 
     start = time.monotonic()
     fallback.judge_async("window", lambda text, verdict: None)
     elapsed = time.monotonic() - start
-    assert elapsed < 0.1        # comes back almost instantly, the real work happens on a background thread
+    assert (
+        elapsed < 0.1
+    )  # comes back almost instantly, the real work happens on a background thread
 
 
 def test_judge_async_skips_when_unavailable(config, monkeypatch):
@@ -277,7 +281,7 @@ def test_judge_async_skips_when_unavailable(config, monkeypatch):
     calls = []
     fb.judge_async("window", lambda text, verdict: calls.append(verdict))
     time.sleep(0.05)
-    assert calls == []           # a background thread should never have even started
+    assert calls == []  # a background thread should never have even started
 
 
 def test_double_fire_is_guarded(fallback):
@@ -291,7 +295,7 @@ def test_double_fire_is_guarded(fallback):
 
     client = install_fake_client(fallback, slow)
     fallback.judge_async("window", lambda text, verdict: None)
-    time.sleep(0.02)                    # let the first thread start and register
-    fallback.judge_async("window", lambda text, verdict: None)   # should be a no-op
+    time.sleep(0.02)  # let the first thread start and register
+    fallback.judge_async("window", lambda text, verdict: None)  # should be a no-op
     time.sleep(0.3)
     assert len(client.messages.calls) == 1

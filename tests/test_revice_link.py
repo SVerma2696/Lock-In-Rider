@@ -130,8 +130,8 @@ def test_pull_reply_that_was_not_asked_for_is_ignored(links):
     a, b = pair(links)
     b.send_pull_reply([{"id": "s1"}], [])
     b.send_status({"type": "status"})
-    wait_for(a, "status")   # the status came through...
-    assert all(e[0] != "pull_reply" for e in a.poll())   # ...the reply didn't
+    wait_for(a, "status")  # the status came through...
+    assert all(e[0] != "pull_reply" for e in a.poll())  # ...the reply didn't
 
 
 def test_pull_times_out(links):
@@ -168,7 +168,7 @@ def test_oversized_line_closes_the_link(links):
         b._conn.settimeout(10)
         b._conn.sendall(b"x" * (rs.MAX_LINE_BYTES + 10))
     except OSError:
-        pass   # a may hang up before all of it is sent -- that's the point
+        pass  # a may hang up before all of it is sent -- that's the point
     assert wait_for(a, "left", timeout=10) == ("left",)
 
 

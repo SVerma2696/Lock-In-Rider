@@ -10,13 +10,13 @@ to verify.
 
 from lock_in.config import Config
 from lock_in.notifier import (
-    DEFAULT_ERA,
     _LINUX_ALERT_CANDIDATES,
     _LINUX_CHIME_CANDIDATES,
     _MAC_ALERT_SOUND,
     _MAC_CHIME_SOUND,
     _WINDOWS_ALERT_TONES,
     _WINDOWS_CHIME_TONES,
+    DEFAULT_ERA,
     Notifier,
 )
 
@@ -34,6 +34,7 @@ def test_era_matches_the_configured_riders_era():
 def test_era_falls_back_for_an_unrecognised_rider_name():
     # The fallback Rider is the very first one, which is a Showa Rider.
     from lock_in.rider_themes import DEFAULT_RIDER_THEME, RIDER_THEMES
+
     assert make_notifier("Not A Real Rider")._sound_key() == RIDER_THEMES[DEFAULT_RIDER_THEME].era
 
 
@@ -48,7 +49,7 @@ def test_every_era_has_windows_tones():
     for era in _ALL_SOUND_KEYS:
         assert era in _WINDOWS_CHIME_TONES
         assert era in _WINDOWS_ALERT_TONES
-        assert _WINDOWS_CHIME_TONES[era]     # non-empty list of (freq, ms) tones
+        assert _WINDOWS_CHIME_TONES[era]  # non-empty list of (freq, ms) tones
         assert _WINDOWS_ALERT_TONES[era]
 
 

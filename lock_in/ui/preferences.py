@@ -17,11 +17,13 @@ import customtkinter as ctk
 from ..classifier import NaiveBayesClassifier
 from ..config import MODEL_PATH
 from ..presets import GAVV_MICRO_SPRINT, TimerPreset
+from ..rider_effects import EnforcementEffect
 from ..session import Phase
 from . import theme as t
+from .host import AppHost
 
 
-class PreferencesMixin:
+class PreferencesMixin(AppHost):
     # ------------------------------------------------------------------ #
     # Shared on/off values
     # ------------------------------------------------------------------ #
@@ -93,15 +95,19 @@ class PreferencesMixin:
         """Saves Standard Mode's new on/off and switches everything over."""
         self.config_obj.save()
         self._apply_theme_everywhere()
-        # Standard Mode changes current_tier3_effect too (see
+        # Standard Mode changes the Tier 3 power too (see
         # _apply_rider_theme). Gaim's always-on-top lock and Amazon's
         # zero-grace mode normally only change when a phase starts or
         # ends -- so if Standard Mode is flipped mid-block, work both out
         # again right now instead of leaving them stuck.
-        self.attributes("-topmost", self.current_tier3_effect == "lock_overlay"
-                        and self.session.phase is Phase.FOCUS)
+        self.attributes(
+            "-topmost",
+            self.abilities.enforcement is EnforcementEffect.LOCK_OVERLAY
+            and self.session.phase is Phase.FOCUS,
+        )
         self.config_obj.zero_grace_mode = (
-            self.current_tier3_effect == "zero_ui" and self.session.phase is Phase.FOCUS
+            self.abilities.enforcement is EnforcementEffect.ZERO_UI
+            and self.session.phase is Phase.FOCUS
         )
         self.config_obj.save()
 
@@ -145,7 +151,7 @@ class PreferencesMixin:
         """
         self.config_obj.claude_fallback_enabled = self.claude_var.get()
         self.config_obj.save()
-        self.claude.clear_cache()          # an old "unavailable" answer shouldn't stick around
+        self.claude.clear_cache()  # an old "unavailable" answer shouldn't stick around
         self._refresh_claude_status()
         self._refresh_summaries()
 
@@ -240,7 +246,11 @@ class PreferencesMixin:
             return
         self.config_obj.micro_sprint_mode = page.micro_sprint_switch.get() == 1
         self.config_obj.save()
-        name = GAVV_MICRO_SPRINT.name_tokusatsu if self._is_tokusatsu() else GAVV_MICRO_SPRINT.name_professional
+        name = (
+            GAVV_MICRO_SPRINT.name_tokusatsu
+            if self._is_tokusatsu()
+            else GAVV_MICRO_SPRINT.name_professional
+        )
         state = "on" if self.config_obj.micro_sprint_mode else "off"
         self._show_banner(f"{name}: {state}. Starts with the next focus block or break.", "low")
 

@@ -20,7 +20,7 @@ every other page.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import customtkinter as ctk
 
@@ -28,13 +28,21 @@ from . import revice_sync as rs
 
 
 class BuddyTab:
-    def __init__(self, parent, *, accent: str, text_color: str,
-                 on_share: Callable[[], None], on_receive: Callable[[str], None],
-                 on_cancel: Callable[[], None], on_pull: Callable[[], None],
-                 on_unpair: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        parent,
+        *,
+        accent: str | tuple[str, str],
+        text_color: str | tuple[str, str],
+        on_share: Callable[[], None],
+        on_receive: Callable[[str], None],
+        on_cancel: Callable[[], None],
+        on_pull: Callable[[], None],
+        on_unpair: Callable[[], None],
+    ) -> None:
         self._on_receive = on_receive
         self._typing = False
-        self._screen: Optional[str] = None
+        self._screen: str | None = None
 
         self.frame = ctk.CTkFrame(parent, fg_color="transparent")
         self.frame.pack(fill="both", expand=True, padx=12, pady=12)
@@ -43,36 +51,52 @@ class BuddyTab:
         self.message_label.pack(anchor="w", pady=(0, 8))
 
         def button(master, text, command):
-            return ctk.CTkButton(master, text=text, command=command,
-                                 fg_color=accent, text_color=text_color)
+            return ctk.CTkButton(
+                master, text=text, command=command, fg_color=accent, text_color=text_color
+            )
 
         # start
         self.start_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        ctk.CTkLabel(self.start_frame, justify="left", wraplength=420, text=(
-            "Pair with a friend's computer on the same Wi-Fi. They need "
-            "Revice picked too. One of you presses Share, the other "
-            "presses Receive and types the code.")).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(
+            self.start_frame,
+            justify="left",
+            wraplength=420,
+            text=(
+                "Pair with a friend's computer on the same Wi-Fi. They need "
+                "Revice picked too. One of you presses Share, the other "
+                "presses Receive and types the code."
+            ),
+        ).pack(anchor="w", pady=(0, 10))
         button(self.start_frame, "Share", on_share).pack(anchor="w", pady=4)
         button(self.start_frame, "Receive", self._start_typing).pack(anchor="w", pady=4)
 
         # typing
         self.typing_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        ctk.CTkLabel(self.typing_frame, text="Type the 4 numbers from the other computer:"
-                     ).pack(anchor="w", pady=(0, 6))
-        self.code_entry = ctk.CTkEntry(self.typing_frame, width=120,
-                                       font=ctk.CTkFont(size=24, weight="bold"))
+        ctk.CTkLabel(self.typing_frame, text="Type the 4 numbers from the other computer:").pack(
+            anchor="w", pady=(0, 6)
+        )
+        self.code_entry = ctk.CTkEntry(
+            self.typing_frame, width=120, font=ctk.CTkFont(size=24, weight="bold")
+        )
         self.code_entry.pack(anchor="w", pady=4)
         self.code_entry.bind("<Return>", lambda _e: self._connect())
         button(self.typing_frame, "Connect", self._connect).pack(anchor="w", pady=4)
-        ctk.CTkButton(self.typing_frame, text="Back", fg_color="transparent", border_width=1,
-                      command=self._stop_typing).pack(anchor="w", pady=4)
+        ctk.CTkButton(
+            self.typing_frame,
+            text="Back",
+            fg_color="transparent",
+            border_width=1,
+            command=self._stop_typing,
+        ).pack(anchor="w", pady=4)
 
         # sharing
         self.sharing_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        ctk.CTkLabel(self.sharing_frame, text="Type this code on the other computer:"
-                     ).pack(anchor="w")
-        self.code_label = ctk.CTkLabel(self.sharing_frame, text="",
-                                       font=ctk.CTkFont(size=48, weight="bold"))
+        ctk.CTkLabel(self.sharing_frame, text="Type this code on the other computer:").pack(
+            anchor="w"
+        )
+        self.code_label = ctk.CTkLabel(
+            self.sharing_frame, text="", font=ctk.CTkFont(size=48, weight="bold")
+        )
         self.code_label.pack(anchor="w", pady=6)
         self.countdown_label = ctk.CTkLabel(self.sharing_frame, text="")
         self.countdown_label.pack(anchor="w", pady=(0, 8))
@@ -80,16 +104,20 @@ class BuddyTab:
 
         # finding
         self.finding_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        ctk.CTkLabel(self.finding_frame, text="Looking for your buddy…").pack(anchor="w", pady=(0, 8))
+        ctk.CTkLabel(self.finding_frame, text="Looking for your buddy…").pack(
+            anchor="w", pady=(0, 8)
+        )
         button(self.finding_frame, "Cancel", on_cancel).pack(anchor="w")
 
         # paired
         self.paired_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        self.paired_label = ctk.CTkLabel(self.paired_frame, text="",
-                                         font=ctk.CTkFont(size=16, weight="bold"))
+        self.paired_label = ctk.CTkLabel(
+            self.paired_frame, text="", font=ctk.CTkFont(size=16, weight="bold")
+        )
         self.paired_label.pack(anchor="w")
-        self.time_label = ctk.CTkLabel(self.paired_frame, text="--:--",
-                                       font=ctk.CTkFont(size=40, weight="bold"))
+        self.time_label = ctk.CTkLabel(
+            self.paired_frame, text="--:--", font=ctk.CTkFont(size=40, weight="bold")
+        )
         self.time_label.pack(anchor="w", pady=(6, 0))
         self.doing_label = ctk.CTkLabel(self.paired_frame, text="")
         self.doing_label.pack(anchor="w")
@@ -99,9 +127,13 @@ class BuddyTab:
         self.pull_button.pack(anchor="w", pady=4)
         button(self.paired_frame, "Unpair", on_unpair).pack(anchor="w", pady=4)
 
-        self._frames = {"start": self.start_frame, "typing": self.typing_frame,
-                        "sharing": self.sharing_frame, "finding": self.finding_frame,
-                        "paired": self.paired_frame}
+        self._frames = {
+            "start": self.start_frame,
+            "typing": self.typing_frame,
+            "sharing": self.sharing_frame,
+            "finding": self.finding_frame,
+            "paired": self.paired_frame,
+        }
 
     # ------------------------------------------------------------------ #
     def _start_typing(self) -> None:
@@ -132,7 +164,7 @@ class BuddyTab:
             label.configure(text=text)
 
     # ------------------------------------------------------------------ #
-    def show(self, link, status: Optional[dict], message: str, now: float) -> None:
+    def show(self, link, status: dict | None, message: str, now: float) -> None:
         """Bring the tab up to date with the link. `now` is in the same
         clock as link.code_deadline."""
         if link.state == "paired":
@@ -150,8 +182,9 @@ class BuddyTab:
         if screen == "sharing":
             self._set(self.code_label, link.code or "")
             left = max(0, int(link.code_deadline - now))
-            self._set(self.countdown_label,
-                      f"Waiting for your buddy… {left // 60}:{left % 60:02d} left")
+            self._set(
+                self.countdown_label, f"Waiting for your buddy… {left // 60}:{left % 60:02d} left"
+            )
         elif screen == "paired":
             self._set(self.paired_label, f"Paired with {link.buddy_name or 'Buddy'}")
             if status is None:
@@ -165,4 +198,5 @@ class BuddyTab:
             pull_text = "Pulling…" if link.pull_pending else "Pull History"
             if self.pull_button.cget("text") != pull_text:
                 self.pull_button.configure(
-                    text=pull_text, state="disabled" if link.pull_pending else "normal")
+                    text=pull_text, state="disabled" if link.pull_pending else "normal"
+                )

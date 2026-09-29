@@ -21,7 +21,6 @@ import json
 import secrets
 from dataclasses import asdict
 from datetime import datetime
-from typing import Optional
 
 from .history import SessionRecord
 from .tasks import task_from_dict
@@ -54,8 +53,16 @@ MAX_BUDDY_NAME = 64
 MAX_REMAINING_SECONDS = 24 * 60 * 60
 
 # Every message has one of these types. Anything else is ignored.
-MESSAGE_TYPES = {"status", "pull_request", "pull_reply", "bye",
-                 "challenge", "proof", "welcome", "wrong"}
+MESSAGE_TYPES = {
+    "status",
+    "pull_request",
+    "pull_reply",
+    "bye",
+    "challenge",
+    "proof",
+    "welcome",
+    "wrong",
+}
 
 # What the Buddy tab says when something goes wrong.
 MSG_NOT_FOUND = "Couldn't find it. Are you both on the same Wi-Fi?"
@@ -102,7 +109,7 @@ def encode(message: dict) -> bytes:
     return (json.dumps(message, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def decode(line: bytes) -> Optional[dict]:
+def decode(line: bytes) -> dict | None:
     """One line back into a message, or None if it's broken or unknown."""
     try:
         message = json.loads(line.decode("utf-8"))
@@ -116,19 +123,19 @@ def decode(line: bytes) -> Optional[dict]:
 def take_lines(buf: bytearray) -> list[bytes]:
     """Take every whole line out of `buf` (without the newline). Whatever
     is left after the last newline stays in `buf` for next time."""
-    lines = []
+    lines: list[bytes] = []
     while True:
         index = buf.find(b"\n")
         if index < 0:
             return lines
         lines.append(bytes(buf[:index]))
-        del buf[:index + 1]
+        del buf[: index + 1]
 
 
 # --------------------------------------------------------------------------- #
 # The timer we send, and how the Buddy tab shows theirs
 # --------------------------------------------------------------------------- #
-def status_from_session(session, task_name: Optional[str], name: str) -> dict:
+def status_from_session(session, task_name: str | None, name: str) -> dict:
     """Our timer as a `status` message. Only these few things are sent."""
     return {
         "type": "status",
@@ -153,8 +160,13 @@ def clean_status(message: dict) -> dict:
     task_name = task_name[:MAX_TASK_NAME] if isinstance(task_name, str) and task_name else None
     name = message.get("name")
     name = name[:MAX_BUDDY_NAME] if isinstance(name, str) and name else "Buddy"
-    return {"phase": phase, "paused": bool(message.get("paused")),
-            "remaining_seconds": remaining, "task_name": task_name, "name": name}
+    return {
+        "phase": phase,
+        "paused": bool(message.get("paused")),
+        "remaining_seconds": remaining,
+        "task_name": task_name,
+        "name": name,
+    }
 
 
 def describe_status(status: dict) -> tuple[str, str, str]:
@@ -175,7 +187,7 @@ def describe_status(status: dict) -> tuple[str, str, str]:
 # --------------------------------------------------------------------------- #
 # Pull History
 # --------------------------------------------------------------------------- #
-def session_from_dict(item: object) -> Optional[SessionRecord]:
+def session_from_dict(item: object) -> SessionRecord | None:
     """One pulled session, or None if anything about it looks wrong."""
     if not isinstance(item, dict):
         return None
@@ -199,8 +211,14 @@ def session_from_dict(item: object) -> Optional[SessionRecord]:
         return None
     if not isinstance(completed, bool):
         return None
-    return SessionRecord(start=start, end=end, duration_seconds=duration,
-                         task_id=task_id, completed=completed, id=record_id)
+    return SessionRecord(
+        start=start,
+        end=end,
+        duration_seconds=duration,
+        task_id=task_id,
+        completed=completed,
+        id=record_id,
+    )
 
 
 def merge_pull(history, tasks, their_sessions, their_tasks) -> tuple[int, int]:

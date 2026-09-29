@@ -31,7 +31,9 @@ def group_by_status(tasks: list[Task]) -> dict[TaskStatus, list[Task]]:
     always draw all three columns.
     """
     buckets: dict[TaskStatus, list[Task]] = {
-        TaskStatus.TODO: [], TaskStatus.IN_PROGRESS: [], TaskStatus.DONE: [],
+        TaskStatus.TODO: [],
+        TaskStatus.IN_PROGRESS: [],
+        TaskStatus.DONE: [],
     }
     for task in tasks:
         buckets[task.status].append(task)
@@ -49,8 +51,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
 
     if not tasks.all():
         ctk.CTkLabel(
-            frame, text="No tasks yet. Add one on the Tasks page.",
-            justify="left", wraplength=400,
+            frame,
+            text="No tasks yet. Add one on the Tasks page.",
+            justify="left",
+            wraplength=400,
         ).pack(anchor="w", pady=8)
         return
 
@@ -79,7 +83,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
 
             bucket_tasks = buckets[status]
             ctk.CTkLabel(
-                column, text=f"{label} ({len(bucket_tasks)})",
+                column,
+                text=f"{label} ({len(bucket_tasks)})",
                 font=ctk.CTkFont(size=13, weight="bold"),
                 text_color=theme.primary_text_pair,
             ).pack(anchor="w", pady=(0, 8))
@@ -92,21 +97,29 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
         card.pack(fill="x", pady=4)
 
         ctk.CTkLabel(card, text=task.name, anchor="w", wraplength=140).pack(
-            anchor="w", padx=8, pady=(8, 0),
+            anchor="w",
+            padx=8,
+            pady=(8, 0),
         )
         # "2/5" = 2 small steps finished out of 5. A task with no small
         # steps shows nothing here, instead of an empty line.
         if task.subtasks:
             done_count = sum(1 for s in task.subtasks if s.done)
             ctk.CTkLabel(
-                card, text=f"{done_count}/{len(task.subtasks)}", anchor="w",
-                font=ctk.CTkFont(size=10), text_color=("gray40", "gray60"),
+                card,
+                text=f"{done_count}/{len(task.subtasks)}",
+                anchor="w",
+                font=ctk.CTkFont(size=10),
+                text_color=("gray40", "gray60"),
             ).pack(anchor="w", padx=8)
 
         target = next_status.get(status)
         if target is not None:
             ctk.CTkButton(
-                card, text="→", width=40, height=24,
+                card,
+                text="→",
+                width=40,
+                height=24,
                 command=lambda t=task, s=target: advance(t, s),
             ).pack(anchor="e", padx=8, pady=(4, 8))
         else:

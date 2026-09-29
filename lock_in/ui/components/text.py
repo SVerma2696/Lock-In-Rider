@@ -21,10 +21,15 @@ It still acts like the rest of the app:
 from __future__ import annotations
 
 import tkinter
+from typing import Literal
 
 from customtkinter.windows.widgets.appearance_mode import CTkAppearanceModeBaseClass
 
 from .. import theme as t
+
+# Where the words sit inside the label, and how lines of them line up.
+Anchor = Literal["nw", "n", "ne", "w", "center", "e", "sw", "s", "se"]
+Justify = Literal["left", "center", "right"]
 
 
 def background_of(widget):
@@ -42,14 +47,32 @@ def background_of(widget):
 
 
 class Text(tkinter.Label, CTkAppearanceModeBaseClass):
-    def __init__(self, master, text: str = "", *, text_color=t.TEXT_PRIMARY, font=None,
-                 anchor: str = "w", justify: str = "left", wraplength: int = 0,
-                 pady: int = 2) -> None:
+    def __init__(
+        self,
+        master,
+        text: str = "",
+        *,
+        text_color=t.TEXT_PRIMARY,
+        font=None,
+        anchor: Anchor = "w",
+        justify: Justify = "left",
+        wraplength: int = 0,
+        pady: int = 2,
+    ) -> None:
         self._text_color = text_color
         self._background = background_of(master)
         tkinter.Label.__init__(
-            self, master, text=text, font=font or t.font(), anchor=anchor, justify=justify,
-            wraplength=wraplength, bd=0, highlightthickness=0, padx=0, pady=pady,
+            self,
+            master,
+            text=text,
+            font=font or t.font(),
+            anchor=anchor,
+            justify=justify,
+            wraplength=wraplength,
+            bd=0,
+            highlightthickness=0,
+            padx=0,
+            pady=pady,
         )
         CTkAppearanceModeBaseClass.__init__(self)
         self._recolor()
@@ -70,7 +93,7 @@ class Text(tkinter.Label, CTkAppearanceModeBaseClass):
         if "text_color" in kwargs:
             self._text_color = kwargs.pop("text_color")
             recolor = True
-        kwargs.pop("fg_color", None)   # a Text never has its own box color
+        kwargs.pop("fg_color", None)  # a Text never has its own box color
         if cnf or kwargs:
             tkinter.Label.configure(self, cnf, **kwargs)
         if recolor:

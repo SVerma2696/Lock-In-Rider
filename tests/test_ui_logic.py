@@ -13,12 +13,12 @@ from lock_in.tasks import Subtask, Task, TaskStatus
 from lock_in.ui.icons import FALLBACK_ICON, ICON_NAMES, draw_icon
 from lock_in.ui.insights_data import format_duration, summarize
 from lock_in.ui.mirror import MirrorLayout, flip_grid_kwargs, mirrored_column
-from lock_in.ui.router import TIER5_ROUTE_ICONS
 
 # These page modules import customtkinter (installed with the app), but
 # importing them never opens a window.
 from lock_in.ui.pages.settings import TIER2_PRESET_ROWS, rider_power_parts
 from lock_in.ui.pages.tasks import filter_tasks, step_progress
+from lock_in.ui.router import TIER5_ROUTE_ICONS
 
 
 # ---------------------------------------------------------------------- #
@@ -29,36 +29,38 @@ def test_every_icon_draws_something_the_right_size(name):
     image = draw_icon(name, 36, "#ff0000")
     assert image.size == (36, 36)
     assert image.mode == "RGBA"
-    assert image.getbbox() is not None       # not blank
+    assert image.getbbox() is not None  # not blank
 
 
 def test_sidebar_and_rider_page_icons_all_exist():
-    for name in ("focus", "tasks", "blocking", "activity", "insights",
-                 "help", "settings", "buddy"):
+    for name in ("focus", "tasks", "blocking", "activity", "insights", "help", "settings", "buddy"):
         assert name in ICON_NAMES
     for name in TIER5_ROUTE_ICONS.values():
         assert name in ICON_NAMES
 
 
 def test_unknown_icon_falls_back_instead_of_crashing():
-    assert draw_icon("does-not-exist", 20, "#000000").tobytes() == \
-        draw_icon(FALLBACK_ICON, 20, "#000000").tobytes()
+    assert (
+        draw_icon("does-not-exist", 20, "#000000").tobytes()
+        == draw_icon(FALLBACK_ICON, 20, "#000000").tobytes()
+    )
 
 
 def test_icon_uses_only_the_color_asked_for():
     image = draw_icon("tasks", 24, "#3366cc")
     raw = image.tobytes()
-    pixels = [raw[i:i + 4] for i in range(0, len(raw), 4)]
+    pixels = [raw[i : i + 4] for i in range(0, len(raw), 4)]
     colors = {tuple(px[:3]) for px in pixels if px[3] > 250}
-    assert colors == {(0x33, 0x66, 0xcc)}
+    assert colors == {(0x33, 0x66, 0xCC)}
 
 
 # ---------------------------------------------------------------------- #
 # Insights numbers
 # ---------------------------------------------------------------------- #
 def rec(start, seconds, completed=True, task=None):
-    return SessionRecord(start=start, end=start, duration_seconds=seconds,
-                         task_id=task, completed=completed)
+    return SessionRecord(
+        start=start, end=start, duration_seconds=seconds, task_id=task, completed=completed
+    )
 
 
 def task(status, name="t"):
@@ -70,8 +72,8 @@ def test_insights_add_up_today_week_and_all_time():
     records = [
         rec("2026-09-25T09:00:00", 1500),
         rec("2026-09-25T10:00:00", 600, completed=False),
-        rec("2026-09-20T09:00:00", 1200),       # inside the last 7 days
-        rec("2026-09-01T09:00:00", 3000),       # older
+        rec("2026-09-20T09:00:00", 1200),  # inside the last 7 days
+        rec("2026-09-01T09:00:00", 3000),  # older
     ]
     n = summarize(records, [], today)
     assert n.today_seconds == 2100
@@ -85,8 +87,12 @@ def test_insights_add_up_today_week_and_all_time():
 
 
 def test_insights_count_tasks_by_status():
-    tasks = [task(TaskStatus.TODO, "a"), task(TaskStatus.IN_PROGRESS, "b"),
-             task(TaskStatus.DONE, "c"), task(TaskStatus.DONE, "d")]
+    tasks = [
+        task(TaskStatus.TODO, "a"),
+        task(TaskStatus.IN_PROGRESS, "b"),
+        task(TaskStatus.DONE, "c"),
+        task(TaskStatus.DONE, "d"),
+    ]
     n = summarize([], tasks, date(2026, 9, 25))
     assert (n.tasks_open, n.tasks_in_progress, n.tasks_done) == (1, 1, 2)
 
@@ -131,8 +137,9 @@ def test_step_progress():
 # Tier 2 and other Rider rows on the Settings page
 # ---------------------------------------------------------------------- #
 def test_tier2_effects_are_on_exactly_kuuga_super1_and_gavv():
-    with_tier2 = {name: th.tier2_effect for name, th in RIDER_THEMES.items()
-                  if th.tier2_effect != "none"}
+    with_tier2 = {
+        name: th.tier2_effect for name, th in RIDER_THEMES.items() if th.tier2_effect != "none"
+    }
     assert with_tier2 == {
         "Kamen Rider Kuuga (2000)": "interval_presets",
         "Kamen Rider Super-1 (1980)": "task_presets",
@@ -168,8 +175,8 @@ def test_grid_padding_swaps_ends_when_mirrored():
 
 
 def test_side_bar_and_page_area_swap_columns():
-    assert flip_grid_kwargs(True, 2, {"column": 0})["column"] == 1   # side bar
-    assert flip_grid_kwargs(True, 2, {"column": 1})["column"] == 0   # page area
+    assert flip_grid_kwargs(True, 2, {"column": 0})["column"] == 1  # side bar
+    assert flip_grid_kwargs(True, 2, {"column": 1})["column"] == 0  # page area
     # The top bar spans both columns, so it stays put.
     assert flip_grid_kwargs(True, 2, {"column": 0, "columnspan": 2})["column"] == 0
 
@@ -223,7 +230,7 @@ def test_mirror_layout_never_brings_back_a_hidden_widget():
     layout = MirrorLayout(lambda: state["mirrored"])
     w = FakeWidget(".hidden")
     layout.pack(w, side="left")
-    w.managed = False                  # another feature hid it on purpose
+    w.managed = False  # another feature hid it on purpose
     state["mirrored"] = True
     before = len(w.calls)
     layout.sync()
@@ -253,6 +260,7 @@ def test_mirror_layout_replaces_instead_of_piling_up():
 # ---------------------------------------------------------------------- #
 from types import SimpleNamespace
 
+from lock_in.rider_themes import RiderAbilities
 from lock_in.session import Phase
 from lock_in.ui.preferences import PreferencesMixin
 
@@ -280,10 +288,14 @@ class FakeVar:
 
 class FakeApp(PreferencesMixin):
     def __init__(self, standard_mode=False):
-        self.config_obj = FakeConfig(rider_theme="Kamen Rider (1971)", standard_mode=standard_mode,
-                                     zero_grace_mode=False, focus_minutes=25)
+        self.config_obj = FakeConfig(
+            rider_theme="Kamen Rider (1971)",
+            standard_mode=standard_mode,
+            zero_grace_mode=False,
+            focus_minutes=25,
+        )
         self.session = SimpleNamespace(phase=Phase.IDLE, is_running=False)
-        self.current_tier3_effect = "none"
+        self.abilities = RiderAbilities()
         self.pages = {}
         self.banners = []
         self.theme_applied = 0
@@ -322,19 +334,29 @@ def _settings_app(focus_text):
     app = FakeApp()
     app.pages["settings"] = SimpleNamespace(spinners={"focus_minutes": FakeEntry(focus_text)})
     app._page = lambda route_id: app.pages[route_id]
-    for name in ("enforce_var", "hard_var", "classifier_var", "record_var", "autobreak_var",
-                 "autofocus_var", "sound_var", "toast_var", "check_updates_var", "gestures_var"):
+    for name in (
+        "enforce_var",
+        "hard_var",
+        "classifier_var",
+        "record_var",
+        "autobreak_var",
+        "autofocus_var",
+        "sound_var",
+        "toast_var",
+        "check_updates_var",
+        "gestures_var",
+    ):
         setattr(app, name, FakeVar(False))
     app._refresh_summaries = lambda: None
     return app
 
 
 def test_save_settings_only_mentions_waiting_when_a_time_changed():
-    app = _settings_app("25")          # same as before
+    app = _settings_app("25")  # same as before
     app._save_settings()
     assert app.banners == ["Saved."]
 
-    app = _settings_app("30")          # a new focus length
+    app = _settings_app("30")  # a new focus length
     app._save_settings()
     assert "next focus block or break" in app.banners[-1]
     assert app.config_obj.focus_minutes == 30
@@ -342,8 +364,11 @@ def test_save_settings_only_mentions_waiting_when_a_time_changed():
 
 def test_no_message_talks_about_a_next_phase_or_session():
     import inspect
+
     from lock_in.ui import preferences
-    from lock_in.ui.pages import help as help_page, settings as settings_page
+    from lock_in.ui.pages import help as help_page
+    from lock_in.ui.pages import settings as settings_page
+
     for module in (preferences, help_page, settings_page):
         text = inspect.getsource(module)
         assert "next phase" not in text

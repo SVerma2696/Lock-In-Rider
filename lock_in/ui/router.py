@@ -22,25 +22,39 @@ components/sidebar.py and app.py.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+
+from ..rider_effects import InteractionEffect, ProductivityEffect
 
 # Tier 5's extra page: effect string (RiderTheme.tier5_effect) -> the
 # words on its side bar button. A new Tier 5 Rider only needs a line here
 # (and its builder in lock_in/tier5/__init__.py).
-TIER5_ROUTE_LABELS = {
-    "hours_tab": "Hours", "timeline_view": "Timeline", "analytics_dashboard": "Analytics",
-    "history_editor": "History", "kanban_board": "Board", "week_compare": "Week",
-    "goal_streak": "Goal", "badge_cards": "Badges", "phase_combo": "Combo",
-    "priority_order": "Priority",
+TIER5_ROUTE_LABELS: dict[str, str] = {
+    ProductivityEffect.HOURS_TAB: "Hours",
+    ProductivityEffect.TIMELINE_VIEW: "Timeline",
+    ProductivityEffect.ANALYTICS_DASHBOARD: "Analytics",
+    ProductivityEffect.HISTORY_EDITOR: "History",
+    ProductivityEffect.KANBAN_BOARD: "Board",
+    ProductivityEffect.WEEK_COMPARE: "Week",
+    ProductivityEffect.GOAL_STREAK: "Goal",
+    ProductivityEffect.BADGE_CARDS: "Badges",
+    ProductivityEffect.PHASE_COMBO: "Combo",
+    ProductivityEffect.PRIORITY_ORDER: "Priority",
 }
 
 # ...and the little picture next to those words.
-TIER5_ROUTE_ICONS = {
-    "hours_tab": "clock", "timeline_view": "timeline", "analytics_dashboard": "chart",
-    "history_editor": "history", "kanban_board": "board", "week_compare": "calendar",
-    "goal_streak": "flag", "badge_cards": "badge", "phase_combo": "layers",
-    "priority_order": "ordered",
+TIER5_ROUTE_ICONS: dict[str, str] = {
+    ProductivityEffect.HOURS_TAB: "clock",
+    ProductivityEffect.TIMELINE_VIEW: "timeline",
+    ProductivityEffect.ANALYTICS_DASHBOARD: "chart",
+    ProductivityEffect.HISTORY_EDITOR: "history",
+    ProductivityEffect.KANBAN_BOARD: "board",
+    ProductivityEffect.WEEK_COMPARE: "calendar",
+    ProductivityEffect.GOAL_STREAK: "flag",
+    ProductivityEffect.BADGE_CARDS: "badge",
+    ProductivityEffect.PHASE_COMBO: "layers",
+    ProductivityEffect.PRIORITY_ORDER: "ordered",
 }
 
 RIDER_ROUTE_ID = "rider"
@@ -73,13 +87,17 @@ BOTTOM_ROUTES = (
 
 
 def tier5_route_label(effect: str) -> str:
+    effect = str(effect)
     """The side bar words for a Tier 5 effect. A brand-new effect with
     no entry yet still gets readable words instead of an error."""
     return TIER5_ROUTE_LABELS.get(effect, effect.replace("_", " ").title())
 
 
-def build_routes(tier5_effect: str = "none", tier6_effect: str = "none",
-                 known_tier5_effects=None) -> List[Route]:
+def build_routes(
+    tier5_effect: str = ProductivityEffect.NONE,
+    tier6_effect: str = InteractionEffect.NONE,
+    known_tier5_effects=None,
+) -> list[Route]:
     """Every page, in the order the side bar shows them (top to bottom).
 
     `known_tier5_effects` is the set of Tier 5 effects that actually
@@ -87,19 +105,26 @@ def build_routes(tier5_effect: str = "none", tier6_effect: str = "none",
     half-added Rider can never show a broken page. None means "trust
     the effect"."""
     routes = list(MAIN_ROUTES)
-    if tier5_effect and tier5_effect != "none" and (
-            known_tier5_effects is None or tier5_effect in known_tier5_effects):
-        routes.append(Route(
-            RIDER_ROUTE_ID, tier5_route_label(tier5_effect),
-            TIER5_ROUTE_ICONS.get(tier5_effect, "star"), "rider",
-        ))
-    if tier6_effect == "buddy_link":
+    if (
+        tier5_effect
+        and tier5_effect != ProductivityEffect.NONE
+        and (known_tier5_effects is None or tier5_effect in known_tier5_effects)
+    ):
+        routes.append(
+            Route(
+                RIDER_ROUTE_ID,
+                tier5_route_label(tier5_effect),
+                TIER5_ROUTE_ICONS.get(tier5_effect, "star"),
+                "rider",
+            )
+        )
+    if tier6_effect == InteractionEffect.BUDDY_LINK:
         routes.append(Route(BUDDY_ROUTE_ID, "Buddy", "buddy", "rider"))
     routes.extend(BOTTOM_ROUTES)
     return routes
 
 
-def route_ids(routes: List[Route]) -> List[str]:
+def route_ids(routes: list[Route]) -> list[str]:
     """Just the names, in side bar order. This is the list Wizard's
     gestures move along."""
     return [r.id for r in routes]
@@ -110,28 +135,32 @@ class Router:
     handed to two small functions the app gives it, so this class never
     touches the window itself."""
 
-    def __init__(self, show: Callable[[str], None], hide: Callable[[str], None],
-                 on_change: Optional[Callable[[str], None]] = None) -> None:
+    def __init__(
+        self,
+        show: Callable[[str], None],
+        hide: Callable[[str], None],
+        on_change: Callable[[str], None] | None = None,
+    ) -> None:
         self._show = show
         self._hide = hide
         self._on_change = on_change
-        self.routes: List[Route] = []
-        self.active: Optional[str] = None
+        self.routes: list[Route] = []
+        self.active: str | None = None
 
     @property
-    def ids(self) -> List[str]:
+    def ids(self) -> list[str]:
         return route_ids(self.routes)
 
     def has(self, route_id: str) -> bool:
         return route_id in self.ids
 
-    def get(self, route_id: str) -> Optional[Route]:
+    def get(self, route_id: str) -> Route | None:
         for route in self.routes:
             if route.id == route_id:
                 return route
         return None
 
-    def set_routes(self, routes: List[Route], keep: Optional[str] = None) -> str:
+    def set_routes(self, routes: list[Route], keep: str | None = None) -> str:
         """Swap in a new page list (after a Rider change). Stays on
         `keep` (or the current page) if it still exists, otherwise goes
         back to Focus. Returns the page it ended up on."""
@@ -159,5 +188,5 @@ class Router:
         return True
 
 
-def labels_by_id(routes: List[Route]) -> Dict[str, str]:
+def labels_by_id(routes: list[Route]) -> dict[str, str]:
     return {r.id: r.label for r in routes}

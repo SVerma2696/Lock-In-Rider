@@ -64,26 +64,34 @@ def test_accent_is_the_riders_own_primary_color(name):
 @pytest.mark.parametrize("name", list(RIDER_THEMES))
 def test_words_on_the_main_button_are_readable(name):
     palette = t.resolve_palette(RIDER_THEMES[name])
-    for fill, words in zip(palette.accent, palette.accent_on):
+    for fill, words in zip(palette.accent, palette.accent_on, strict=True):
         assert words == readable_text_color(fill)
 
 
 @pytest.mark.parametrize("name", list(RIDER_THEMES))
 def test_switch_fill_is_never_too_pale_for_a_white_knob(name):
     palette = t.resolve_palette(RIDER_THEMES[name])
-    for original, strong in zip(palette.accent, palette.accent_strong):
+    for original, strong in zip(palette.accent, palette.accent_strong, strict=True):
         if readable_text_color(original) == "#ffffff":
-            assert strong == original          # already dark enough
+            assert strong == original  # already dark enough
         else:
-            assert strong != original          # pushed darker
+            assert strong != original  # pushed darker
 
 
 def test_only_one_rider_accent_the_base_colors_stay_neutral():
     # Two very different Riders share every base color: only accents differ.
     a = t.resolve_palette(RIDER_THEMES["Kamen Rider Kuuga (2000)"])
     b = t.resolve_palette(RIDER_THEMES["Kamen Rider Gotchard (2023)"])
-    for field in ("app_bg", "sidebar_bg", "card_bg", "card_border",
-                  "text_primary", "text_secondary", "text_muted", "control_bg"):
+    for field in (
+        "app_bg",
+        "sidebar_bg",
+        "card_bg",
+        "card_border",
+        "text_primary",
+        "text_secondary",
+        "text_muted",
+        "control_bg",
+    ):
         assert getattr(a, field) == getattr(b, field)
     assert a.accent != b.accent
 
@@ -94,15 +102,15 @@ def test_myth_is_one_pick_not_two():
 
 def test_myth_light_mode_is_normal_myth_blue_and_silver():
     theme = RIDER_THEMES[MYTH]
-    assert theme.primary[0] == "#0f4a8f"      # blue
-    assert theme.secondary[0] == "#78909c"    # silver
+    assert theme.primary[0] == "#0f4a8f"  # blue
+    assert theme.secondary[0] == "#78909c"  # silver
     assert t.resolve_palette(theme).accent[0] == "#0f4a8f"
 
 
 def test_myth_dark_mode_is_myth_origin_red_and_gunmetal():
     theme = RIDER_THEMES[MYTH]
-    assert theme.primary[1] == "#ef5350"      # crimson
-    assert theme.secondary[1] == "#616161"    # gunmetal
+    assert theme.primary[1] == "#ef5350"  # crimson
+    assert theme.secondary[1] == "#616161"  # gunmetal
     assert t.resolve_palette(theme).accent[1] == "#ef5350"
 
 

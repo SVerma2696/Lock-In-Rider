@@ -55,10 +55,7 @@ def week_dots(totals: dict[str, int], today: date, goal_seconds: int) -> list[tu
     """Exactly 7 tuples of (day, done), oldest to newest, ending on today.
     Uses last_n_days(), so a day with no focus blocks counts as 0 seconds
     and is not done."""
-    return [
-        (day, seconds >= goal_seconds)
-        for day, seconds in last_n_days(totals, today, 7)
-    ]
+    return [(day, seconds >= goal_seconds) for day, seconds in last_n_days(totals, today, 7)]
 
 
 def goal_sentence(today_seconds: int, goal_seconds: int) -> str:
@@ -127,7 +124,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         row = ctk.CTkFrame(frame, fg_color="transparent")
         row.pack(fill="x", pady=(4, 0))
         ctk.CTkLabel(row, text=name, text_color=text_color, anchor="w").pack(
-            side="left", fill="x", expand=True)
+            side="left", fill="x", expand=True
+        )
         value = ctk.CTkLabel(row, text="", text_color=text_color, anchor="e", font=big_font)
         value.pack(side="right")
         return value
@@ -147,7 +145,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
     goal_row = ctk.CTkFrame(frame, fg_color="transparent")
     goal_row.pack(fill="x", pady=(0, 12))
     ctk.CTkLabel(goal_row, text="Daily goal", text_color=text_color, anchor="w").pack(
-        side="left", fill="x", expand=True)
+        side="left", fill="x", expand=True
+    )
     # Packed from the right edge inward: plus first, then the number, then
     # minus, so they read minus, number, plus from left to right.
     plus_button = ctk.CTkButton(goal_row, text="+", width=36, command=lambda: change_goal(+1))
@@ -171,14 +170,18 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         box = ctk.CTkFrame(cell, width=28, height=28, corner_radius=6, fg_color=_EMPTY_BOX)
         box.pack()
         ctk.CTkLabel(
-            cell, text=day.strftime("%a")[0],
-            text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
+            cell,
+            text=day.strftime("%a")[0],
+            text_color=("gray40", "gray60"),
+            font=ctk.CTkFont(size=11),
         ).pack()
         boxes.append(box)
 
     ctk.CTkLabel(
-        frame, text="Every focus block counts, finished or not · every day is judged by today's goal",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
+        frame,
+        text="Every focus block counts, finished or not · every day is judged by today's goal",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
     ).pack(anchor="w", pady=(10, 0))
 
     def refresh() -> None:
@@ -192,12 +195,16 @@ def build(parent, *, history, tasks, theme, appearance_mode, config) -> None:
         today_sentence.configure(text=goal_sentence(today_seconds, goal_seconds))
 
         goal_value.configure(text=format_hm(goal_seconds))
-        minus_button.configure(state="normal" if goal_minutes > DAILY_GOAL_MIN_MINUTES else "disabled")
-        plus_button.configure(state="normal" if goal_minutes < DAILY_GOAL_MAX_MINUTES else "disabled")
+        minus_button.configure(
+            state="normal" if goal_minutes > DAILY_GOAL_MIN_MINUTES else "disabled"
+        )
+        plus_button.configure(
+            state="normal" if goal_minutes < DAILY_GOAL_MAX_MINUTES else "disabled"
+        )
 
         streak_value.configure(text=days_in_a_row(streak))
         streak_text.configure(text=streak_sentence(streak, today_seconds >= goal_seconds))
-        for box, (_, done) in zip(boxes, week_dots(totals, today, goal_seconds)):
+        for box, (_, done) in zip(boxes, week_dots(totals, today, goal_seconds), strict=False):
             box.configure(fg_color=theme.secondary if done else _EMPTY_BOX)
 
     def change_goal(direction: int) -> None:

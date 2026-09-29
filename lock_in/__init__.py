@@ -3,7 +3,16 @@ Lock In — a Pomodoro timer that actually keeps you off the fun apps.
 
 Package layout
 --------------
+    application/     everything that isn't drawing: AppController,
+                     the event mailbox, focus/task/blocking/buddy
+                     controllers, clean shutdown, update checks   (no screen code)
+    storage/         crash-safe saving (whole files and JSON lines) (no deps)
     config.py        settings + JSON persistence            (no deps)
+    config_validation.py  one rule per setting in config.json  (no deps)
+    rider_effects.py the typed names of every Rider power   (no deps, pure data)
+    diagnostics.py   the small private log file             (no deps)
+    update_verify.py SHA-256 fingerprint check for updates  (no deps)
+    task_picker.py   the Focus page's task menu words        (no deps, pure logic)
     session.py       the Pomodoro state machine             (no deps, pure logic)
     classifier.py    Naive Bayes study/distraction model     (no deps, pure logic)
     enforcer.py      judgement + escalation ladder           (no deps, pure logic)
@@ -18,6 +27,8 @@ Package layout
     notifier.py      toasts and sounds                       (winotify/winsound, osascript/afplay, notify-send/paplay)
     ui/              the window: side bar, pages, cards      (customtkinter)
         app.py         the main window and its heartbeat
+        effects.py     the Rider pictures (glow, era strip, shapes)
+        host.py        what the window's add-on parts may use (types only)
         theme.py       every color, size, and space           (no deps)
         router.py      the side bar's list of pages           (no deps)
         mirror.py      Ryuki's left-right flip helpers        (no deps)
@@ -30,5 +41,5 @@ The modules marked (no deps) import nothing outside the standard library, which
 is why the whole behavioural core is unit-tested without a display server.
 """
 
-__version__ = "3.0.1"
+__version__ = "3.0.2"
 __all__ = ["__version__"]

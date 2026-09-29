@@ -1,3 +1,8 @@
+# Everything a full copy of Lock In uses, in one list. The release build and
+# the CI checks install from this file. The same libraries are listed, split
+# into groups, in pyproject.toml -- tests/test_packaging.py makes sure the
+# two lists always agree.
+
 # This one draws the app's window. The app needs it to work at all.
 customtkinter>=5.2.2
 

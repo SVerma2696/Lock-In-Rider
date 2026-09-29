@@ -44,7 +44,7 @@ class CalmScrollbar(ctk.CTkScrollbar):
 
 # Every scroll area on screen, so ONE mouse-wheel handler can find the one
 # under the mouse. Weak, so closed pages are forgotten automatically.
-_AREAS: "weakref.WeakSet[ScrollArea]" = weakref.WeakSet()
+_AREAS: weakref.WeakSet[ScrollArea] = weakref.WeakSet()
 _WHEEL_BOUND = False
 
 
@@ -58,10 +58,11 @@ def _area_under(widget):
             prefix = str(area.canvas)
         except Exception:
             continue
-        if name == prefix or name.startswith(prefix + "."):
-            # The deepest match wins (a scroll area inside another one).
-            if best is None or len(prefix) > len(str(best.canvas)):
-                best = area
+        # The deepest match wins (a scroll area inside another one).
+        if (name == prefix or name.startswith(prefix + ".")) and (
+            best is None or len(prefix) > len(str(best.canvas))
+        ):
+            best = area
     return best
 
 
@@ -88,8 +89,12 @@ class ScrollArea(Box):
         self._canvas_bg = None
         self.canvas = tkinter.Canvas(self, highlightthickness=0, bd=0)
         self.scrollbar = CalmScrollbar(
-            self, orientation="vertical", width=12, command=self.canvas.yview,
-            button_color=scrollbar_color, button_hover_color=scrollbar_hover_color,
+            self,
+            orientation="vertical",
+            width=12,
+            command=self.canvas.yview,
+            button_color=scrollbar_color,
+            button_hover_color=scrollbar_hover_color,
             fg_color="transparent",
         )
         self._scrollbar_shown = False

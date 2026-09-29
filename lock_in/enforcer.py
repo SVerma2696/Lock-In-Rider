@@ -48,9 +48,9 @@ something important.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
 
 from .classifier import DISTRACTION, STUDY, NaiveBayesClassifier
 
@@ -100,7 +100,7 @@ class WindowInfo:
     process_name: str = ""
     title: str = ""
     pid: int = 0
-    handle: Optional[int] = None
+    handle: int | None = None
 
     @property
     def text(self) -> str:
@@ -119,7 +119,7 @@ class WindowInfo:
 def judge(
     window: WindowInfo,
     config,
-    model: Optional[NaiveBayesClassifier] = None,
+    model: NaiveBayesClassifier | None = None,
     claude=None,
 ) -> Verdict:
     """
@@ -146,6 +146,7 @@ def judge(
     the allow/block lists a second way — by checking the window's title
     text for the program's name — before giving up and asking the model.
     """
+
     def _strip_exe(name: str) -> str:
         # Windows process names end in ".exe"; macOS and Linux ones don't.
         # Chopping it off both sides before comparing means one block/allow
@@ -174,35 +175,42 @@ def judge(
         for allowed in config.normalised_allowlist():
             name = allowed[:-4] if allowed.endswith(".exe") else allowed
             if name and name in title:
-                return Verdict(False, Reason.ALLOWLIST, 1.0,
-                               f"title looks like allow-listed {allowed}")
+                return Verdict(
+                    False, Reason.ALLOWLIST, 1.0, f"title looks like allow-listed {allowed}"
+                )
         for blocked in config.normalised_blocklist():
             name = blocked[:-4] if blocked.endswith(".exe") else blocked
             if name and name in title:
-                return Verdict(True, Reason.BLOCKLIST, 1.0,
-                               f"title looks like block-listed {blocked}")
+                return Verdict(
+                    True, Reason.BLOCKLIST, 1.0, f"title looks like block-listed {blocked}"
+                )
 
-    local_verdict: Optional[Verdict] = None
+    local_verdict: Verdict | None = None
     if config.use_classifier and model is not None and window.text:
         label, confidence = model.predict(window.text)
         if label == DISTRACTION and confidence >= config.classifier_threshold:
-            return Verdict(True, Reason.CLASSIFIER, confidence,
-                           f"model: distraction ({confidence:.0%})")
+            return Verdict(
+                True, Reason.CLASSIFIER, confidence, f"model: distraction ({confidence:.0%})"
+            )
         if label == STUDY and confidence >= config.classifier_threshold:
-            return Verdict(False, Reason.CLASSIFIER, confidence,
-                           f"model: study ({confidence:.0%})")
+            return Verdict(False, Reason.CLASSIFIER, confidence, f"model: study ({confidence:.0%})")
         # Not confident either way — this is exactly the confusing case
         # Claude is meant to help with. Keep this answer as a backup in
         # case Claude doesn't have a remembered answer either.
-        local_verdict = Verdict(False, Reason.CLASSIFIER, confidence,
-                                f"model: unsure ({confidence:.0%})")
+        local_verdict = Verdict(
+            False, Reason.CLASSIFIER, confidence, f"model: unsure ({confidence:.0%})"
+        )
 
     if claude is not None and getattr(config, "claude_fallback_enabled", False) and window.text:
         cached = claude.peek(window.text)
         if cached is not None and cached.source in ("claude", "cache"):
             blocked = cached.label == DISTRACTION
-            return Verdict(blocked, Reason.CLAUDE, cached.confidence,
-                           f"claude: {cached.label} ({cached.confidence:.0%})")
+            return Verdict(
+                blocked,
+                Reason.CLAUDE,
+                cached.confidence,
+                f"claude: {cached.label} ({cached.confidence:.0%})",
+            )
 
     if local_verdict is not None:
         return local_verdict
@@ -227,10 +235,10 @@ class Enforcer:
         self._clock = clock
 
         self.strikes: int = 0
-        self._blocked_since: Optional[float] = None    # when this visit to the app started
-        self._last_strike_at: Optional[float] = None   # last time we stepped things up
-        self._last_clean_at: Optional[float] = None    # when you got back to work
-        self._current_key: Optional[str] = None        # which app you're currently on
+        self._blocked_since: float | None = None  # when this visit to the app started
+        self._last_strike_at: float | None = None  # last time we stepped things up
+        self._last_clean_at: float | None = None  # when you got back to work
+        self._current_key: str | None = None  # which app you're currently on
 
     # ------------------------------------------------------------------ #
     def reset(self) -> None:
@@ -288,9 +296,11 @@ class Enforcer:
             return Action.NONE
 
         # Don't step things up more than once per interval, even if we check every second.
-        if self._last_strike_at is not None:
-            if now - self._last_strike_at < self.config.strike_interval_seconds:
-                return Action.NONE
+        if (
+            self._last_strike_at is not None
+            and now - self._last_strike_at < self.config.strike_interval_seconds
+        ):
+            return Action.NONE
 
         self._last_strike_at = now
         self.strikes += 1
@@ -420,8 +430,16 @@ LOCKDOWN_LABELS = {
 LOCKDOWN_LABEL_PROFESSIONAL = "SCREEN LOCKED."
 
 
-def message_for(action: Action, *, app: str, remaining: str, seconds: int, lockdown: int,
-                era: str = DEFAULT_ERA, terminology: str = DEFAULT_TERMINOLOGY) -> tuple[str, str]:
+def message_for(
+    action: Action,
+    *,
+    app: str,
+    remaining: str,
+    seconds: float,
+    lockdown: int,
+    era: str = DEFAULT_ERA,
+    terminology: str = DEFAULT_TERMINOLOGY,
+) -> tuple[str, str]:
     """
     Fill in the blanks for `action`'s message, in the voice of `terminology`.
 
@@ -437,8 +455,7 @@ def message_for(action: Action, *, app: str, remaining: str, seconds: int, lockd
     else:
         messages = MESSAGES_PROFESSIONAL
     title, body = messages[action]
-    return title, body.format(app=app, time=remaining, seconds=int(seconds),
-                              lockdown=lockdown)
+    return title, body.format(app=app, time=remaining, seconds=int(seconds), lockdown=lockdown)
 
 
 def lockdown_label_for(era: str, terminology: str = DEFAULT_TERMINOLOGY) -> str:

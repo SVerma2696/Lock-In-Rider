@@ -57,7 +57,7 @@ CIRCLE = "circle"
 
 
 def _path_length(points) -> float:
-    return sum(math.dist(a, b) for a, b in zip(points, points[1:]))
+    return sum(math.dist(a, b) for a, b in zip(points, points[1:], strict=False))
 
 
 def recognize(points) -> str | None:

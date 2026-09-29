@@ -31,7 +31,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+
+from .storage import atomic_write_json
 
 
 class TaskStatus(str, Enum):
@@ -62,17 +63,17 @@ class Task:
 
     id: str
     name: str
-    subtasks: List[Subtask] = field(default_factory=list)
+    subtasks: list[Subtask] = field(default_factory=list)
     status: TaskStatus = TaskStatus.TODO
     created_at: str = ""
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
     # OOO's Combo tab: three fixed checkboxes, always in this order --
     # Plan, Work, Review. Checking all three never changes `status`; it
     # just shows a "Combo formed!" mark (see lock_in/tier5/ooo.py).
-    phases: List[bool] = field(default_factory=lambda: [False, False, False])
+    phases: list[bool] = field(default_factory=lambda: [False, False, False])
 
 
-def task_from_dict(item: object) -> Optional[Task]:
+def task_from_dict(item: object) -> Task | None:
     """Turn one saved task (a dict) back into a Task. Returns None if
     it's broken, so one bad entry never costs you the others. Used by
     TaskStore.load() and by Revice's Pull History -- which matters more
@@ -110,9 +111,13 @@ def task_from_dict(item: object) -> Optional[Task]:
                 continue
             # Only add valid subtasks: non-empty string id and text,
             # and a real bool for done (not just anything truthy).
-            if (isinstance(sub_id, str) and sub_id
-                    and isinstance(text, str) and text
-                    and isinstance(done, bool)):
+            if (
+                isinstance(sub_id, str)
+                and sub_id
+                and isinstance(text, str)
+                and text
+                and isinstance(done, bool)
+            ):
                 subtasks.append(Subtask(id=sub_id, text=text, done=done))
 
         # phases: always exactly 3 booleans (Plan, Work, Review).
@@ -155,7 +160,7 @@ class TaskStore:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._tasks: Dict[str, Task] = {}
+        self._tasks: dict[str, Task] = {}
         self.load()
 
     # ------------------------------------------------------------------ #
@@ -187,9 +192,8 @@ class TaskStore:
                 self._tasks[task.id] = task
 
     def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"tasks": [asdict(t) for t in self._tasks.values()]}
-        self.path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        atomic_write_json(self.path, payload, indent=2)
 
     # ------------------------------------------------------------------ #
     # Editing
@@ -215,7 +219,7 @@ class TaskStore:
         self.save()
         return True
 
-    def add_subtask(self, task_id: str, text: str) -> Optional[Subtask]:
+    def add_subtask(self, task_id: str, text: str) -> Subtask | None:
         task = self._tasks.get(task_id)
         if task is None:
             return None
@@ -276,15 +280,15 @@ class TaskStore:
     # ------------------------------------------------------------------ #
     # Looking things up
     # ------------------------------------------------------------------ #
-    def all(self) -> List[Task]:
+    def all(self) -> list[Task]:
         return list(self._tasks.values())
 
-    def get(self, task_id: str) -> Optional[Task]:
+    def get(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
 
-    def open(self) -> List[Task]:
+    def open(self) -> list[Task]:
         """Todo + in_progress tasks -- what the Tasks tab shows above the fold."""
         return [t for t in self._tasks.values() if t.status != TaskStatus.DONE]
 
-    def done(self) -> List[Task]:
+    def done(self) -> list[Task]:
         return [t for t in self._tasks.values() if t.status == TaskStatus.DONE]

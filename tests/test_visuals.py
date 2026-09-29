@@ -13,6 +13,7 @@ from lock_in.visuals import (
 
 def _alpha_sum(image):
     from PIL import ImageStat
+
     return ImageStat.Stat(image.getchannel("A")).sum[0]
 
 
@@ -30,8 +31,8 @@ def test_make_glow_returns_the_requested_size():
 def test_make_glow_is_brightest_in_the_middle():
     image = make_glow(100, 60, "#ff0000")
     center_alpha = image.getpixel((50, 30))[3]
-    partway_alpha = image.getpixel((50, 12))[3]   # 60% of the way to the edge
-    corner_alpha = image.getpixel((0, 0))[3]       # past the edge of the glow
+    partway_alpha = image.getpixel((50, 12))[3]  # 60% of the way to the edge
+    corner_alpha = image.getpixel((0, 0))[3]  # past the edge of the glow
     assert center_alpha > partway_alpha > corner_alpha
     # The very corner should be so faint it's practically invisible —
     # this is what keeps the glow from showing a hard rectangle border.
@@ -98,7 +99,9 @@ def test_each_era_has_a_visibly_different_pattern():
 
 
 def test_unknown_era_falls_back_to_heisei_pattern():
-    unknown = make_background_texture(200, 200, "#ff0000", "#00ff00", dark=True, era="Not A Real Era")
+    unknown = make_background_texture(
+        200, 200, "#ff0000", "#00ff00", dark=True, era="Not A Real Era"
+    )
     heisei = make_background_texture(200, 200, "#ff0000", "#00ff00", dark=True, era="Heisei")
     assert unknown.tobytes() == heisei.tobytes()
 
@@ -118,6 +121,7 @@ def test_load_app_icon_returns_a_square_see_through_image():
 def test_load_app_icon_pads_instead_of_stretching():
     """Padding to a square must not squash the original artwork."""
     from PIL import Image
+
     original = Image.open(APP_ICON_PATH)
     icon = load_app_icon()
     assert icon.size[0] == max(original.size)
@@ -125,7 +129,9 @@ def test_load_app_icon_pads_instead_of_stretching():
 
 def test_load_app_icon_survives_a_missing_file(monkeypatch):
     from pathlib import Path
+
     import lock_in.visuals as visuals
+
     monkeypatch.setattr(visuals, "APP_ICON_PATH", Path("nonexistent_file.png"))
     assert visuals.load_app_icon() is None
 
@@ -170,8 +176,12 @@ def test_panel_divider_is_not_blank():
 
 def test_make_hours_chart_returns_the_requested_size():
     image = make_hours_chart(
-        280, 100, [("2026-01-01", 100), ("2026-01-02", 100)],
-        "#ff0000", "#00ff00", dark=False,
+        280,
+        100,
+        [("2026-01-01", 100), ("2026-01-02", 100)],
+        "#ff0000",
+        "#00ff00",
+        dark=False,
     )
     assert image.size == (280, 100)
     assert image.mode == "RGBA"
@@ -195,10 +205,10 @@ def test_make_hours_chart_last_bar_uses_secondary_color():
     picking an unambiguous sample point inside each bar's middle easy."""
     day_values = [("2026-01-01", 100), ("2026-01-02", 100)]
     image = make_hours_chart(280, 100, day_values, "#ff0000", "#00ff00", dark=False)
-    first_bar_pixel = image.getpixel((69, 40))     # inside the left (primary) bar
-    today_bar_pixel = image.getpixel((210, 40))    # inside the right (today) bar
-    assert first_bar_pixel[:3] == (0xff, 0x00, 0x00)
-    assert today_bar_pixel[:3] == (0x00, 0xff, 0x00)
+    first_bar_pixel = image.getpixel((69, 40))  # inside the left (primary) bar
+    today_bar_pixel = image.getpixel((210, 40))  # inside the right (today) bar
+    assert first_bar_pixel[:3] == (0xFF, 0x00, 0x00)
+    assert today_bar_pixel[:3] == (0x00, 0xFF, 0x00)
 
 
 def test_make_hours_chart_light_and_dark_renders_differ():
@@ -255,15 +265,15 @@ def test_make_week_compare_chart_last_week_is_left_and_this_week_is_right():
     right bar is this week (green). Both values are equal, so every bar is
     full height and a sample at y=40 is safely inside all four bars."""
     image = make_week_compare_chart(280, 100, _WEEK_PAIRS_EQUAL, "#00ff00", "#ff0000", dark=False)
-    assert image.getpixel((30, 40))[:3] == (0xff, 0x00, 0x00)    # group 1, last week
-    assert image.getpixel((100, 40))[:3] == (0x00, 0xff, 0x00)   # group 1, this week
-    assert image.getpixel((170, 40))[:3] == (0xff, 0x00, 0x00)   # group 2, last week
-    assert image.getpixel((250, 40))[:3] == (0x00, 0xff, 0x00)   # group 2, this week
+    assert image.getpixel((30, 40))[:3] == (0xFF, 0x00, 0x00)  # group 1, last week
+    assert image.getpixel((100, 40))[:3] == (0x00, 0xFF, 0x00)  # group 1, this week
+    assert image.getpixel((170, 40))[:3] == (0xFF, 0x00, 0x00)  # group 2, last week
+    assert image.getpixel((250, 40))[:3] == (0x00, 0xFF, 0x00)  # group 2, this week
 
 
 def test_make_week_compare_chart_leaves_a_gap_between_groups():
     image = make_week_compare_chart(280, 100, _WEEK_PAIRS_EQUAL, "#00ff00", "#ff0000", dark=False)
-    assert image.getpixel((140, 40))[3] == 0    # the gap between group 1 and group 2
+    assert image.getpixel((140, 40))[3] == 0  # the gap between group 1 and group 2
 
 
 def test_make_week_compare_chart_both_weeks_share_one_height_scale():
@@ -271,17 +281,23 @@ def test_make_week_compare_chart_both_weeks_share_one_height_scale():
     area 100px tall). The last-week bar fills it; the this-week bar must be
     exactly half as tall no matter which side the bigger number is on."""
     image = make_week_compare_chart(
-        200, 116, [("2026-01-01", 100, 50)], "#00ff00", "#ff0000", dark=False)
-    assert image.getpixel((50, 10))[:3] == (0xff, 0x00, 0x00)     # last week, full height
-    assert image.getpixel((150, 10))[3] == 0                       # this week: empty above half height
-    assert image.getpixel((150, 60))[:3] == (0x00, 0xff, 0x00)    # this week: filled below half height
+        200, 116, [("2026-01-01", 100, 50)], "#00ff00", "#ff0000", dark=False
+    )
+    assert image.getpixel((50, 10))[:3] == (0xFF, 0x00, 0x00)  # last week, full height
+    assert image.getpixel((150, 10))[3] == 0  # this week: empty above half height
+    assert image.getpixel((150, 60))[:3] == (
+        0x00,
+        0xFF,
+        0x00,
+    )  # this week: filled below half height
 
 
 def test_make_week_compare_chart_a_zero_day_draws_no_bar():
     image = make_week_compare_chart(
-        200, 116, [("2026-01-01", 0, 100)], "#00ff00", "#ff0000", dark=False)
-    assert image.getpixel((50, 50))[3] == 0                        # last week is 0: nothing drawn
-    assert image.getpixel((150, 50))[:3] == (0x00, 0xff, 0x00)    # this week is full height
+        200, 116, [("2026-01-01", 0, 100)], "#00ff00", "#ff0000", dark=False
+    )
+    assert image.getpixel((50, 50))[3] == 0  # last week is 0: nothing drawn
+    assert image.getpixel((150, 50))[:3] == (0x00, 0xFF, 0x00)  # this week is full height
 
 
 def test_make_week_compare_chart_light_and_dark_renders_differ():
@@ -313,14 +329,17 @@ def test_make_week_compare_chart_each_era_looks_different():
 # See docs/superpowers/specs/2026-08-10-tier1-rider-progress-variants-design.md
 # ===================================================================== #
 
+
 def test_agito_color_at_zero_progress_is_the_muted_start_color():
-    from lock_in.visuals import interpolate_agito_color
     from lock_in.rider_themes import darken
+    from lock_in.visuals import interpolate_agito_color
+
     assert interpolate_agito_color(0.0, "#ffca28") == darken("#ffca28", 0.55)
 
 
 def test_agito_color_at_full_progress_is_the_real_primary_color():
     from lock_in.visuals import interpolate_agito_color
+
     assert interpolate_agito_color(1.0, "#ffca28") == "#ffca28"
 
 
@@ -330,7 +349,7 @@ def test_agito_color_gets_brighter_as_progress_increases():
 
     def brightness(hex_color):
         hex_color = hex_color.lstrip("#")
-        return sum(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+        return sum(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
     early = brightness(interpolate_agito_color(0.2, "#ffca28"))
     middle = brightness(interpolate_agito_color(0.5, "#ffca28"))
@@ -340,12 +359,14 @@ def test_agito_color_gets_brighter_as_progress_increases():
 
 def test_agito_color_clamps_out_of_range_progress():
     from lock_in.visuals import interpolate_agito_color
+
     assert interpolate_agito_color(-1.0, "#ffca28") == interpolate_agito_color(0.0, "#ffca28")
     assert interpolate_agito_color(5.0, "#ffca28") == interpolate_agito_color(1.0, "#ffca28")
 
 
 def test_windmill_progress_returns_the_requested_size():
     from lock_in.visuals import render_windmill_progress
+
     image = render_windmill_progress(80, 80, 0.5, "#1b5e3a", "#c0392b", dark=False)
     assert image.size == (80, 80)
     assert image.mode == "RGBA"
@@ -353,6 +374,7 @@ def test_windmill_progress_returns_the_requested_size():
 
 def test_windmill_progress_fills_more_blades_at_higher_progress():
     from lock_in.visuals import render_windmill_progress
+
     quarter = render_windmill_progress(80, 80, 0.25, "#1b5e3a", "#c0392b", dark=False)
     full = render_windmill_progress(80, 80, 1.0, "#1b5e3a", "#c0392b", dark=False)
     assert _alpha_sum(full) > _alpha_sum(quarter)
@@ -360,6 +382,7 @@ def test_windmill_progress_fills_more_blades_at_higher_progress():
 
 def test_rising_bar_progress_returns_the_requested_size():
     from lock_in.visuals import render_rising_bar_progress
+
     image = render_rising_bar_progress(60, 100, 0.5, "#2e7d32", "#8d6e63", dark=False)
     assert image.size == (60, 100)
     assert image.mode == "RGBA"
@@ -367,6 +390,7 @@ def test_rising_bar_progress_returns_the_requested_size():
 
 def test_rising_bar_progress_rises_more_at_higher_progress():
     from lock_in.visuals import render_rising_bar_progress
+
     low = render_rising_bar_progress(60, 100, 0.1, "#2e7d32", "#8d6e63", dark=False)
     high = render_rising_bar_progress(60, 100, 0.9, "#2e7d32", "#8d6e63", dark=False)
     assert _alpha_sum(high) > _alpha_sum(low)
@@ -374,6 +398,7 @@ def test_rising_bar_progress_rises_more_at_higher_progress():
 
 def test_constellation_progress_returns_the_requested_size():
     from lock_in.visuals import render_constellation_progress
+
     image = render_constellation_progress(200, 60, 0.5, "#ffffff", "#ef6c00", dark=True)
     assert image.size == (200, 60)
     assert image.mode == "RGBA"
@@ -381,6 +406,7 @@ def test_constellation_progress_returns_the_requested_size():
 
 def test_constellation_progress_lights_more_stars_at_higher_progress():
     from lock_in.visuals import render_constellation_progress
+
     low = render_constellation_progress(200, 60, 0.1, "#ffffff", "#ef6c00", dark=True)
     high = render_constellation_progress(200, 60, 0.9, "#ffffff", "#ef6c00", dark=True)
     assert _alpha_sum(high) > _alpha_sum(low)
@@ -391,6 +417,7 @@ def test_constellation_progress_draws_the_exact_color_it_is_given():
     data (see test_fourze_light_mode_primary_is_not_pure_white below),
     not in this renderer -- it just draws whatever hex it's handed."""
     from lock_in.visuals import render_constellation_progress
+
     image = render_constellation_progress(200, 60, 1.0, "#ffffff", "#ef6c00", dark=False)
     opaque_pixels = [p for p in image.get_flattened_data() if p[3] > 200]
     assert any(p[:3] == (255, 255, 255) for p in opaque_pixels)
@@ -402,6 +429,7 @@ def test_fourze_light_mode_primary_is_not_pure_white():
     white, so it never vanishes against this app's pale light-mode
     background in the first place."""
     from lock_in.rider_themes import RIDER_THEMES
+
     fourze = RIDER_THEMES["Kamen Rider Fourze (2011)"]
     assert fourze.primary[0] != "#ffffff"
 
@@ -410,6 +438,7 @@ def test_constellation_progress_star_layout_is_stable_between_calls():
     """The stars must sit in the same spots every time, or the picture
     would visibly jump around every 200ms redraw."""
     from lock_in.visuals import render_constellation_progress
+
     first = render_constellation_progress(200, 60, 0.5, "#ffffff", "#ef6c00", dark=True)
     second = render_constellation_progress(200, 60, 0.5, "#ffffff", "#ef6c00", dark=True)
     assert first.tobytes() == second.tobytes()
@@ -417,6 +446,7 @@ def test_constellation_progress_star_layout_is_stable_between_calls():
 
 def test_vials_progress_returns_the_requested_size():
     from lock_in.visuals import render_vials_progress
+
     image = render_vials_progress(120, 60, 0.5, "#c62828", "#1565c0", dark=False)
     assert image.size == (120, 60)
     assert image.mode == "RGBA"
@@ -424,6 +454,7 @@ def test_vials_progress_returns_the_requested_size():
 
 def test_vials_progress_fills_more_at_higher_progress():
     from lock_in.visuals import render_vials_progress
+
     low = render_vials_progress(120, 60, 0.1, "#c62828", "#1565c0", dark=False)
     high = render_vials_progress(120, 60, 0.6, "#c62828", "#1565c0", dark=False)
     assert _alpha_sum(high) > _alpha_sum(low)
@@ -433,6 +464,7 @@ def test_vials_progress_combines_near_completion():
     """Best Match: the two vials should visibly merge once nearly full,
     not just sit there as two separate bars forever."""
     from lock_in.visuals import render_vials_progress
+
     almost_full = render_vials_progress(120, 60, 0.94, "#c62828", "#1565c0", dark=False)
     combined = render_vials_progress(120, 60, 0.98, "#c62828", "#1565c0", dark=False)
     assert _alpha_sum(combined) > _alpha_sum(almost_full)
@@ -440,6 +472,7 @@ def test_vials_progress_combines_near_completion():
 
 def test_bookmark_progress_returns_the_requested_size():
     from lock_in.visuals import render_bookmark_progress
+
     image = render_bookmark_progress(120, 60, 0.5, "#c62828", "#1565c0", dark=False)
     assert image.size == (120, 60)
     assert image.mode == "RGBA"
@@ -447,6 +480,7 @@ def test_bookmark_progress_returns_the_requested_size():
 
 def test_bookmark_progress_fills_more_at_higher_progress():
     from lock_in.visuals import render_bookmark_progress
+
     low = render_bookmark_progress(120, 60, 0.1, "#c62828", "#1565c0", dark=False)
     high = render_bookmark_progress(120, 60, 0.8, "#c62828", "#1565c0", dark=False)
     assert _alpha_sum(high) > _alpha_sum(low)
@@ -456,12 +490,14 @@ def test_bookmark_progress_shows_the_ribbon_outline_even_at_zero_percent():
     """The ribbon (including its pointed tip) should still be visible at
     0% progress, so it reads as a bookmark from the very first tick."""
     from lock_in.visuals import render_bookmark_progress
+
     empty = render_bookmark_progress(120, 60, 0.0, "#c62828", "#1565c0", dark=False)
     assert _alpha_sum(empty) > 0
 
 
 def test_ease_drive_progress_matches_true_progress_at_the_endpoints():
     from lock_in.visuals import ease_drive_progress
+
     assert ease_drive_progress(0.0) == 0.0
     assert ease_drive_progress(1.0) == 1.0
 
@@ -470,12 +506,14 @@ def test_ease_drive_progress_lags_behind_early_and_catches_up_late():
     """The whole point: it LOOKS slower than real progress early on,
     then visibly speeds up and catches up near the end."""
     from lock_in.visuals import ease_drive_progress
+
     assert ease_drive_progress(0.5) < 0.5
     assert ease_drive_progress(0.9) > ease_drive_progress(0.5) * (0.9 / 0.5)
 
 
 def test_ease_drive_progress_clamps_out_of_range_progress():
     from lock_in.visuals import ease_drive_progress
+
     assert ease_drive_progress(-1.0) == 0.0
     assert ease_drive_progress(5.0) == 1.0
 
@@ -501,12 +539,15 @@ def test_shape_effects_constant_matches_the_dispatch_table():
     widget instead of the plain bar -- it has to list exactly the
     Riders render_progress actually knows how to draw."""
     from lock_in import visuals
-    assert visuals.SHAPE_EFFECTS == {"windmill", "rising_bar", "constellation", "vials", "bookmark"}
+
+    assert {"windmill", "rising_bar", "constellation", "vials", "bookmark"} == visuals.SHAPE_EFFECTS
 
 
 def test_border_glow_overlay_returns_same_size_as_base():
-    from lock_in.visuals import render_border_glow_overlay
     from PIL import Image
+
+    from lock_in.visuals import render_border_glow_overlay
+
     base = Image.new("RGB", (100, 150), (20, 20, 20))
     result = render_border_glow_overlay(base, "#c62828", 0.5)
     assert result.size == (100, 150)
@@ -514,8 +555,9 @@ def test_border_glow_overlay_returns_same_size_as_base():
 
 
 def test_border_glow_overlay_is_stronger_at_higher_intensity():
-    from lock_in.visuals import render_border_glow_overlay
     from PIL import Image, ImageChops, ImageStat
+
+    from lock_in.visuals import render_border_glow_overlay
 
     def difference_from_base(base, glowed):
         diff = ImageChops.difference(base.convert("RGB"), glowed.convert("RGB"))
@@ -530,8 +572,10 @@ def test_border_glow_overlay_is_stronger_at_higher_intensity():
 def test_border_glow_overlay_only_touches_the_edges():
     """The whole point is a BORDER glow -- the dead center of a big
     picture should come back basically untouched."""
-    from lock_in.visuals import render_border_glow_overlay
     from PIL import Image
+
+    from lock_in.visuals import render_border_glow_overlay
+
     base = Image.new("RGB", (200, 200), (20, 20, 20))
     glowed = render_border_glow_overlay(base, "#c62828", 1.0)
     center = glowed.getpixel((100, 100))
@@ -539,8 +583,10 @@ def test_border_glow_overlay_only_touches_the_edges():
 
 
 def test_night_overlay_tints_toward_the_given_color():
-    from lock_in.visuals import render_night_overlay
     from PIL import Image
+
+    from lock_in.visuals import render_night_overlay
+
     base = Image.new("RGB", (50, 50), (10, 10, 10))
     washed = render_night_overlay(base, "#ffca28", alpha=255)
     # A full-strength wash should completely replace the base color.
@@ -548,8 +594,10 @@ def test_night_overlay_tints_toward_the_given_color():
 
 
 def test_night_overlay_returns_same_size_as_base():
-    from lock_in.visuals import render_night_overlay
     from PIL import Image
+
+    from lock_in.visuals import render_night_overlay
+
     base = Image.new("RGB", (60, 90), (10, 10, 10))
     result = render_night_overlay(base, "#ffca28")
     assert result.size == (60, 90)
@@ -557,8 +605,10 @@ def test_night_overlay_returns_same_size_as_base():
 
 
 def test_apply_tier1_background_effect_routes_correctly():
-    from lock_in import visuals
     from PIL import Image
+
+    from lock_in import visuals
+
     base = Image.new("RGB", (100, 100), (20, 20, 20))
 
     glow = visuals.apply_tier1_background_effect(base, "border_glow", "#c62828", 0.8)
@@ -571,8 +621,10 @@ def test_apply_tier1_background_effect_routes_correctly():
 
 
 def test_apply_tier1_background_effect_none_returns_base_unchanged():
-    from lock_in import visuals
     from PIL import Image
+
+    from lock_in import visuals
+
     base = Image.new("RGB", (100, 100), (20, 20, 20))
     result = visuals.apply_tier1_background_effect(base, "none", "#c62828")
     assert result.tobytes() == base.convert("RGBA").tobytes()
@@ -583,24 +635,30 @@ def test_apply_tier1_background_effect_none_returns_base_unchanged():
 # See docs/superpowers/specs/2026-08-11-tier3-enforcement-interaction-design.md
 # ===================================================================== #
 
+
 def test_render_padlock_glyph_returns_a_square_image():
     from lock_in.visuals import render_padlock_glyph
+
     image = render_padlock_glyph(60)
     assert image.size == (60, 60)
     assert image.mode == "RGBA"
 
 
 def test_apply_gaim_lock_overlay_inactive_returns_base_unchanged():
-    from lock_in.visuals import apply_gaim_lock_overlay
     from PIL import Image
+
+    from lock_in.visuals import apply_gaim_lock_overlay
+
     base = Image.new("RGB", (100, 100), (20, 20, 20))
     result = apply_gaim_lock_overlay(base, active=False)
     assert result.tobytes() == base.convert("RGBA").tobytes()
 
 
 def test_apply_gaim_lock_overlay_active_dims_the_picture():
-    from lock_in.visuals import apply_gaim_lock_overlay
     from PIL import Image
+
+    from lock_in.visuals import apply_gaim_lock_overlay
+
     base = Image.new("RGB", (100, 100), (200, 200, 200))
     result = apply_gaim_lock_overlay(base, active=True)
     # A corner far from the centered padlock should just be dimmed,
@@ -612,8 +670,10 @@ def test_apply_gaim_lock_overlay_active_dims_the_picture():
 
 
 def test_apply_gaim_lock_overlay_active_returns_same_size():
-    from lock_in.visuals import apply_gaim_lock_overlay
     from PIL import Image
+
+    from lock_in.visuals import apply_gaim_lock_overlay
+
     base = Image.new("RGB", (120, 80), (50, 50, 50))
     result = apply_gaim_lock_overlay(base, active=True)
     assert result.size == (120, 80)
@@ -621,6 +681,7 @@ def test_apply_gaim_lock_overlay_active_returns_same_size():
 
 def test_render_amazon_drain_returns_the_requested_size():
     from lock_in.visuals import render_amazon_drain
+
     image = render_amazon_drain(200, 80, 0.5)
     assert image.size == (200, 80)
     assert image.mode == "RGBA"
@@ -640,7 +701,8 @@ def test_render_amazon_drain_is_always_the_same_amazon_green():
     """No primary/secondary color parameter on purpose -- the spec is a
     literal fixed #33691e, not derived from whichever Rider is picked."""
     from lock_in.visuals import render_amazon_drain
+
     image = render_amazon_drain(200, 80, 0.0)
     # top-left pixel should be fully the Amazon green, fully opaque
     pixel = image.getpixel((0, 0))
-    assert pixel == (51, 105, 30, 235)   # 0x33, 0x69, 0x1e
+    assert pixel == (51, 105, 30, 235)  # 0x33, 0x69, 0x1e

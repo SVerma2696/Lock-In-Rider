@@ -25,25 +25,39 @@ def _record(task_id: str, days_ago: int, today: date = TODAY) -> SessionRecord:
     day = today - timedelta(days=days_ago)
     start = f"{day.isoformat()}T09:00:00"
     end = f"{day.isoformat()}T09:25:00"
-    return SessionRecord(start=start, end=end, duration_seconds=1500, task_id=task_id, completed=True)
+    return SessionRecord(
+        start=start, end=end, duration_seconds=1500, task_id=task_id, completed=True
+    )
 
 
 # --- last_worked_date ------------------------------------------------------ #
+
 
 def test_last_worked_date_with_no_records_is_none():
     assert last_worked_date([]) is None
 
 
 def test_last_worked_date_returns_the_latest_records_day():
-    early = SessionRecord(start="2026-09-17T09:00:00", end="2026-09-17T09:25:00",
-                           duration_seconds=1500, task_id="t1", completed=True)
-    late = SessionRecord(start="2026-09-21T09:00:00", end="2026-09-21T09:25:00",
-                          duration_seconds=1500, task_id="t1", completed=True)
+    early = SessionRecord(
+        start="2026-09-17T09:00:00",
+        end="2026-09-17T09:25:00",
+        duration_seconds=1500,
+        task_id="t1",
+        completed=True,
+    )
+    late = SessionRecord(
+        start="2026-09-21T09:00:00",
+        end="2026-09-21T09:25:00",
+        duration_seconds=1500,
+        task_id="t1",
+        completed=True,
+    )
     assert last_worked_date([early, late]) == date(2026, 9, 21)
     assert last_worked_date([late, early]) == date(2026, 9, 21)
 
 
 # --- neglect_order ----------------------------------------------------------- #
+
 
 def test_never_worked_task_sorts_before_a_worked_one_no_matter_how_stale(history):
     never = _task("never", "2026-01-01T00:00:00")
@@ -80,12 +94,17 @@ def test_neglect_order_with_no_open_tasks_is_empty(history):
 
 def test_task_status_has_no_effect_on_the_order(history):
     todo = Task(id="todo", name="todo", created_at="2026-01-01T00:00:00", status=TaskStatus.TODO)
-    in_progress = Task(id="in_progress", name="in_progress", created_at="2026-01-02T00:00:00",
-                        status=TaskStatus.IN_PROGRESS)
+    in_progress = Task(
+        id="in_progress",
+        name="in_progress",
+        created_at="2026-01-02T00:00:00",
+        status=TaskStatus.IN_PROGRESS,
+    )
     assert neglect_order([in_progress, todo], history, TODAY) == [todo, in_progress]
 
 
 # --- days_ago_phrase ---------------------------------------------------------- #
+
 
 def test_days_ago_phrase_for_never_started():
     assert days_ago_phrase(None, TODAY) == "never started"
@@ -122,19 +141,24 @@ def test_days_ago_phrase_never_goes_negative():
 
 # --- wiring --------------------------------------------------------------- #
 
+
 def test_priority_order_is_registered_with_the_tier5_builders():
     from lock_in.tier5 import TIER5_BUILDERS, my_th
+
     assert TIER5_BUILDERS["priority_order"] is my_th.build
 
 
 def test_priority_order_has_the_priority_tab_label():
     from lock_in.ui import _TIER5_TAB_LABELS
+
     assert _TIER5_TAB_LABELS["priority_order"] == "Priority"
 
 
 def test_my_th_builder_accepts_the_standard_tier5_signature():
     import inspect
+
     from lock_in.tier5 import my_th
+
     params = inspect.signature(my_th.build).parameters
     for name in ("parent", "history", "tasks", "theme", "appearance_mode", "config"):
         assert name in params

@@ -30,14 +30,13 @@ def check_dependencies() -> list[str]:
     try:
         import customtkinter  # noqa: F401
     except ImportError:
-        print("FATAL: customtkinter is required.\n  pip install customtkinter",
-              file=sys.stderr)
+        print("FATAL: customtkinter is required.\n  pip install customtkinter", file=sys.stderr)
         sys.exit(1)
 
     if sys.platform == "win32":
         try:
+            import psutil  # noqa: F401
             import win32gui  # noqa: F401
-            import psutil    # noqa: F401
         except ImportError:
             warnings.append(
                 "pywin32 / psutil not found — app detection is disabled.\n"
@@ -74,6 +73,7 @@ def _detach_from_python_exe_on_windows() -> None:
         return
     try:
         import ctypes
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("LockIn.PomodoroApp")
     except Exception:
         pass
@@ -86,6 +86,7 @@ def main() -> None:
         print(f"[warn] {warning}")
 
     from lock_in.ui import run
+
     run()
 
 

@@ -19,18 +19,18 @@ light mode and one for dark mode, and remembers what it already made.
 from __future__ import annotations
 
 import math
-from typing import Callable, Dict
+from collections.abc import Callable
 
 from PIL import Image, ImageDraw
 
-_SCALE = 4          # draw this many times bigger, then shrink
-_CANVAS = 24        # every icon is designed on a 24 x 24 grid
-_STROKE = 1.9       # line thickness on that grid
+_SCALE = 4  # draw this many times bigger, then shrink
+_CANVAS = 24  # every icon is designed on a 24 x 24 grid
+_STROKE = 1.9  # line thickness on that grid
 
 
 def _rgba(hex_color: str) -> tuple:
     hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4)) + (255,)
 
 
 class _Pen:
@@ -80,49 +80,53 @@ class _Pen:
 # ---------------------------------------------------------------------- #
 # One small function per picture
 # ---------------------------------------------------------------------- #
-def _focus(p: _Pen) -> None:          # a target
+def _focus(p: _Pen) -> None:  # a target
     p.circle(12, 12, 9)
     p.circle(12, 12, 5)
     p.circle(12, 12, 1.6, fill=True)
 
 
-def _tasks(p: _Pen) -> None:          # a check box
+def _tasks(p: _Pen) -> None:  # a check box
     p.rect(3.5, 3.5, 20.5, 20.5, radius=4)
     p.line(7.5, 12.5, 10.5, 15.5, 16.5, 8.5)
 
 
-def _blocking(p: _Pen) -> None:       # a shield
+def _blocking(p: _Pen) -> None:  # a shield
     p.polygon([(12, 2.8), (19.5, 5.8), (19, 12.5), (12, 21.2), (5, 12.5), (4.5, 5.8)])
 
 
-def _activity(p: _Pen) -> None:       # a heartbeat line
+def _activity(p: _Pen) -> None:  # a heartbeat line
     p.line(2.5, 12.5, 7, 12.5, 9.5, 5.5, 14, 19, 16.5, 12.5, 21.5, 12.5)
 
 
-def _insights(p: _Pen) -> None:       # a bar chart
+def _insights(p: _Pen) -> None:  # a bar chart
     p.line(3.5, 20.5, 20.5, 20.5)
     p.line(7, 17, 7, 12)
     p.line(12, 17, 12, 6)
     p.line(17, 17, 17, 9.5)
 
 
-def _settings(p: _Pen) -> None:       # a gear
+def _settings(p: _Pen) -> None:  # a gear
     p.circle(12, 12, 3.2)
     p.circle(12, 12, 6.8)
     for i in range(8):
         a = math.radians(i * 45)
-        p.line(12 + 7.2 * math.cos(a), 12 + 7.2 * math.sin(a),
-               12 + 9.6 * math.cos(a), 12 + 9.6 * math.sin(a))
+        p.line(
+            12 + 7.2 * math.cos(a),
+            12 + 7.2 * math.sin(a),
+            12 + 9.6 * math.cos(a),
+            12 + 9.6 * math.sin(a),
+        )
 
 
-def _help(p: _Pen) -> None:           # a question mark in a circle
+def _help(p: _Pen) -> None:  # a question mark in a circle
     p.circle(12, 12, 9.2)
     p.arc(8.8, 6.2, 15.2, 12.6, 190, 400)
     p.line(12, 12.6, 12, 14.2)
     p.circle(12, 17.3, 1.2, fill=True)
 
 
-def _buddy(p: _Pen) -> None:          # two people
+def _buddy(p: _Pen) -> None:  # two people
     p.circle(9, 8.5, 3.3)
     p.arc(3, 14, 15, 25, 200, 340)
     p.circle(16.5, 9.5, 2.6)
@@ -134,7 +138,7 @@ def _clock(p: _Pen) -> None:
     p.line(12, 7, 12, 12, 15.5, 14)
 
 
-def _chart(p: _Pen) -> None:          # a line chart going up
+def _chart(p: _Pen) -> None:  # a line chart going up
     p.line(3.5, 20.5, 20.5, 20.5)
     p.line(3.5, 3.5, 3.5, 20.5)
     p.line(6.5, 16, 10.5, 11, 13.5, 13.5, 19.5, 6.5)
@@ -147,13 +151,13 @@ def _calendar(p: _Pen) -> None:
     p.line(16, 3, 16, 6.5)
 
 
-def _layers(p: _Pen) -> None:         # three stacked layers
+def _layers(p: _Pen) -> None:  # three stacked layers
     p.polygon([(12, 3.5), (21, 8), (12, 12.5), (3, 8)])
     p.line(3, 12, 12, 16.5, 21, 12)
     p.line(3, 16, 12, 20.5, 21, 16)
 
 
-def _timeline(p: _Pen) -> None:       # dots on a line
+def _timeline(p: _Pen) -> None:  # dots on a line
     p.line(6, 3.5, 6, 20.5)
     p.circle(6, 6.5, 2, fill=True)
     p.circle(6, 12, 2, fill=True)
@@ -163,13 +167,13 @@ def _timeline(p: _Pen) -> None:       # dots on a line
     p.line(10, 17.5, 16, 17.5)
 
 
-def _history(p: _Pen) -> None:        # a clock with a back arrow
+def _history(p: _Pen) -> None:  # a clock with a back arrow
     p.arc(3.5, 3.5, 20.5, 20.5, 200, 520)
     p.line(3.8, 6.5, 4.5, 10.5, 8.5, 9.8)
     p.line(12, 8, 12, 12, 15, 14)
 
 
-def _badge(p: _Pen) -> None:          # a medal
+def _badge(p: _Pen) -> None:  # a medal
     p.circle(12, 9.5, 6)
     p.line(8.5, 14.5, 7, 21, 12, 18.5, 17, 21, 15.5, 14.5)
 
@@ -179,13 +183,13 @@ def _flag(p: _Pen) -> None:
     p.polygon([(5, 4), (19, 4), (16, 8.5), (19, 13), (5, 13)])
 
 
-def _board(p: _Pen) -> None:          # three columns
+def _board(p: _Pen) -> None:  # three columns
     p.rect(3, 4, 21, 20, radius=3)
     p.line(9, 4, 9, 20)
     p.line(15, 4, 15, 20)
 
 
-def _ordered(p: _Pen) -> None:        # a numbered list
+def _ordered(p: _Pen) -> None:  # a numbered list
     p.line(10, 6.5, 20.5, 6.5)
     p.line(10, 12, 20.5, 12)
     p.line(10, 17.5, 20.5, 17.5)
@@ -215,7 +219,7 @@ def _eye(p: _Pen) -> None:
     p.circle(12, 12, 2.8)
 
 
-def _palette(p: _Pen) -> None:        # a paint drop / appearance
+def _palette(p: _Pen) -> None:  # a paint drop / appearance
     p.circle(12, 12, 9)
     p.circle(8, 10, 1.4, fill=True)
     p.circle(12, 7.2, 1.4, fill=True)
@@ -223,11 +227,13 @@ def _palette(p: _Pen) -> None:        # a paint drop / appearance
     p.circle(15, 15.5, 2.2)
 
 
-def _spark(p: _Pen) -> None:          # a spark, for the Claude helper
-    p.polygon([(12, 2.5), (14, 10), (21.5, 12), (14, 14), (12, 21.5), (10, 14), (2.5, 12), (10, 10)])
+def _spark(p: _Pen) -> None:  # a spark, for the Claude helper
+    p.polygon(
+        [(12, 2.5), (14, 10), (21.5, 12), (14, 14), (12, 21.5), (10, 14), (2.5, 12), (10, 10)]
+    )
 
 
-def _refresh(p: _Pen) -> None:        # a circle arrow, for updates
+def _refresh(p: _Pen) -> None:  # a circle arrow, for updates
     p.arc(4, 4, 20, 20, 300, 600)
     p.line(20, 4.5, 20, 9.2, 15.3, 9.2)
 
@@ -238,7 +244,7 @@ def _bell(p: _Pen) -> None:
     p.line(10, 21, 14, 21)
 
 
-def _timer(p: _Pen) -> None:          # a stopwatch
+def _timer(p: _Pen) -> None:  # a stopwatch
     p.circle(12, 13.5, 7.8)
     p.line(10, 2.8, 14, 2.8)
     p.line(12, 9.5, 12, 13.5)
@@ -270,21 +276,43 @@ def _chevron_right(p: _Pen) -> None:
     p.line(9.5, 6.5, 15, 12, 9.5, 17.5)
 
 
-def _hand(p: _Pen) -> None:           # a pointer swipe, for gestures
+def _hand(p: _Pen) -> None:  # a pointer swipe, for gestures
     p.line(4, 12, 20, 12)
     p.line(15, 7, 20, 12, 15, 17)
 
 
-_ICONS: Dict[str, Callable[[_Pen], None]] = {
-    "focus": _focus, "tasks": _tasks, "blocking": _blocking,
-    "activity": _activity, "insights": _insights, "settings": _settings,
-    "help": _help, "buddy": _buddy, "clock": _clock, "chart": _chart,
-    "calendar": _calendar, "layers": _layers, "timeline": _timeline,
-    "history": _history, "badge": _badge, "flag": _flag, "board": _board,
-    "ordered": _ordered, "star": _star, "camera": _camera, "eye": _eye,
-    "palette": _palette, "spark": _spark, "refresh": _refresh, "bell": _bell,
-    "timer": _timer, "list": _list, "lock": _lock, "plus": _plus,
-    "chevron_down": _chevron_down, "chevron_right": _chevron_right,
+_ICONS: dict[str, Callable[[_Pen], None]] = {
+    "focus": _focus,
+    "tasks": _tasks,
+    "blocking": _blocking,
+    "activity": _activity,
+    "insights": _insights,
+    "settings": _settings,
+    "help": _help,
+    "buddy": _buddy,
+    "clock": _clock,
+    "chart": _chart,
+    "calendar": _calendar,
+    "layers": _layers,
+    "timeline": _timeline,
+    "history": _history,
+    "badge": _badge,
+    "flag": _flag,
+    "board": _board,
+    "ordered": _ordered,
+    "star": _star,
+    "camera": _camera,
+    "eye": _eye,
+    "palette": _palette,
+    "spark": _spark,
+    "refresh": _refresh,
+    "bell": _bell,
+    "timer": _timer,
+    "list": _list,
+    "lock": _lock,
+    "plus": _plus,
+    "chevron_down": _chevron_down,
+    "chevron_right": _chevron_right,
     "gesture": _hand,
 }
 
@@ -300,7 +328,7 @@ def draw_icon(name: str, size: int, color: str) -> Image.Image:
     image = Image.new("RGBA", (big, big), (0, 0, 0, 0))
     painter(_Pen(ImageDraw.Draw(image, "RGBA"), _rgba(color)))
     # Box averaging keeps the color exact (Lanczos overshoots at edges).
-    return image.resize((size, size), Image.BOX)
+    return image.resize((size, size), Image.Resampling.BOX)
 
 
 _cache: dict = {}

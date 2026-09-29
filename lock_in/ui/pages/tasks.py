@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import customtkinter as ctk
 
-from .. import theme as t
-from ..components.box import Box
 from ...tasks import Task, TaskStatus
+from .. import theme as t
 from ..components import ModernCard, PrimaryButton, StatusBadge
+from ..components.box import Box
 from .base import PAGE_PAD_X, Page, tasks_signature
 
 FILTERS = ("All", "Active", "Done")
@@ -55,21 +55,40 @@ class TasksPage(Page):
 
     def build(self) -> None:
         p = self.palette
-        self.page_header("Tasks", "Write down what you're working on. Break big things "
-                                  "into small steps. Pick one on the Focus page to track "
-                                  "your time.")
+        self.page_header(
+            "Tasks",
+            "Write down what you're working on. Break big things "
+            "into small steps. Pick one on the Focus page to track "
+            "your time.",
+        )
 
         add_card = ModernCard(self.body, p, layout=self.layout, padding=t.SPACE_3)
         self.pack(add_card, fill="x", padx=PAGE_PAD_X, pady=(0, t.SPACE_3))
         self.new_task_entry = ctk.CTkEntry(
-            add_card.body, placeholder_text="Add a task…", height=36, border_width=1,
-            fg_color=p.control_bg, border_color=p.card_border, text_color=p.text_primary,
-            corner_radius=t.CONTROL_RADIUS, font=t.font()
+            add_card.body,
+            placeholder_text="Add a task…",
+            height=36,
+            border_width=1,
+            fg_color=p.control_bg,
+            border_color=p.card_border,
+            text_color=p.text_primary,
+            corner_radius=t.CONTROL_RADIUS,
+            font=t.font(),
         )
         self.pack(self.new_task_entry, side="left", fill="x", expand=True, padx=(0, t.SPACE_2))
         self.new_task_entry.bind("<Return>", lambda e: self._on_add_task())
-        self.pack(PrimaryButton(add_card.body, p, text="+  Add task", height=36, width=120,
-                                font_size=13, command=self._on_add_task), side="left")
+        self.pack(
+            PrimaryButton(
+                add_card.body,
+                p,
+                text="+  Add task",
+                height=36,
+                width=120,
+                font_size=13,
+                command=self._on_add_task,
+            ),
+            side="left",
+        )
 
         bar = self.section(pady=(0, t.SPACE_3))
         self.filter_buttons = self.segmented(bar, FILTERS, self._on_filter)
@@ -79,8 +98,9 @@ class TasksPage(Page):
         self.pack(self.count_label, side="right")
 
         self.tasks_list_frame = Box(self.body)
-        self.pack(self.tasks_list_frame, fill="both", expand=True, padx=PAGE_PAD_X,
-                  pady=(0, t.SPACE_6))
+        self.pack(
+            self.tasks_list_frame, fill="both", expand=True, padx=PAGE_PAD_X, pady=(0, t.SPACE_6)
+        )
         self.render()
 
     def on_show(self) -> None:
@@ -90,8 +110,11 @@ class TasksPage(Page):
             self.render()
 
     def _signature(self) -> tuple:
-        return (tasks_signature(self.app.tasks.all()), self.app._task_filter,
-                tuple(sorted(self.app._expanded_tasks.items())))
+        return (
+            tasks_signature(self.app.tasks.all()),
+            self.app._task_filter,
+            tuple(sorted(self.app._expanded_tasks.items())),
+        )
 
     # ------------------------------------------------------------------ #
     def _on_filter(self, value: str) -> None:
@@ -151,22 +174,36 @@ class TasksPage(Page):
         shown_open, shown_done = filter_tasks(open_tasks, done_tasks, self.app._task_filter)
 
         if not shown_open and not shown_done:
-            empty = ModernCard(self.tasks_list_frame, self.palette, layout=self.layout,
-                               padding=t.SPACE_6)
+            empty = ModernCard(
+                self.tasks_list_frame, self.palette, layout=self.layout, padding=t.SPACE_6
+            )
             self.pack(empty, fill="x")
-            words = ("No tasks yet. Type one above and press Add task."
-                     if not open_tasks and not done_tasks else "Nothing here right now.")
-            self.pack(self.label(empty.body, words, color=self.palette.text_secondary,
-                                 anchor="center"), fill="x")
+            words = (
+                "No tasks yet. Type one above and press Add task."
+                if not open_tasks and not done_tasks
+                else "Nothing here right now."
+            )
+            self.pack(
+                self.label(empty.body, words, color=self.palette.text_secondary, anchor="center"),
+                fill="x",
+            )
             return
 
         for task in shown_open:
             self._render_one(task)
         if shown_done:
             if shown_open:
-                self.pack(self.label(self.tasks_list_frame, f"Done ({len(shown_done)})",
-                                     size=t.FONT_SMALL + 1, color=self.palette.text_muted,
-                                     bold=True), anchor="w", pady=(t.SPACE_4, t.SPACE_2))
+                self.pack(
+                    self.label(
+                        self.tasks_list_frame,
+                        f"Done ({len(shown_done)})",
+                        size=t.FONT_SMALL + 1,
+                        color=self.palette.text_muted,
+                        bold=True,
+                    ),
+                    anchor="w",
+                    pady=(t.SPACE_4, t.SPACE_2),
+                )
             for task in shown_done:
                 self._render_one(task)
 
@@ -180,9 +217,17 @@ class TasksPage(Page):
         self.pack(top, fill="x")
         # Ticking the box finishes the task. A finished task stays ticked.
         box = ctk.CTkCheckBox(
-            top, text="", width=24, checkbox_width=20, checkbox_height=20, corner_radius=6,
-            fg_color=t.SUCCESS, hover_color=p.control_hover, border_color=p.text_muted,
-            command=lambda: self._on_complete_task(task.id), font=t.font()
+            top,
+            text="",
+            width=24,
+            checkbox_width=20,
+            checkbox_height=20,
+            corner_radius=6,
+            fg_color=t.SUCCESS,
+            hover_color=p.control_hover,
+            border_color=p.text_muted,
+            command=lambda: self._on_complete_task(task.id),
+            font=t.font(),
         )
         if done:
             box.select()
@@ -191,21 +236,38 @@ class TasksPage(Page):
 
         expanded = self._is_expanded(task)
         toggle = ctk.CTkButton(
-            top, text="", width=28, height=28, corner_radius=6,
+            top,
+            text="",
+            width=28,
+            height=28,
+            corner_radius=6,
             image=self.icon("chevron_down" if expanded else "chevron_right"),
-            fg_color="transparent", hover_color=p.control_hover,
-            command=lambda: self._on_toggle_expand(task), font=t.font()
+            fg_color="transparent",
+            hover_color=p.control_hover,
+            command=lambda: self._on_toggle_expand(task),
+            font=t.font(),
         )
         self.pack(toggle, side="right")
         badge_text, badge_kind = _STATUS_BADGE[task.status]
-        self.pack(StatusBadge(top, p, text=badge_text, kind=badge_kind, dot=False),
-                  side="right", padx=(t.SPACE_2, t.SPACE_1))
+        self.pack(
+            StatusBadge(top, p, text=badge_text, kind=badge_kind, dot=False),
+            side="right",
+            padx=(t.SPACE_2, t.SPACE_1),
+        )
         progress = step_progress(task)
         if progress:
-            self.pack(self.label(top, progress, size=t.FONT_SMALL + 1, color=p.text_muted),
-                      side="right", padx=(t.SPACE_2, 0))
-        name = self.label(top, task.name, size=t.FONT_BODY + 1,
-                          color=p.text_muted if done else p.text_primary, wrap=420)
+            self.pack(
+                self.label(top, progress, size=t.FONT_SMALL + 1, color=p.text_muted),
+                side="right",
+                padx=(t.SPACE_2, 0),
+            )
+        name = self.label(
+            top,
+            task.name,
+            size=t.FONT_BODY + 1,
+            color=p.text_muted if done else p.text_primary,
+            wrap=420,
+        )
         self.pack(name, side="left", fill="x", expand=True)
 
         if not expanded:
@@ -215,18 +277,30 @@ class TasksPage(Page):
         for subtask in task.subtasks:
             var = ctk.BooleanVar(value=subtask.done)
             check = ctk.CTkCheckBox(
-                steps, text=subtask.text, variable=var, checkbox_width=18,
-                checkbox_height=18, corner_radius=5, fg_color=p.accent,
-                hover_color=p.control_hover, border_color=p.text_muted,
+                steps,
+                text=subtask.text,
+                variable=var,
+                checkbox_width=18,
+                checkbox_height=18,
+                corner_radius=5,
+                fg_color=p.accent,
+                hover_color=p.control_hover,
+                border_color=p.text_muted,
                 text_color=p.text_muted if subtask.done else p.text_primary,
                 font=t.font(size=t.FONT_BODY),
                 command=lambda s=subtask: self._on_toggle_subtask(task.id, s.id),
             )
             self.pack(check, anchor="w", pady=2)
         entry = ctk.CTkEntry(
-            steps, placeholder_text="Add a step… (press Enter)", height=30, border_width=1,
-            fg_color=p.control_bg, border_color=p.card_border, text_color=p.text_primary,
-            corner_radius=t.CONTROL_RADIUS, font=t.font()
+            steps,
+            placeholder_text="Add a step… (press Enter)",
+            height=30,
+            border_width=1,
+            fg_color=p.control_bg,
+            border_color=p.card_border,
+            text_color=p.text_primary,
+            corner_radius=t.CONTROL_RADIUS,
+            font=t.font(),
         )
         self.pack(entry, fill="x", pady=(t.SPACE_1, 0))
         entry.bind("<Return>", lambda e: self._on_add_subtask(task.id, entry))

@@ -19,7 +19,7 @@ never touch a window, so they are tested on their own
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 
 def _flip_side(side):

@@ -23,44 +23,51 @@ share() is called, and close() stops everything.
 from __future__ import annotations
 
 import json
+import logging
 import queue
 import secrets
 import socket
 import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from . import revice_sync as rs
+
+logger = logging.getLogger(__name__)
 
 _WRONG = "wrong"
 _HANDSHAKE_LINE_LIMIT = 4096
 
 
 class BuddyLink:
-    def __init__(self, name: str, discovery_port: Optional[int] = rs.DISCOVERY_PORT,
-                 broadcast_address: str = "255.255.255.255",
-                 clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+        self,
+        name: str,
+        discovery_port: int | None = rs.DISCOVERY_PORT,
+        broadcast_address: str = "255.255.255.255",
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.name = name
         # None means "don't use the call-out at all" (tests use this).
         self.discovery_port = discovery_port
         self.broadcast_address = broadcast_address
         self._clock = clock
-        self._events: "queue.Queue[tuple]" = queue.Queue()
+        self._events: queue.Queue[tuple] = queue.Queue()
         self._lock = threading.Lock()
         # Each share/receive gets its own stop flag. Old threads see
         # their flag set and quietly finish, so they can't mix with new ones.
         self._stop = threading.Event()
         self._stop.set()
         self._sockets: list = []
-        self._conn: Optional[socket.socket] = None
-        self._outgoing: "queue.Queue[dict]" = queue.Queue()
+        self._conn: socket.socket | None = None
+        self._outgoing: queue.Queue[dict] = queue.Queue()
         self._last_heard = 0.0
-        self._pull_started: Optional[float] = None
+        self._pull_started: float | None = None
         self.state = "idle"
-        self.code: Optional[str] = None
+        self.code: str | None = None
         self.code_deadline = 0.0
-        self.buddy_name: Optional[str] = None
-        self.tcp_port: Optional[int] = None
+        self.buddy_name: str | None = None
+        self.tcp_port: int | None = None
 
     # ------------------------------------------------------------------ #
     # What the app calls
@@ -78,7 +85,7 @@ class BuddyLink:
             except queue.Empty:
                 return events
 
-    def share(self) -> Optional[str]:
+    def share(self) -> str | None:
         """Start sharing. Returns the code, or None if it couldn't start."""
         self.close()
         stop = self._fresh_stop()
@@ -112,7 +119,7 @@ class BuddyLink:
             self._thread(self._answer_loop, stop, udp, self.tcp_port)
         return code
 
-    def receive(self, code: str, address: Optional[tuple] = None) -> None:
+    def receive(self, code: str, address: tuple | None = None) -> None:
         """Start looking for a sharer with this code. `address` skips the
         call-out and connects straight there (tests use this)."""
         self.close()
@@ -169,7 +176,7 @@ class BuddyLink:
     def _thread(self, target, *args) -> None:
         threading.Thread(target=target, args=args, daemon=True).start()
 
-    def _shutdown(self, only_if: Optional[threading.Event] = None) -> bool:
+    def _shutdown(self, only_if: threading.Event | None = None) -> bool:
         """Stop everything and go back to idle. If `only_if` is given,
         this only happens when that is still the current attempt, checked
         and acted on in one locked step so a stale thread can't undo a
@@ -208,7 +215,7 @@ class BuddyLink:
         while not stop.is_set():
             try:
                 data, addr = udp.recvfrom(1024)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except ConnectionResetError:
                 # Windows can report an old reply to someone who has
@@ -231,7 +238,7 @@ class BuddyLink:
                 return
             try:
                 conn, _addr = server.accept()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 # Something went wrong with the listening socket itself
@@ -245,6 +252,7 @@ class BuddyLink:
             try:
                 result = self._handshake_as_sharer(conn, code, buf)
             except Exception:
+                logger.debug("A buddy handshake failed", exc_info=True)
                 # A broken connection or a strange message during the
                 # handshake -- treat it like a failed try, not a crash.
                 result = None
@@ -266,7 +274,7 @@ class BuddyLink:
             self._start_paired(stop, conn, buf, result)
             return
 
-    def _handshake_as_sharer(self, conn, code, buf) -> Optional[str]:
+    def _handshake_as_sharer(self, conn, code, buf) -> str | None:
         """Returns the buddy's name, _WRONG, or None if it broke."""
         challenge = secrets.token_bytes(16)
         conn.sendall(rs.encode({"type": "challenge", "value": challenge.hex()}))
@@ -281,10 +289,17 @@ class BuddyLink:
         if not rs.check_proof(code, challenge, answer):
             conn.sendall(rs.encode({"type": "wrong"}))
             return _WRONG
-        conn.sendall(rs.encode({"type": "welcome", "name": self.name,
-                                "value": rs.proof(code, their_challenge).hex()}))
+        conn.sendall(
+            rs.encode(
+                {
+                    "type": "welcome",
+                    "name": self.name,
+                    "value": rs.proof(code, their_challenge).hex(),
+                }
+            )
+        )
         name = message.get("name")
-        return name[:rs.MAX_BUDDY_NAME] if isinstance(name, str) and name else "Buddy"
+        return name[: rs.MAX_BUDDY_NAME] if isinstance(name, str) and name else "Buddy"
 
     # ------------------------------------------------------------------ #
     # Receive
@@ -303,7 +318,7 @@ class BuddyLink:
             saw_wrong = outcome == _WRONG
         self._end(stop, ("error", rs.MSG_WRONG_CODE if saw_wrong else rs.MSG_NOT_FOUND))
 
-    def _call_out(self, stop, code) -> Optional[str]:
+    def _call_out(self, stop, code) -> str | None:
         """Ask the Wi-Fi "anyone sharing?" and try each answer."""
         try:
             udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -326,7 +341,7 @@ class BuddyLink:
                     next_hello = self._clock() + 1.0
                 try:
                     data, addr = udp.recvfrom(1024)
-                except socket.timeout:
+                except TimeoutError:
                     continue
                 except ConnectionResetError:
                     # Same Windows quirk as in _answer_loop -- not a real
@@ -353,7 +368,7 @@ class BuddyLink:
                 pass
         return _WRONG if saw_wrong else None
 
-    def _try_pair(self, stop, address, code) -> Optional[str]:
+    def _try_pair(self, stop, address, code) -> str | None:
         """Connect and do the handshake. "paired", _WRONG, or None."""
         try:
             conn = socket.create_connection(address, timeout=3.0)
@@ -368,9 +383,16 @@ class BuddyLink:
                 return None
             challenge = bytes.fromhex(message["value"])
             mine = secrets.token_bytes(16)
-            conn.sendall(rs.encode({"type": "proof", "name": self.name,
-                                    "value": rs.proof(code, challenge).hex(),
-                                    "challenge": mine.hex()}))
+            conn.sendall(
+                rs.encode(
+                    {
+                        "type": "proof",
+                        "name": self.name,
+                        "value": rs.proof(code, challenge).hex(),
+                        "challenge": mine.hex(),
+                    }
+                )
+            )
             reply = rs.decode(_read_line(conn, buf))
             if reply is not None and reply["type"] == "wrong":
                 conn.close()
@@ -390,7 +412,7 @@ class BuddyLink:
             conn.close()
             return None
         name = reply.get("name")
-        name = name[:rs.MAX_BUDDY_NAME] if isinstance(name, str) and name else "Buddy"
+        name = name[: rs.MAX_BUDDY_NAME] if isinstance(name, str) and name else "Buddy"
         self._start_paired(stop, conn, buf, name)
         return "paired"
 
@@ -448,7 +470,7 @@ class BuddyLink:
                 return
             try:
                 chunk = conn.recv(65536)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 self._end(stop, ("left",))
@@ -459,7 +481,7 @@ class BuddyLink:
             self._last_heard = self._clock()
             buf += chunk
 
-    def _handle(self, stop, message: Optional[dict]) -> bool:
+    def _handle(self, stop, message: dict | None) -> bool:
         """Deal with one message. False means stop reading."""
         if message is None:
             return True
@@ -476,9 +498,13 @@ class BuddyLink:
             self._pull_started = None
             sessions = message.get("sessions")
             tasks = message.get("tasks")
-            self._events.put(("pull_reply",
-                              sessions if isinstance(sessions, list) else [],
-                              tasks if isinstance(tasks, list) else []))
+            self._events.put(
+                (
+                    "pull_reply",
+                    sessions if isinstance(sessions, list) else [],
+                    tasks if isinstance(tasks, list) else [],
+                )
+            )
         return True
 
     def _writer(self, stop, conn, outgoing) -> None:

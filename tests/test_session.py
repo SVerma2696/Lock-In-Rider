@@ -1,5 +1,5 @@
 from lock_in.config import Config
-from lock_in.session import DEFAULT_TERMINOLOGY, Event, Phase, label_for, PomodoroSession
+from lock_in.session import DEFAULT_TERMINOLOGY, Event, Phase, PomodoroSession, label_for
 
 
 def test_phase_labels_are_serious_tokusatsu_tone():
@@ -38,8 +38,13 @@ def test_label_for_unknown_terminology_falls_back_to_professional():
 
 
 def test_blackrx_manual_breaks_prevents_auto_starting_the_next_break():
-    config = Config(focus_minutes=1, short_break_minutes=1, blocks_until_long_break=4,
-                     auto_start_breaks=True, blackrx_manual_breaks=True)
+    config = Config(
+        focus_minutes=1,
+        short_break_minutes=1,
+        blocks_until_long_break=4,
+        auto_start_breaks=True,
+        blackrx_manual_breaks=True,
+    )
 
     # Use a controllable fake clock to drive the session forward
     clock_value = [0.0]  # Use a list so we can mutate it in the nested function

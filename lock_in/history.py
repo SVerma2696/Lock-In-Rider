@@ -29,18 +29,19 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+
+from .storage import append_jsonl, rewrite_jsonl
 
 
 @dataclass
 class SessionRecord:
     """One completed (or cut-short) focus block."""
 
-    start: str                     # ISO timestamp, when the block began
-    end: str                       # ISO timestamp, when it ended/was cut short
+    start: str  # ISO timestamp, when the block began
+    end: str  # ISO timestamp, when it ended/was cut short
     duration_seconds: int
-    task_id: Optional[str]         # None if no task was picked -- still logged
-    completed: bool                # False if skipped or reset before time ran out
+    task_id: str | None  # None if no task was picked -- still logged
+    completed: bool  # False if skipped or reset before time ran out
     # The block's own name tag. Every new block gets one automatically.
     # Old lines saved before this existed get one when they are loaded --
     # see HistoryStore.load().
@@ -52,7 +53,7 @@ class HistoryStore:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._records: List[SessionRecord] = []
+        self._records: list[SessionRecord] = []
         self.load()
 
     def load(self) -> None:
@@ -98,11 +99,10 @@ class HistoryStore:
         Only three things use this: load() (giving old blocks their
         name tags), reassign_task(), and delete().
         """
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        lines = [json.dumps(asdict(r), ensure_ascii=False) for r in self._records]
-        self.path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        # Swapped in whole, in one step, so a crash can't cut history short.
+        rewrite_jsonl(self.path, (asdict(r) for r in self._records))
 
-    def reassign_task(self, record_id: str, new_task_id: Optional[str]) -> bool:
+    def reassign_task(self, record_id: str, new_task_id: str | None) -> bool:
         """Change which task an old block belongs to. None means "no
         task". Only the task changes -- the start, end and length stay
         exactly as they were. Returns False if no block has that id.
@@ -130,21 +130,19 @@ class HistoryStore:
     def record(self, session_record: SessionRecord) -> None:
         """Append one completed block. Written and flushed immediately --
         there's no in-memory buffering to lose on a crash."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(asdict(session_record), ensure_ascii=False) + "\n")
+        append_jsonl(self.path, asdict(session_record))
         self._records.append(session_record)
 
-    def all(self) -> List[SessionRecord]:
+    def all(self) -> list[SessionRecord]:
         return list(self._records)
 
-    def for_date(self, day: date) -> List[SessionRecord]:
+    def for_date(self, day: date) -> list[SessionRecord]:
         return [r for r in self._records if datetime.fromisoformat(r.start).date() == day]
 
-    def for_task(self, task_id: str) -> List[SessionRecord]:
+    def for_task(self, task_id: str) -> list[SessionRecord]:
         return [r for r in self._records if r.task_id == task_id]
 
-    def earliest_date(self) -> Optional[date]:
+    def earliest_date(self) -> date | None:
         """The calendar day of the very first record ever logged, or
         None if nothing has been logged yet -- backs how far back Den-O's
         Prev-day button can go."""
@@ -152,19 +150,19 @@ class HistoryStore:
             return None
         return min(datetime.fromisoformat(r.start).date() for r in self._records)
 
-    def total_seconds_by_task(self) -> Dict[Optional[str], int]:
+    def total_seconds_by_task(self) -> dict[str | None, int]:
         """{'abc123': 1500, None: 900, ...} -- total focused seconds per
         task_id, with None holding every untagged block's time. The
         aggregate Decade's "Top tasks" ranking reads from."""
-        totals: Dict[Optional[str], int] = {}
+        totals: dict[str | None, int] = {}
         for r in self._records:
             totals[r.task_id] = totals.get(r.task_id, 0) + r.duration_seconds
         return totals
 
-    def total_seconds_by_day(self) -> Dict[str, int]:
+    def total_seconds_by_day(self) -> dict[str, int]:
         """{'2026-09-04': 2400, ...} -- the one aggregate every history-
         reading Rider downstream (V3, Decade, Den-O) will start from."""
-        totals: Dict[str, int] = {}
+        totals: dict[str, int] = {}
         for r in self._records:
             day = datetime.fromisoformat(r.start).date().isoformat()
             totals[day] = totals.get(day, 0) + r.duration_seconds

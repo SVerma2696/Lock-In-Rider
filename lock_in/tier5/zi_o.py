@@ -25,13 +25,16 @@ real app, like every other Tier 5 tab.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Optional
 
 import customtkinter as ctk
 
 from ..tasks import Task
 from ._shared import (
-    format_day_heading, format_hm, format_time_range, resolve_task_name, sorted_blocks,
+    format_day_heading,
+    format_hm,
+    format_time_range,
+    resolve_task_name,
+    sorted_blocks,
 )
 
 # The same colors ui.py uses (green = good, amber = careful, gray =
@@ -45,7 +48,7 @@ _MUTED_COLOR = "#5a6472"
 _NO_TASK_LABEL = "No task"
 
 
-def build_reassign_choices(all_tasks: list[Task]) -> tuple[list[str], dict[str, Optional[str]]]:
+def build_reassign_choices(all_tasks: list[Task]) -> tuple[list[str], dict[str, str | None]]:
     """Get the words for the "pick a task" menu.
 
     Returns (menu words, word -> task id). "No task" is always first and
@@ -54,7 +57,7 @@ def build_reassign_choices(all_tasks: list[Task]) -> tuple[list[str], dict[str, 
     that way every word points at exactly ONE task.
     """
     words = [_NO_TASK_LABEL]
-    ids: dict[str, Optional[str]] = {_NO_TASK_LABEL: None}
+    ids: dict[str, str | None] = {_NO_TASK_LABEL: None}
     for task in sorted(all_tasks, key=lambda t: t.name.lower()):
         word = task.name
         counter = 1
@@ -79,7 +82,9 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     prev_button = ctk.CTkButton(header, text="< Prev", width=90)
     prev_button.pack(side="left")
     heading_label = ctk.CTkLabel(
-        header, text="", font=ctk.CTkFont(size=14, weight="bold"),
+        header,
+        text="",
+        font=ctk.CTkFont(size=14, weight="bold"),
         text_color=theme.primary_text_pair,
     )
     heading_label.pack(side="left", expand=True)
@@ -105,7 +110,9 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
         blocks = sorted_blocks(history.for_date(day))
         if not blocks:
             ctk.CTkLabel(
-                rows_frame, text="No focus blocks on this day.", text_color=_MUTED_COLOR,
+                rows_frame,
+                text="No focus blocks on this day.",
+                text_color=_MUTED_COLOR,
             ).pack(anchor="w", pady=20)
             return
 
@@ -125,15 +132,20 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
         top = ctk.CTkFrame(row, fg_color="transparent")
         top.pack(fill="x", padx=10, pady=(8, 0))
         ctk.CTkLabel(
-            top, text="●", text_color=dot_color, width=20,
+            top,
+            text="●",
+            text_color=dot_color,
+            width=20,
             font=ctk.CTkFont(size=14),
         ).pack(side="left")
         title = (
-            f"{format_time_range(record.start, record.end)} · "
-            f"{format_hm(record.duration_seconds)}"
+            f"{format_time_range(record.start, record.end)} · {format_hm(record.duration_seconds)}"
         )
         ctk.CTkLabel(
-            top, text=title, anchor="w", font=ctk.CTkFont(size=12, weight="bold"),
+            top,
+            text=title,
+            anchor="w",
+            font=ctk.CTkFont(size=12, weight="bold"),
         ).pack(side="left", fill="x", expand=True)
 
         controls = ctk.CTkFrame(row, fg_color="transparent")
@@ -144,7 +156,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
             render_day()
 
         reassign_menu = ctk.CTkOptionMenu(
-            controls, values=words, command=on_reassign, width=160,
+            controls,
+            values=words,
+            command=on_reassign,
+            width=160,
         )
         # .set() only changes the words showing on the menu, so it can
         # show "Deleted task" even though that isn't one of the choices.
@@ -161,18 +176,30 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
             for child in delete_area.winfo_children():
                 child.destroy()
             ctk.CTkButton(
-                delete_area, text="Delete", width=70, height=26, command=show_confirm,
+                delete_area,
+                text="Delete",
+                width=70,
+                height=26,
+                command=show_confirm,
             ).pack(side="left")
 
         def show_confirm() -> None:
             for child in delete_area.winfo_children():
                 child.destroy()
             ctk.CTkButton(
-                delete_area, text="Really delete?", width=110, height=26,
-                fg_color=_ENDED_EARLY_COLOR, command=confirm_delete,
+                delete_area,
+                text="Really delete?",
+                width=110,
+                height=26,
+                fg_color=_ENDED_EARLY_COLOR,
+                command=confirm_delete,
             ).pack(side="left", padx=(0, 6))
             ctk.CTkButton(
-                delete_area, text="Cancel", width=70, height=26, command=show_delete,
+                delete_area,
+                text="Cancel",
+                width=70,
+                height=26,
+                command=show_delete,
             ).pack(side="left")
 
         def confirm_delete() -> None:

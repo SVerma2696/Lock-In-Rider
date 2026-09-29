@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import customtkinter as ctk
 
+from ..rider_effects import InteractionEffect
 from ..wizard_gestures import next_tab_name, recognize
+from .host import AppHost
 
 
 def gesture_target(route_ids, current, gesture):
@@ -26,13 +28,13 @@ def gesture_target(route_ids, current, gesture):
     return next_tab_name(list(route_ids), current, gesture)
 
 
-class WizardGesturesMixin:
+class WizardGesturesMixin(AppHost):
     def _bind_wizard_gestures(self) -> None:
         # Bound once; each handler checks for itself whether Wizard is
         # picked and the switch is on, so changing Rider later needs no
         # re-binding. add="+" keeps any other binding working.
         self._wizard_points: list = []
-        self._wizard_last_dot = None
+        self._wizard_last_dot: tuple[int, int] | None = None
         self.bind("<ButtonPress-3>", self._on_wizard_press, add="+")
         self.bind("<B3-Motion>", self._on_wizard_motion, add="+")
         self.bind("<ButtonRelease-3>", self._on_wizard_release, add="+")
@@ -43,7 +45,7 @@ class WizardGesturesMixin:
         screen). It does not check where the mouse is now."""
         try:
             return (
-                self.current_tier6_effect == "mouse_gestures"
+                self.abilities.interaction is InteractionEffect.MOUSE_GESTURES
                 and self.config_obj.mouse_gestures_enabled
                 and event.widget.winfo_toplevel() is self
             )
@@ -55,8 +57,10 @@ class WizardGesturesMixin:
         sending drag and release events here even after the mouse leaves."""
         try:
             left, top = self.winfo_rootx(), self.winfo_rooty()
-            return (left <= event.x_root < left + self.winfo_width()
-                    and top <= event.y_root < top + self.winfo_height())
+            return (
+                left <= event.x_root < left + self.winfo_width()
+                and top <= event.y_root < top + self.winfo_height()
+            )
         except Exception:
             return False
 
@@ -108,10 +112,12 @@ class WizardGesturesMixin:
             if last is not None and abs(x - last[0]) < 10 and abs(y - last[1]) < 10:
                 return
             self._wizard_last_dot = (x, y)
-            dot = ctk.CTkFrame(self, width=6, height=6, corner_radius=3,
-                               fg_color=self.color_focus)
-            dot.place(x=x - 3, y=y - 3)
-            self.after(400, lambda d=dot: self._wizard_remove_dot(d))
+            frame = ctk.CTkFrame(
+                self, width=6, height=6, corner_radius=3, fg_color=self.color_focus
+            )
+            dot = frame
+            frame.place(x=x - 3, y=y - 3)
+            self._after(f"wizard_dot_{id(frame)}", 400, lambda: self._wizard_remove_dot(frame))
         except Exception:
             if dot is not None:
                 self._wizard_remove_dot(dot)

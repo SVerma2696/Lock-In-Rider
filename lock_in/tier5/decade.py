@@ -16,7 +16,6 @@ tab.
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 import customtkinter as ctk
 
@@ -26,7 +25,8 @@ from ._shared import format_hm, last_n_days, resolve_task_name
 
 
 def ranked_tasks(
-    totals_by_task: dict[Optional[str], int], tasks: TaskStore,
+    totals_by_task: dict[str | None, int],
+    tasks: TaskStore,
 ) -> list[tuple[str, int]]:
     """[(name, seconds), ...] sorted by seconds descending, capped at
     the top 10. Every task_id (including None, for untagged time) is
@@ -34,8 +34,7 @@ def ranked_tasks(
     were both later deleted show as two separate 'Deleted task' rows,
     never merged, since there's no way left to tell them apart by name."""
     resolved = [
-        (resolve_task_name(task_id, tasks), seconds)
-        for task_id, seconds in totals_by_task.items()
+        (resolve_task_name(task_id, tasks), seconds) for task_id, seconds in totals_by_task.items()
     ]
     resolved.sort(key=lambda pair: pair[1], reverse=True)
     return resolved[:10]
@@ -52,8 +51,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
 
     if not history.all():
         ctk.CTkLabel(
-            frame, text="No focus blocks yet. Finish one and it shows up here.",
-            justify="left", wraplength=400,
+            frame,
+            text="No focus blocks yet. Finish one and it shows up here.",
+            justify="left",
+            wraplength=400,
         ).pack(anchor="w", pady=8)
         return
 
@@ -61,12 +62,22 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     today = date.today()
     day_values = [(day.isoformat(), secs) for day, secs in last_n_days(totals_by_day, today, 30)]
     light_image = visuals.make_hours_chart(
-        640, 200, day_values, theme.primary[0], theme.secondary[0],
-        dark=False, era=theme.era,
+        640,
+        200,
+        day_values,
+        theme.primary[0],
+        theme.secondary[0],
+        dark=False,
+        era=theme.era,
     )
     dark_image = visuals.make_hours_chart(
-        640, 200, day_values, theme.primary[1], theme.secondary[1],
-        dark=True, era=theme.era,
+        640,
+        200,
+        day_values,
+        theme.primary[1],
+        theme.secondary[1],
+        dark=True,
+        era=theme.era,
     )
     chart_image = ctk.CTkImage(light_image=light_image, dark_image=dark_image, size=(640, 200))
     chart_label = ctk.CTkLabel(frame, text="", image=chart_image)
@@ -75,12 +86,16 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     chart_label.pack(anchor="w")
 
     ctk.CTkLabel(
-        frame, text="Last 30 days", text_color=("gray40", "gray60"),
+        frame,
+        text="Last 30 days",
+        text_color=("gray40", "gray60"),
         font=ctk.CTkFont(size=11),
     ).pack(anchor="w", pady=(6, 14))
 
     ctk.CTkLabel(
-        frame, text="Top tasks", font=ctk.CTkFont(size=13, weight="bold"),
+        frame,
+        text="Top tasks",
+        font=ctk.CTkFont(size=13, weight="bold"),
         text_color=theme.primary_text_pair,
     ).pack(anchor="w", pady=(0, 6))
 

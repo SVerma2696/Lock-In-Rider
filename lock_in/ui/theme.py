@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..rider_effects import ProgressEffect
 from ..rider_themes import RiderTheme, darken, lighten, readable_text_color
 
 Pair = tuple  # (light mode color, dark mode color)
@@ -139,6 +140,7 @@ def font(family=None, size: int = FONT_BODY, weight: str = "normal"):
     shared = _FONTS.get(key)
     if shared is None:
         import customtkinter as ctk
+
         shared = ctk.CTkFont(family=family, size=size, weight=weight)
         _FONTS[key] = shared
     return shared
@@ -201,7 +203,7 @@ def resolve_palette(theme: RiderTheme) -> Palette:
     primary_light, primary_dark = theme.primary
     app_bg, card_bg, card_border = APP_BG, CARD_BG, CARD_BORDER
     text_secondary, text_muted = TEXT_SECONDARY, TEXT_MUTED
-    if theme.tier1_effect == "high_contrast_dark":
+    if theme.tier1_effect == ProgressEffect.HIGH_CONTRAST_DARK:
         app_bg = (APP_BG[0], "#000000")
         card_bg = (CARD_BG[0], "#0B0B0C")
         card_border = (CARD_BORDER[0], "#4A525C")

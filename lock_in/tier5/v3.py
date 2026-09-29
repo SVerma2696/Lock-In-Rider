@@ -44,28 +44,44 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     headline_seconds = totals.get(today.isoformat(), 0)
 
     ctk.CTkLabel(
-        frame, text=format_hm(headline_seconds), text_color=theme.primary_text_pair,
+        frame,
+        text=format_hm(headline_seconds),
+        text_color=theme.primary_text_pair,
         font=ctk.CTkFont(family=visuals.display_font_family(), size=32, weight="bold"),
     ).pack(anchor="w", pady=(4, 0))
     ctk.CTkLabel(
-        frame, text="focused today", text_color=theme.primary_text_pair,
+        frame,
+        text="focused today",
+        text_color=theme.primary_text_pair,
     ).pack(anchor="w", pady=(0, 12))
 
     if not history.all():
         ctk.CTkLabel(
-            frame, text="No focus blocks yet. Finish one and it shows up here.",
-            justify="left", wraplength=400,
+            frame,
+            text="No focus blocks yet. Finish one and it shows up here.",
+            justify="left",
+            wraplength=400,
         ).pack(anchor="w", pady=8)
         return
 
     day_values = [(day.isoformat(), secs) for day, secs in last_n_days(totals, today, 14)]
     light_image = visuals.make_hours_chart(
-        440, 200, day_values, theme.primary[0], theme.secondary[0],
-        dark=False, era=theme.era,
+        440,
+        200,
+        day_values,
+        theme.primary[0],
+        theme.secondary[0],
+        dark=False,
+        era=theme.era,
     )
     dark_image = visuals.make_hours_chart(
-        440, 200, day_values, theme.primary[1], theme.secondary[1],
-        dark=True, era=theme.era,
+        440,
+        200,
+        day_values,
+        theme.primary[1],
+        theme.secondary[1],
+        dark=True,
+        era=theme.era,
     )
     chart_image = ctk.CTkImage(light_image=light_image, dark_image=dark_image, size=(440, 200))
     chart_label = ctk.CTkLabel(frame, text="", image=chart_image)
@@ -77,6 +93,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     chart_label.pack(anchor="w")
 
     ctk.CTkLabel(
-        frame, text="Last 14 days · every focus block counts, finished or not",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
+        frame,
+        text="Last 14 days · every focus block counts, finished or not",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
     ).pack(anchor="w", pady=(6, 0))

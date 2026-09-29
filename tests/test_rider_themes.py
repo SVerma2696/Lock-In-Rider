@@ -10,7 +10,7 @@ from lock_in.rider_themes import (
 
 def _brightness(hex_color: str) -> int:
     hex_color = hex_color.lstrip("#")
-    return sum(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    return sum(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def test_has_all_38_riders():
@@ -65,12 +65,12 @@ def test_surface_pair_is_pale_for_light_and_near_black_for_dark():
 
     def brightness(hex_color: str) -> int:
         hex_color = hex_color.lstrip("#")
-        return sum(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+        return sum(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
     # Light mode surface should read as "pale" (bright), dark mode as
     # "near-black" (dim) -- same underlying hue, very different brightness.
-    assert brightness(light_surface) > 600   # close to white (max 765)
-    assert brightness(dark_surface) < 100    # close to black
+    assert brightness(light_surface) > 600  # close to white (max 765)
+    assert brightness(dark_surface) < 100  # close to black
 
 
 def test_surface_pair_keeps_the_riders_hue_recognisable():
@@ -82,12 +82,12 @@ def test_surface_pair_keeps_the_riders_hue_recognisable():
 
 def test_readable_text_color_picks_black_on_light_backgrounds():
     assert readable_text_color("#ffffff") == "#000000"
-    assert readable_text_color("#ffca28") == "#000000"   # a light gold
+    assert readable_text_color("#ffca28") == "#000000"  # a light gold
 
 
 def test_readable_text_color_picks_white_on_dark_backgrounds():
     assert readable_text_color("#000000") == "#ffffff"
-    assert readable_text_color("#1a1a1a") == "#ffffff"   # a near-black
+    assert readable_text_color("#1a1a1a") == "#ffffff"  # a near-black
 
 
 def test_primary_text_pair_is_never_the_same_as_its_own_light_mode_surface():
@@ -168,6 +168,7 @@ def test_black_light_mode_text_is_unaffected():
 
 def test_desaturate_produces_equal_rgb_channels():
     from lock_in.rider_themes import desaturate
+
     gray = desaturate("#ff0000").lstrip("#")
     r, g, b = gray[0:2], gray[2:4], gray[4:6]
     assert r == g == b
@@ -178,15 +179,16 @@ def test_desaturate_preserves_relative_brightness():
 
     def brightness(hex_color):
         hex_color = hex_color.lstrip("#")
-        return sum(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+        return sum(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
-    bright = desaturate("#ffff00")   # yellow -- perceived as bright
-    dark = desaturate("#000080")     # navy -- perceived as dark
+    bright = desaturate("#ffff00")  # yellow -- perceived as bright
+    dark = desaturate("#000080")  # navy -- perceived as dark
     assert brightness(bright) > brightness(dark)
 
 
 def test_desaturate_keeps_two_different_colors_visually_distinct():
     from lock_in.rider_themes import desaturate
+
     assert desaturate("#ff0000") != desaturate("#0000ff")
 
 
@@ -253,12 +255,14 @@ def test_standard_theme_passes_the_same_contrast_check_every_rider_does():
 
 def test_tier4_effect_defaults_to_none():
     from lock_in.rider_themes import RiderTheme
+
     theme = RiderTheme("Heisei", 2000, ("#000000", "#ffffff"), ("#111111", "#eeeeee"))
     assert theme.tier4_effect == "none"
 
 
 def test_exactly_these_eight_riders_have_a_tier4_effect():
     from lock_in.rider_themes import RIDER_THEMES
+
     expected = {
         "Kamen Rider Black RX (1988)": "manual_break_toggle",
         "Kamen Rider Ryuki (2002)": "mirror_flip",
@@ -277,6 +281,7 @@ def test_exactly_these_eight_riders_have_a_tier4_effect():
 
 def test_saber_is_a_tier1_bookmark_shape_not_a_tier4_effect():
     from lock_in.rider_themes import RIDER_THEMES
+
     saber = RIDER_THEMES["Kamen Rider Saber (2020)"]
     assert saber.tier1_effect == "bookmark"
     assert saber.tier4_effect == "none"
@@ -284,12 +289,14 @@ def test_saber_is_a_tier1_bookmark_shape_not_a_tier4_effect():
 
 def test_tier5_effect_defaults_to_none():
     from lock_in.rider_themes import RiderTheme
+
     theme = RiderTheme("Heisei", 2000, ("#000000", "#ffffff"), ("#111111", "#eeeeee"))
     assert theme.tier5_effect == "none"
 
 
 def test_exactly_these_ten_riders_have_a_tier5_effect():
     from lock_in.rider_themes import RIDER_THEMES
+
     expected = {
         "Kamen Rider V3 (1973)": "hours_tab",
         "Kamen Rider Den-O (2007)": "timeline_view",
@@ -310,17 +317,20 @@ def test_exactly_these_ten_riders_have_a_tier5_effect():
 
 def test_standard_theme_has_no_tier5_effect():
     from lock_in.rider_themes import STANDARD_THEME
+
     assert STANDARD_THEME.tier5_effect == "none"
 
 
 def test_tier6_effect_defaults_to_none():
     from lock_in.rider_themes import RiderTheme
+
     theme = RiderTheme("Heisei", 2000, ("#000000", "#ffffff"), ("#111111", "#eeeeee"))
     assert theme.tier6_effect == "none"
 
 
 def test_only_wizard_and_revice_have_a_tier6_effect():
     from lock_in.rider_themes import RIDER_THEMES
+
     assert RIDER_THEMES["Kamen Rider Wizard (2012)"].tier6_effect == "mouse_gestures"
     assert RIDER_THEMES["Kamen Rider Revice (2021)"].tier6_effect == "buddy_link"
     tier6_riders = {n for n, t in RIDER_THEMES.items() if t.tier6_effect != "none"}
@@ -329,4 +339,5 @@ def test_only_wizard_and_revice_have_a_tier6_effect():
 
 def test_standard_theme_has_no_tier6_effect():
     from lock_in.rider_themes import STANDARD_THEME
+
     assert STANDARD_THEME.tier6_effect == "none"

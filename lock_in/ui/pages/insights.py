@@ -24,26 +24,35 @@ class InsightsPage(Page):
 
     def build(self) -> None:
         p = self.palette
-        self.page_header("Insights", "Your focus time, added up. Every focus block counts, "
-                                     "finished or not.")
+        self.page_header(
+            "Insights", "Your focus time, added up. Every focus block counts, finished or not."
+        )
         time_grid = self.grid_row(min_width=150, max_columns=3)
         self.cards = {}
-        for key, label, icon in (("today", "Today", "clock"),
-                                 ("week", "Last 7 days", "calendar"),
-                                 ("all", "All time", "timer"),
-                                 ("blocks", "Focus blocks", "focus"),
-                                 ("average", "Average block", "chart"),
-                                 ("days", "Days with focus", "flag")):
+        for key, label, icon in (
+            ("today", "Today", "clock"),
+            ("week", "Last 7 days", "calendar"),
+            ("all", "All time", "timer"),
+            ("blocks", "Focus blocks", "focus"),
+            ("average", "Average block", "chart"),
+            ("days", "Days with focus", "flag"),
+        ):
             card = StatCard(time_grid, p, layout=self.layout, label=label, icon=self.icon(icon))
             time_grid.add(card)
             self.cards[key] = card
 
-        self.pack(self.label(self.body, "Tasks and this session", size=t.FONT_SECTION, bold=True),
-                  anchor="w", padx=PAGE_PAD_X, pady=(t.SPACE_4, t.SPACE_2))
+        self.pack(
+            self.label(self.body, "Tasks and this session", size=t.FONT_SECTION, bold=True),
+            anchor="w",
+            padx=PAGE_PAD_X,
+            pady=(t.SPACE_4, t.SPACE_2),
+        )
         task_grid = self.grid_row(min_width=150, max_columns=3)
-        for key, label, icon in (("open", "Tasks to do", "tasks"),
-                                 ("progress", "In progress", "layers"),
-                                 ("session", "This session", "star")):
+        for key, label, icon in (
+            ("open", "Tasks to do", "tasks"),
+            ("progress", "In progress", "layers"),
+            ("session", "This session", "star"),
+        ):
             card = StatCard(task_grid, p, layout=self.layout, label=label, icon=self.icon(icon))
             task_grid.add(card)
             self.cards[key] = card
@@ -51,11 +60,18 @@ class InsightsPage(Page):
         if not self.app.config_obj.standard_mode:
             tip = ModernCard(self.body, p, layout=self.layout, padding=t.SPACE_3)
             self.pack(tip, fill="x", padx=PAGE_PAD_X, pady=(t.SPACE_3, t.SPACE_6))
-            self.pack(self.label(tip.body, "Want charts and streaks? Some Riders add their "
-                                           "own page to the side bar: V3 (Hours), Decade "
-                                           "(Analytics), W (Week), and Geats (Goal).",
-                                 size=t.FONT_SMALL + 1, color=p.text_secondary, wrap=560),
-                      fill="x")
+            self.pack(
+                self.label(
+                    tip.body,
+                    "Want charts and streaks? Some Riders add their "
+                    "own page to the side bar: V3 (Hours), Decade "
+                    "(Analytics), W (Week), and Geats (Goal).",
+                    size=t.FONT_SMALL + 1,
+                    color=p.text_secondary,
+                    wrap=560,
+                ),
+                fill="x",
+            )
         self.refresh()
 
     def on_show(self) -> None:
@@ -68,9 +84,12 @@ class InsightsPage(Page):
         c["today"].set(format_duration(n.today_seconds), "Focused so far today")
         c["week"].set(format_duration(n.week_seconds), "Today and the 6 days before")
         c["all"].set(format_duration(n.all_time_seconds), "Since you started")
-        c["blocks"].set(str(n.blocks_logged),
-                        f"{n.blocks_finished} finished ({n.finish_rate:.0%})"
-                        if n.blocks_logged else "None yet")
+        c["blocks"].set(
+            str(n.blocks_logged),
+            f"{n.blocks_finished} finished ({n.finish_rate:.0%})"
+            if n.blocks_logged
+            else "None yet",
+        )
         c["average"].set(format_duration(n.average_block_seconds), "Per focus block")
         c["days"].set(str(n.active_days), "Days you focused at all")
         c["open"].set(str(n.tasks_open + n.tasks_in_progress), f"{n.tasks_done} done")

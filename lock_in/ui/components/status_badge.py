@@ -24,17 +24,30 @@ def badge_colors(kind: str, palette: t.Palette):
 
 
 class StatusBadge(ctk.CTkLabel):
-    def __init__(self, master, palette: t.Palette, *, text: str = "",
-                 kind: str = "neutral", dot: bool = True, **kwargs) -> None:
+    def __init__(
+        self,
+        master,
+        palette: t.Palette,
+        *,
+        text: str = "",
+        kind: str = "neutral",
+        dot: bool = True,
+        **kwargs,
+    ) -> None:
         self._palette = palette
         self._dot = dot
         fg, bg = badge_colors(kind, palette)
         super().__init__(
-            master, text=self._words(text), fg_color=bg, text_color=fg,
-            corner_radius=11, height=24, font=t.font(size=t.FONT_SMALL + 1, weight="bold"),
+            master,
+            text=self._words(text),
+            fg_color=bg,
+            text_color=fg,
+            corner_radius=11,
+            height=24,
+            font=t.font(size=t.FONT_SMALL + 1, weight="bold"),
             **kwargs,
         )
-        self._state = (text, kind)
+        self._state: tuple[str, str] | None = (text, kind)
 
     def _words(self, text: str) -> str:
         return f"  ● {text}  " if self._dot else f"  {text}  "
@@ -42,6 +55,8 @@ class StatusBadge(ctk.CTkLabel):
     def set_palette(self, palette: t.Palette) -> None:
         """Use a new Rider's colors (only "accent" badges change)."""
         self._palette = palette
+        if self._state is None:
+            return
         text, kind = self._state
         self._state = None
         self.set(text, kind)

@@ -16,17 +16,18 @@ and to read and save the badge list; the others ignore it.
 TIER5_BUILDERS grows one entry per Rider as each one is built.
 """
 
+from ..rider_effects import ProductivityEffect
 from . import blade, decade, den_o, geats, gotchard, my_th, ooo, v3, w, zi_o
 
 TIER5_BUILDERS = {
-    "hours_tab": v3.build,
-    "timeline_view": den_o.build,
-    "analytics_dashboard": decade.build,
-    "history_editor": zi_o.build,
-    "kanban_board": blade.build,
-    "week_compare": w.build,
-    "goal_streak": geats.build,
-    "badge_cards": gotchard.build,
-    "phase_combo": ooo.build,
-    "priority_order": my_th.build,
+    ProductivityEffect.HOURS_TAB: v3.build,
+    ProductivityEffect.TIMELINE_VIEW: den_o.build,
+    ProductivityEffect.ANALYTICS_DASHBOARD: decade.build,
+    ProductivityEffect.HISTORY_EDITOR: zi_o.build,
+    ProductivityEffect.KANBAN_BOARD: blade.build,
+    ProductivityEffect.WEEK_COMPARE: w.build,
+    ProductivityEffect.GOAL_STREAK: geats.build,
+    ProductivityEffect.BADGE_CARDS: gotchard.build,
+    ProductivityEffect.PHASE_COMBO: ooo.build,
+    ProductivityEffect.PRIORITY_ORDER: my_th.build,
 }

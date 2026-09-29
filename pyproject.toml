@@ -1,0 +1,141 @@
+# pyproject.toml
+# ==============
+# One place that says what Lock In is, what it needs to run, and how
+# its checking tools are set up.
+#
+# Installing:
+#   pip install -e .                 the app itself (what every copy needs)
+#   pip install -e ".[camera]"       plus Strict Camera Monitoring
+#   pip install -e ".[claude]"       plus the optional Claude helper
+#   pip install -e ".[dev]"          plus the tools for testing and checking
+#   pip install -r requirements.txt  everything a full copy uses (the
+#                                    release builds use this one)
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lock-in"
+dynamic = ["version"]
+description = "A focus timer that notices when you drift off, with 38 Kamen Rider themes."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "customtkinter>=5.2.2",
+    "Pillow>=10.0.0",
+    "psutil>=5.9.0",
+    # Windows only: seeing which window you're in, and pop-up messages.
+    "pywin32>=306; sys_platform == 'win32'",
+    "winotify>=1.1.0; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+camera = ["opencv-python-headless>=4.8.0"]
+claude = ["anthropic>=0.40.0"]
+test = ["pytest>=8.0.0", "pytest-cov>=5.0.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "pip-audit>=2.7.0",
+]
+
+[project.scripts]
+lock-in = "lock_in.ui:run"
+
+[tool.setuptools.dynamic]
+version = { attr = "lock_in.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["lock_in*"]
+
+[tool.setuptools.package-data]
+lock_in = ["assets/*"]
+
+# --------------------------------------------------------------------------- #
+# pytest: `pytest` just works from the project folder.
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
+
+# --------------------------------------------------------------------------- #
+# Coverage: how much of the app the tests run.
+#
+# Today: about 58% of everything, and about 83% of everything except the
+# screen code (lock_in/ui/ and the Tier 5 pages). The screen code needs a
+# real window, so it's mostly checked by tests/smoke_ui.py instead.
+# These floors sit just under today's numbers, so a change that drops
+# coverage fails the checks. CI also checks the non-screen code on its
+# own, against 80% (see .github/workflows/tests.yml).
+# --------------------------------------------------------------------------- #
+[tool.coverage.run]
+source = ["lock_in"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 57
+
+# --------------------------------------------------------------------------- #
+# Ruff: the style checker and formatter.
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["venv", "graphify-out", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF100"]
+ignore = [
+    "E501",    # the formatter handles line length; long words in strings are fine
+    "SIM105",  # try/except/pass reads more plainly than contextlib.suppress here
+    "SIM108",  # an if/else is often clearer than a one-line conditional
+    "UP042",   # Phase, Action and friends stay (str, Enum): str() of them must not change
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The screen toolkit must be told about screen scaling before anything
+# else from it is imported, so a few imports come after that line.
+"lock_in/ui/app.py" = ["E402"]
+# Test files set things up before importing what they test.
+"tests/*" = ["E402"]
+
+# --------------------------------------------------------------------------- #
+# mypy: the type checker. It starts strict on the parts that don't draw
+# anything, and checks the rest more gently.
+# --------------------------------------------------------------------------- #
+[tool.mypy]
+# 3.12 only so mypy can read numpy's own type files. The app itself still
+# runs on 3.11: Ruff's target-version and the 3.11 test run make sure of that.
+python_version = "3.12"
+files = ["lock_in"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "lock_in.session",
+    "lock_in.tasks",
+    "lock_in.history",
+    "lock_in.updater",
+    "lock_in.update_verify",
+    "lock_in.classifier",
+    "lock_in.config",
+    "lock_in.config_validation",
+    "lock_in.rider_effects",
+    "lock_in.rider_themes",
+    "lock_in.storage.*",
+    "lock_in.application.*",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true

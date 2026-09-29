@@ -19,8 +19,8 @@ import subprocess
 import sys
 import tarfile
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Optional
 
 EXPECTED_ENTRY = {
     "win32": "Lock In.exe",
@@ -28,7 +28,7 @@ EXPECTED_ENTRY = {
     "linux": "Lock In",
 }
 
-_WAIT_TRIES = 15   # ~15 seconds (Windows: 1s/try) / ~4.5s (macOS/Linux: 0.3s/try) before giving up
+_WAIT_TRIES = 15  # ~15 seconds (Windows: 1s/try) / ~4.5s (macOS/Linux: 0.3s/try) before giving up
 
 
 def _restore_zip_exec_bits(archive: zipfile.ZipFile, dest_dir: Path) -> None:
@@ -55,7 +55,7 @@ def _restore_zip_exec_bits(archive: zipfile.ZipFile, dest_dir: Path) -> None:
             continue
 
 
-def extract_archive(archive_path: Path, dest_dir: Path, platform: str) -> Optional[Path]:
+def extract_archive(archive_path: Path, dest_dir: Path, platform: str) -> Path | None:
     """Unzips or untars archive_path into dest_dir, then checks
     EXPECTED_ENTRY[platform] actually exists inside. Returns that path,
     or None if extraction failed, platform is unrecognized, or the
@@ -105,8 +105,9 @@ def current_app_path(platform: str) -> Path:
     return exe_path
 
 
-def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path,
-                             pid: int, platform: str) -> Path:
+def write_relauncher_script(
+    script_dir: Path, current_path: Path, new_path: Path, pid: int, platform: str
+) -> Path:
     """Writes update.bat (Windows) or update.sh (macOS/Linux) into
     script_dir. In plain words, the script: waits for this process
     (pid) to actually exit, renames current_path to '<name>.old' as a
@@ -135,7 +136,7 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
             "@echo off\n"
             "set TRIES=0\n"
             ":wait\n"
-            f"\"{tasklist}\" /nh /fi \"PID eq {pid}\" | \"{find}\" \"{pid}\" >nul\n"
+            f'"{tasklist}" /nh /fi "PID eq {pid}" | "{find}" "{pid}" >nul\n'
             "if errorlevel 1 goto swap\n"
             "set /a TRIES+=1\n"
             f"if %TRIES% geq {_WAIT_TRIES} goto swap\n"
@@ -150,12 +151,12 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
             # if a temp-file cleaner swept it in between, bail out BEFORE
             # renaming anything, or the app renames itself to .old and then
             # has nothing to put in its place.
-            f"if not exist \"{new_path}\" goto end\n"
+            f'if not exist "{new_path}" goto end\n'
             # Each move gets a few tries: a virus scanner or a cloud-sync
             # folder (OneDrive) can hold the file for a moment.
             "set TRIES=0\n"
             ":backup\n"
-            f"move /y \"{current_path}\" \"{current_path}.old\" >nul 2>nul\n"
+            f'move /y "{current_path}" "{current_path}.old" >nul 2>nul\n'
             "if not errorlevel 1 goto putnew\n"
             "set /a TRIES+=1\n"
             # Couldn't move the old app aside: leave it exactly as it was
@@ -166,7 +167,7 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
             ":putnew\n"
             "set TRIES=0\n"
             ":putnew_try\n"
-            f"move /y \"{new_path}\" \"{current_path}\" >nul 2>nul\n"
+            f'move /y "{new_path}" "{current_path}" >nul 2>nul\n'
             "if not errorlevel 1 goto reopen\n"
             "set /a TRIES+=1\n"
             f"if %TRIES% geq {_WAIT_TRIES} goto putback\n"
@@ -175,11 +176,11 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
             # The new one wouldn't go in: put the old one back, so the app
             # never disappears and leaves only a "Lock In.exe.old" behind.
             ":putback\n"
-            f"move /y \"{current_path}.old\" \"{current_path}\" >nul 2>nul\n"
+            f'move /y "{current_path}.old" "{current_path}" >nul 2>nul\n'
             ":reopen\n"
-            f"start \"\" \"{current_path}\"\n"
+            f'start "" "{current_path}"\n'
             ":end\n"
-            "del \"%~f0\"\n",
+            'del "%~f0"\n',
             encoding="utf-8",
         )
         return script_path
@@ -191,14 +192,17 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
     # otherwise render these with backslashes, which /bin/sh can't use.
     current_posix = current_path.as_posix()
     new_posix = new_path.as_posix()
-    reopen = (f'open "{current_posix}"' if platform == "darwin"
-              else f'chmod +x "{current_posix}" && nohup "{current_posix}" >/dev/null 2>&1 &')
+    reopen = (
+        f'open "{current_posix}"'
+        if platform == "darwin"
+        else f'chmod +x "{current_posix}" && nohup "{current_posix}" >/dev/null 2>&1 &'
+    )
     script_path.write_text(
         "#!/bin/sh\n"
         "TRIES=0\n"
         f"while kill -0 {pid} 2>/dev/null; do\n"
         "    TRIES=$((TRIES + 1))\n"
-        f"    if [ \"$TRIES\" -ge {_WAIT_TRIES} ]; then break; fi\n"
+        f'    if [ "$TRIES" -ge {_WAIT_TRIES} ]; then break; fi\n'
         "    sleep 0.3\n"
         "done\n"
         # Same guard as the Windows branch: if the extracted update is
@@ -219,7 +223,7 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
     return script_path
 
 
-def clean_environment(environ: Mapping[str, str], bundle_dir: Optional[str]) -> dict:
+def clean_environment(environ: Mapping[str, str], bundle_dir: str | None) -> dict:
     """A copy of environ that's safe to hand to a NEW copy of the app.
 
     The packaged app is one file that unpacks itself into a temp folder
@@ -250,7 +254,8 @@ def clean_environment(environ: Mapping[str, str], bundle_dir: Optional[str]) -> 
             continue
         if key.upper() == "PATH":
             value = os.pathsep.join(
-                part for part in value.split(os.pathsep) if not inside_bundle(part))
+                part for part in value.split(os.pathsep) if not inside_bundle(part)
+            )
         elif inside_bundle(value):
             continue
         clean[key] = value
@@ -271,8 +276,11 @@ def app_process_id() -> int:
         return pid
     try:
         import psutil
+
         parent = psutil.Process(pid).parent()
-        if parent is not None and os.path.normcase(parent.exe()) == os.path.normcase(sys.executable):
+        if parent is not None and os.path.normcase(parent.exe()) == os.path.normcase(
+            sys.executable
+        ):
             return parent.pid
     except Exception:
         pass
@@ -294,7 +302,8 @@ def launch_relauncher_and_quit(script_path: Path, platform: str) -> None:
         # wait forever, so the swap never happened and the app just
         # closed.
         subprocess.Popen(
-            ["cmd", "/c", str(script_path)], env=env,
+            ["cmd", "/c", str(script_path)],
+            env=env,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
         )
     else:

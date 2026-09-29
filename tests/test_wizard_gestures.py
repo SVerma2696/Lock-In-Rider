@@ -30,6 +30,7 @@ def circle(cx, cy, r, n=30, clockwise=True, turns=1.0):
 
 # --- recognize(): things that should be understood ------------------------ #
 
+
 def test_clean_left_line_is_left():
     assert recognize(line(300, 100, 100, 100)) == LEFT
 
@@ -59,6 +60,7 @@ def test_circle_that_does_not_quite_close_still_counts():
 
 
 # --- recognize(): things that should be ignored --------------------------- #
+
 
 def test_empty_and_single_point_do_nothing():
     assert recognize([]) is None

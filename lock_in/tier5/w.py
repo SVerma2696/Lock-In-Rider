@@ -32,7 +32,7 @@ def week_pairs(totals: dict[str, int], today: date) -> list[tuple[date, int, int
     last_week, this_week = days[:7], days[7:]
     return [
         (this_day, last_seconds, this_seconds)
-        for (_, last_seconds), (this_day, this_seconds) in zip(last_week, this_week)
+        for (_, last_seconds), (this_day, this_seconds) in zip(last_week, this_week, strict=True)
     ]
 
 
@@ -66,8 +66,10 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
 
     if not history.all():
         ctk.CTkLabel(
-            frame, text="No focus blocks yet. Finish one and it shows up here.",
-            justify="left", wraplength=400,
+            frame,
+            text="No focus blocks yet. Finish one and it shows up here.",
+            justify="left",
+            wraplength=400,
         ).pack(anchor="w", pady=8)
         return
 
@@ -85,25 +87,42 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
         row = ctk.CTkFrame(frame, fg_color="transparent")
         row.pack(fill="x", pady=(4, 0))
         ctk.CTkLabel(row, text=name, text_color=color, anchor="w").pack(
-            side="left", fill="x", expand=True)
+            side="left", fill="x", expand=True
+        )
         ctk.CTkLabel(
-            row, text=format_hm(seconds), text_color=color, anchor="e",
+            row,
+            text=format_hm(seconds),
+            text_color=color,
+            anchor="e",
             font=ctk.CTkFont(family=visuals.display_font_family(), size=20, weight="bold"),
         ).pack(side="right")
 
     ctk.CTkLabel(
-        frame, text=compare_sentence(this_total, last_total),
-        justify="left", wraplength=400, anchor="w",
+        frame,
+        text=compare_sentence(this_total, last_total),
+        justify="left",
+        wraplength=400,
+        anchor="w",
     ).pack(anchor="w", pady=(10, 12))
 
     chart_pairs = [(day.isoformat(), last, this) for day, last, this in pairs]
     light_image = visuals.make_week_compare_chart(
-        440, 200, chart_pairs, theme.primary[0], theme.secondary[0],
-        dark=False, era=theme.era,
+        440,
+        200,
+        chart_pairs,
+        theme.primary[0],
+        theme.secondary[0],
+        dark=False,
+        era=theme.era,
     )
     dark_image = visuals.make_week_compare_chart(
-        440, 200, chart_pairs, theme.primary[1], theme.secondary[1],
-        dark=True, era=theme.era,
+        440,
+        200,
+        chart_pairs,
+        theme.primary[1],
+        theme.secondary[1],
+        dark=True,
+        era=theme.era,
     )
     chart_image = ctk.CTkImage(light_image=light_image, dark_image=dark_image, size=(440, 200))
     chart_label = ctk.CTkLabel(frame, text="", image=chart_image)
@@ -114,6 +133,8 @@ def build(parent, *, history, tasks, theme, appearance_mode, config=None) -> Non
     chart_label.pack(anchor="w")
 
     ctk.CTkLabel(
-        frame, text="Last 7 days vs the 7 days before · every focus block counts, finished or not",
-        text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
+        frame,
+        text="Last 7 days vs the 7 days before · every focus block counts, finished or not",
+        text_color=("gray40", "gray60"),
+        font=ctk.CTkFont(size=11),
     ).pack(anchor="w", pady=(6, 0))

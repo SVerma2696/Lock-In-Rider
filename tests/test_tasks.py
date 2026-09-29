@@ -110,7 +110,7 @@ def test_open_returns_todo_and_in_progress_only(store):
 
 
 def test_done_returns_only_completed_tasks(store):
-    t1 = store.add("Todo")
+    store.add("Todo")
     t2 = store.add("Done")
     store.complete(t2.id)
     assert [t.id for t in store.done()] == [t2.id]
@@ -301,28 +301,53 @@ def test_missing_phases_field_defaults_to_all_unchecked(tmp_path):
     import json
 
     path = tmp_path / "tasks.json"
-    payload = {"tasks": [{
-        "id": "task1", "name": "Old task", "subtasks": [], "status": "todo",
-        "created_at": "2024-01-01T10:00:00", "completed_at": None,
-    }]}
+    payload = {
+        "tasks": [
+            {
+                "id": "task1",
+                "name": "Old task",
+                "subtasks": [],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+            }
+        ]
+    }
     path.write_text(json.dumps(payload), encoding="utf-8")
     store = TaskStore(path)
     assert store.all()[0].phases == [False, False, False]
 
 
-@pytest.mark.parametrize("bad_phases", [
-    "not a list", 5, None, True, [True, False], [True, False, True, False],
-    {"0": True}, [],
-])
+@pytest.mark.parametrize(
+    "bad_phases",
+    [
+        "not a list",
+        5,
+        None,
+        True,
+        [True, False],
+        [True, False, True, False],
+        {"0": True},
+        [],
+    ],
+)
 def test_malformed_phases_falls_back_to_all_unchecked(tmp_path, bad_phases):
     import json
 
     path = tmp_path / "tasks.json"
-    payload = {"tasks": [{
-        "id": "task1", "name": "Task", "subtasks": [], "status": "todo",
-        "created_at": "2024-01-01T10:00:00", "completed_at": None,
-        "phases": bad_phases,
-    }]}
+    payload = {
+        "tasks": [
+            {
+                "id": "task1",
+                "name": "Task",
+                "subtasks": [],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+                "phases": bad_phases,
+            }
+        ]
+    }
     path.write_text(json.dumps(payload), encoding="utf-8")
     store = TaskStore(path)
     tasks = store.all()
@@ -334,11 +359,19 @@ def test_non_boolean_phase_entries_are_coerced_to_bool(tmp_path):
     import json
 
     path = tmp_path / "tasks.json"
-    payload = {"tasks": [{
-        "id": "task1", "name": "Task", "subtasks": [], "status": "todo",
-        "created_at": "2024-01-01T10:00:00", "completed_at": None,
-        "phases": [1, 0, "yes"],
-    }]}
+    payload = {
+        "tasks": [
+            {
+                "id": "task1",
+                "name": "Task",
+                "subtasks": [],
+                "status": "todo",
+                "created_at": "2024-01-01T10:00:00",
+                "completed_at": None,
+                "phases": [1, 0, "yes"],
+            }
+        ]
+    }
     path.write_text(json.dumps(payload), encoding="utf-8")
     store = TaskStore(path)
     assert store.all()[0].phases == [True, False, True]
@@ -346,10 +379,18 @@ def test_non_boolean_phase_entries_are_coerced_to_bool(tmp_path):
 
 def test_task_from_dict_reads_a_good_task():
     from lock_in.tasks import task_from_dict
-    task = task_from_dict({"id": "abc12345", "name": "Read", "status": "done",
-                           "created_at": "2026-09-01T10:00:00", "completed_at": None,
-                           "subtasks": [{"id": "s1", "text": "Ch 1", "done": True}],
-                           "phases": [True, False, False]})
+
+    task = task_from_dict(
+        {
+            "id": "abc12345",
+            "name": "Read",
+            "status": "done",
+            "created_at": "2026-09-01T10:00:00",
+            "completed_at": None,
+            "subtasks": [{"id": "s1", "text": "Ch 1", "done": True}],
+            "phases": [True, False, False],
+        }
+    )
     assert task.id == "abc12345"
     assert task.name == "Read"
     assert task.status == TaskStatus.DONE
@@ -357,15 +398,27 @@ def test_task_from_dict_reads_a_good_task():
     assert task.phases == [True, False, False]
 
 
-@pytest.mark.parametrize("item", [None, 5, "x", [], {}, {"id": "a"}, {"name": "b"},
-                                  {"id": "a", "name": "b", "status": "flying"},
-                                  {"id": "a", "name": {"a": 1}},
-                                  {"id": "a", "name": None},
-                                  {"id": ["a"], "name": "b"},
-                                  {"id": "a", "name": "b", "created_at": 5},
-                                  {"id": "a", "name": "b", "completed_at": 5}])
+@pytest.mark.parametrize(
+    "item",
+    [
+        None,
+        5,
+        "x",
+        [],
+        {},
+        {"id": "a"},
+        {"name": "b"},
+        {"id": "a", "name": "b", "status": "flying"},
+        {"id": "a", "name": {"a": 1}},
+        {"id": "a", "name": None},
+        {"id": ["a"], "name": "b"},
+        {"id": "a", "name": "b", "created_at": 5},
+        {"id": "a", "name": "b", "completed_at": 5},
+    ],
+)
 def test_task_from_dict_returns_none_for_broken_items(item):
     from lock_in.tasks import task_from_dict
+
     assert task_from_dict(item) is None
 
 

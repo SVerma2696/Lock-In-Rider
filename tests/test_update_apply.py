@@ -19,7 +19,10 @@ import pytest
 
 from lock_in import update_apply
 from lock_in.update_apply import (
-    clean_environment, current_app_path, extract_archive, write_relauncher_script,
+    clean_environment,
+    current_app_path,
+    extract_archive,
+    write_relauncher_script,
 )
 
 
@@ -65,8 +68,8 @@ def _make_exec_zip(path, entry_name: str, mode: int = 0o755) -> None:
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows chmod ignores exec bits entirely, so st_mode can never "
-           "show them here; test_extract_archive_chmods_exec_entries_on_macos "
-           "covers the same logic on this platform.",
+    "show them here; test_extract_archive_chmods_exec_entries_on_macos "
+    "covers the same logic on this platform.",
 )
 def test_extract_archive_restores_exec_bit_on_macos(tmp_path):
     """zipfile.extractall() drops Unix mode bits, which left the macOS
@@ -92,9 +95,11 @@ def test_extract_archive_chmods_exec_entries_on_macos(tmp_path, monkeypatch):
 
     calls = []
     real_chmod = Path.chmod
+
     def spy_chmod(self, mode, **kwargs):
         calls.append((Path(self).name, mode))
         return real_chmod(self, mode, **kwargs)
+
     monkeypatch.setattr(Path, "chmod", spy_chmod)
 
     assert extract_archive(archive_path, dest, "darwin") == dest / "Lock In.app"
@@ -110,9 +115,11 @@ def test_extract_archive_leaves_non_exec_entries_alone_on_macos(tmp_path, monkey
 
     calls = []
     real_chmod = Path.chmod
+
     def spy_chmod(self, mode, **kwargs):
         calls.append(Path(self).name)
         return real_chmod(self, mode, **kwargs)
+
     monkeypatch.setattr(Path, "chmod", spy_chmod)
 
     assert extract_archive(archive_path, dest, "darwin") == dest / "Lock In.app"
@@ -129,7 +136,8 @@ def test_extract_archive_does_not_chmod_on_win32(tmp_path, monkeypatch):
     calls = []
     real_chmod = Path.chmod
     monkeypatch.setattr(
-        Path, "chmod",
+        Path,
+        "chmod",
         lambda self, mode, **kw: (calls.append(mode), real_chmod(self, mode, **kw))[1],
     )
     assert extract_archive(archive_path, dest, "win32") == dest / "Lock In.exe"
@@ -172,8 +180,11 @@ def test_current_app_path_on_macos_is_the_app_bundle_root(monkeypatch):
 
 def test_write_relauncher_script_windows_contains_pid_and_paths(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path(r"C:\App\Lock In.exe"), Path(r"C:\App\tmp\Lock In.exe"),
-        pid=4242, platform="win32",
+        tmp_path,
+        Path(r"C:\App\Lock In.exe"),
+        Path(r"C:\App\tmp\Lock In.exe"),
+        pid=4242,
+        platform="win32",
     )
     text = script.read_text()
     assert script.name == "update.bat"
@@ -187,8 +198,11 @@ def test_write_relauncher_script_windows_waits_without_needing_a_console(tmp_pat
     read keys from, so the whole 15s wait silently collapsed. `ping`
     doesn't care."""
     script = write_relauncher_script(
-        tmp_path, Path(r"C:\App\Lock In.exe"), Path(r"C:\App\tmp\Lock In.exe"),
-        pid=4242, platform="win32",
+        tmp_path,
+        Path(r"C:\App\Lock In.exe"),
+        Path(r"C:\App\tmp\Lock In.exe"),
+        pid=4242,
+        platform="win32",
     )
     text = script.read_text()
     assert "ping -n 2 127.0.0.1" in text
@@ -199,8 +213,11 @@ def test_write_relauncher_script_windows_skips_swap_if_new_path_is_gone(tmp_path
     """The temp folder can be swept between download and "Restart now";
     the script must bail out BEFORE renaming the installed app."""
     script = write_relauncher_script(
-        tmp_path, Path(r"C:\App\Lock In.exe"), Path(r"C:\App\tmp\Lock In.exe"),
-        pid=4242, platform="win32",
+        tmp_path,
+        Path(r"C:\App\Lock In.exe"),
+        Path(r"C:\App\tmp\Lock In.exe"),
+        pid=4242,
+        platform="win32",
     )
     text = script.read_text()
     assert 'if not exist "C:\\App\\tmp\\Lock In.exe" goto end' in text
@@ -212,8 +229,11 @@ def test_write_relauncher_script_windows_skips_swap_if_new_path_is_gone(tmp_path
 
 def test_write_relauncher_script_macos_contains_pid_and_open_command(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path("/Apps/Lock In.app"), Path("/tmp/Lock In.app"),
-        pid=99, platform="darwin",
+        tmp_path,
+        Path("/Apps/Lock In.app"),
+        Path("/tmp/Lock In.app"),
+        pid=99,
+        platform="darwin",
     )
     text = script.read_text()
     assert script.name == "update.sh"
@@ -223,8 +243,11 @@ def test_write_relauncher_script_macos_contains_pid_and_open_command(tmp_path):
 
 def test_write_relauncher_script_macos_skips_swap_if_new_path_is_gone(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path("/Apps/Lock In.app"), Path("/tmp/Lock In.app"),
-        pid=99, platform="darwin",
+        tmp_path,
+        Path("/Apps/Lock In.app"),
+        Path("/tmp/Lock In.app"),
+        pid=99,
+        platform="darwin",
     )
     text = script.read_text()
     assert '[ -e "/tmp/Lock In.app" ] || exit 0' in text
@@ -233,8 +256,11 @@ def test_write_relauncher_script_macos_skips_swap_if_new_path_is_gone(tmp_path):
 
 def test_write_relauncher_script_linux_contains_chmod_and_nohup(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path("/opt/Lock In"), Path("/tmp/Lock In"),
-        pid=77, platform="linux",
+        tmp_path,
+        Path("/opt/Lock In"),
+        Path("/tmp/Lock In"),
+        pid=77,
+        platform="linux",
     )
     text = script.read_text()
     assert "chmod +x" in text
@@ -243,8 +269,11 @@ def test_write_relauncher_script_linux_contains_chmod_and_nohup(tmp_path):
 
 def test_write_relauncher_script_linux_skips_swap_if_new_path_is_gone(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path("/opt/Lock In"), Path("/tmp/Lock In"),
-        pid=77, platform="linux",
+        tmp_path,
+        Path("/opt/Lock In"),
+        Path("/tmp/Lock In"),
+        pid=77,
+        platform="linux",
     )
     text = script.read_text()
     assert '[ -e "/tmp/Lock In" ] || exit 0' in text
@@ -255,8 +284,11 @@ def test_write_relauncher_script_windows_uses_windows_own_tasklist_and_find(tmp_
     """Another "find" earlier on the PATH (Git for Windows has one) made
     the wait end at once, before the old app had closed."""
     script = write_relauncher_script(
-        tmp_path, Path(r"C:\App\Lock In.exe"), Path(r"C:\App\tmp\Lock In.exe"),
-        pid=4242, platform="win32",
+        tmp_path,
+        Path(r"C:\App\Lock In.exe"),
+        Path(r"C:\App\tmp\Lock In.exe"),
+        pid=4242,
+        platform="win32",
     )
     text = script.read_text()
     assert r"%SystemRoot%\System32\tasklist.exe" in text
@@ -267,8 +299,11 @@ def test_write_relauncher_script_windows_puts_the_old_app_back_if_the_new_one_wo
     """If the new file can't be moved in, the app must never be left as
     only "Lock In.exe.old" (which Windows can't open)."""
     script = write_relauncher_script(
-        tmp_path, Path(r"C:\App\Lock In.exe"), Path(r"C:\App\tmp\Lock In.exe"),
-        pid=4242, platform="win32",
+        tmp_path,
+        Path(r"C:\App\Lock In.exe"),
+        Path(r"C:\App\tmp\Lock In.exe"),
+        pid=4242,
+        platform="win32",
     )
     text = script.read_text()
     put_back = r'move /y "C:\App\Lock In.exe.old" "C:\App\Lock In.exe"'
@@ -281,8 +316,11 @@ def test_write_relauncher_script_windows_puts_the_old_app_back_if_the_new_one_wo
 
 def test_write_relauncher_script_unix_puts_the_old_app_back_if_the_new_one_wont_go_in(tmp_path):
     script = write_relauncher_script(
-        tmp_path, Path("/opt/Lock In"), Path("/tmp/Lock In"),
-        pid=77, platform="linux",
+        tmp_path,
+        Path("/opt/Lock In"),
+        Path("/tmp/Lock In"),
+        pid=77,
+        platform="linux",
     )
     text = script.read_text()
     assert '|| mv "/opt/Lock In.old" "/opt/Lock In"' in text
@@ -317,21 +355,25 @@ def test_clean_environment_leaves_normal_values_alone_when_not_packaged():
     clean = clean_environment(env, None)
     assert clean["PATH"] == "a"
     assert clean["TCL_LIBRARY"] == "/usr/share/tcl"
-    assert env == {"PATH": "a", "TCL_LIBRARY": "/usr/share/tcl"}   # the original isn't changed
+    assert env == {"PATH": "a", "TCL_LIBRARY": "/usr/share/tcl"}  # the original isn't changed
 
 
 def test_app_process_id_is_this_process_when_running_from_source(monkeypatch):
     monkeypatch.delattr(sys, "frozen", raising=False)
     import os
+
     assert update_apply.app_process_id() == os.getpid()
 
 
-def test_launch_relauncher_windows_uses_a_hidden_window_and_a_clean_environment(tmp_path, monkeypatch):
+def test_launch_relauncher_windows_uses_a_hidden_window_and_a_clean_environment(
+    tmp_path, monkeypatch
+):
     """With no window at all (DETACHED_PROCESS), Windows' find.exe waited
     forever, so the swap never happened and the app just closed."""
     calls = []
-    monkeypatch.setattr(update_apply.subprocess, "Popen",
-                        lambda args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr(
+        update_apply.subprocess, "Popen", lambda args, **kwargs: calls.append((args, kwargs))
+    )
     monkeypatch.setenv("_PYI_ARCHIVE_FILE", "old")
     no_window = getattr(update_apply.subprocess, "CREATE_NO_WINDOW", 0x08000000)
     detached = getattr(update_apply.subprocess, "DETACHED_PROCESS", 0x00000008)
@@ -341,7 +383,7 @@ def test_launch_relauncher_windows_uses_a_hidden_window_and_a_clean_environment(
 
     update_apply.launch_relauncher_and_quit(tmp_path / "update.bat", "win32")
 
-    (args, kwargs), = calls
+    ((args, kwargs),) = calls
     assert args[:2] == ["cmd", "/c"]
     assert kwargs["creationflags"] & no_window
     assert not kwargs["creationflags"] & detached

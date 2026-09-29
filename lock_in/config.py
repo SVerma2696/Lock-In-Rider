@@ -23,14 +23,17 @@ want saving to quietly fail.
 
 from __future__ import annotations
 
-import json
+import logging
 import os
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
 
+from .config_validation import clean_config_values
 from .presets import GAVV_MICRO_SPRINT
+from .storage import atomic_write_json, read_json
+
+logger = logging.getLogger(__name__)
 
 APP_NAME = "Lock In"
 
@@ -79,14 +82,14 @@ DAILY_GOAL_STEP_MINUTES = 15
 # lists are the boss — the smart guessing model never gets to overrule them.
 # Think of this as "things I already know for sure, no need to guess."
 
-DEFAULT_BLOCKLIST: List[str] = [
+DEFAULT_BLOCKLIST: list[str] = [
     "discord.exe",
     "steam.exe",
     "steamwebhelper.exe",
     "epicgameslauncher.exe",
     "riotclientux.exe",
     "leagueclient.exe",
-    "spotify.exe",           # take this out of the list if music helps you study
+    "spotify.exe",  # take this out of the list if music helps you study
     "netflix.exe",
     "vlc.exe",
     "telegram.exe",
@@ -96,9 +99,9 @@ DEFAULT_BLOCKLIST: List[str] = [
     "minecraft.exe",
 ]
 
-DEFAULT_ALLOWLIST: List[str] = [
-    "code.exe",              # VS Code
-    "devenv.exe",            # Visual Studio
+DEFAULT_ALLOWLIST: list[str] = [
+    "code.exe",  # VS Code
+    "devenv.exe",  # Visual Studio
     "pycharm64.exe",
     "idea64.exe",
     "python.exe",
@@ -117,7 +120,7 @@ DEFAULT_ALLOWLIST: List[str] = [
     "notepad.exe",
     "notepad++.exe",
     "matlab.exe",
-    "explorer.exe",          # this runs your whole desktop — never block it
+    "explorer.exe",  # this runs your whole desktop — never block it
 ]
 
 
@@ -134,7 +137,7 @@ class Config:
     focus_minutes: int = 25
     short_break_minutes: int = 5
     long_break_minutes: int = 15
-    blocks_until_long_break: int = 4      # focus rounds before a big break
+    blocks_until_long_break: int = 4  # focus rounds before a big break
     # Gavv's toggle: while this is on, phase_seconds() below hands back
     # GAVV_MICRO_SPRINT's short values instead of the 4 lines above --
     # your real numbers are never overwritten, just temporarily ignored.
@@ -178,16 +181,16 @@ class Config:
     mouse_gestures_enabled: bool = True
 
     # --- What happens automatically ----------------------------------------- #
-    auto_start_breaks: bool = True        # break starts right away
-    auto_start_focus: bool = False        # you must press start to work again
+    auto_start_breaks: bool = True  # break starts right away
+    auto_start_focus: bool = False  # you must press start to work again
 
     # --- Blocking rules ------------------------------------------------------ #
     enforcement_enabled: bool = True
-    hard_mode: bool = True                 # minimises windows + full-screen lockdown, on by default
-    grace_seconds: int = 8                # a few free seconds before we react
-    strike_interval_seconds: int = 12     # how often we get stricter
-    strike_decay_seconds: int = 45        # good behavior needed to calm down
-    lockdown_seconds: int = 15            # how long the full-screen warning stays up
+    hard_mode: bool = True  # minimises windows + full-screen lockdown, on by default
+    grace_seconds: int = 8  # a few free seconds before we react
+    strike_interval_seconds: int = 12  # how often we get stricter
+    strike_decay_seconds: int = 45  # good behavior needed to calm down
+    lockdown_seconds: int = 15  # how long the full-screen warning stays up
 
     # --- Notifications ----------------------------------------------------- #
     sound_enabled: bool = True
@@ -195,7 +198,7 @@ class Config:
 
     # --- The guessing model -------------------------------------------------- #
     use_classifier: bool = True
-    classifier_threshold: float = 0.80    # how sure it must be before blocking
+    classifier_threshold: float = 0.80  # how sure it must be before blocking
 
     # Write down EVERY window seen during focus, not just the ones we blocked.
     # That way `train.py label` can also show you the sneaky distracting apps
@@ -220,7 +223,7 @@ class Config:
     # you have it, it's yours to keep. Read it with
     # lock_in.tier5.gotchard.saved_badges(), not directly: that one is
     # safe even if a hand-edited config.json holds something silly.
-    badges_earned: List[str] = field(default_factory=list)
+    badges_earned: list[str] = field(default_factory=list)
 
     # --- Claude fallback (an optional helper) -------------------------------- #
     # Off unless you turn it on. When it's on, and the local model is UNSURE
@@ -237,47 +240,53 @@ class Config:
     claude_cache_minutes: int = 30
 
     # --- The block/allow lists ------------------------------------------------ #
-    blocklist: List[str] = field(default_factory=lambda: list(DEFAULT_BLOCKLIST))
-    allowlist: List[str] = field(default_factory=lambda: list(DEFAULT_ALLOWLIST))
+    blocklist: list[str] = field(default_factory=lambda: list(DEFAULT_BLOCKLIST))
+    allowlist: list[str] = field(default_factory=lambda: list(DEFAULT_ALLOWLIST))
 
     # --- Looks --------------------------------------------------------------- #
-    appearance: str = "dark"              # "dark" | "light" | "system"
-    accent: str = "blue"                  # the app's color theme
-    rider_theme: str = "Kamen Rider (1971)"   # which Kamen Rider's colors to use
-    terminology: str = "professional"     # "professional" | "tokusatsu" — which words to use
+    appearance: str = "dark"  # "dark" | "light" | "system"
+    accent: str = "blue"  # the app's color theme
+    rider_theme: str = "Kamen Rider (1971)"  # which Kamen Rider's colors to use
+    terminology: str = "professional"  # "professional" | "tokusatsu" — which words to use
 
     # ------------------------------------------------------------------ #
     # Persistence
     # ------------------------------------------------------------------ #
     @classmethod
-    def load(cls, path: Path = CONFIG_PATH) -> "Config":
+    def load(cls, path: Path = CONFIG_PATH) -> Config:
         """
         Read config.json, and use the normal defaults for anything it's missing.
 
         If the file has old or extra bits we don't recognize, we just ignore
         them instead of complaining — that way an older app never breaks on
-        a config file saved by a newer one.
+        a config file saved by a newer one. Every value we DO recognize is
+        checked first (see config_validation.py), and a bad one is swapped
+        for its normal default instead of crashing the app later.
         """
         if not path.exists():
             cfg = cls()
             cfg.save(path)
             return cfg
 
-        try:
-            raw: Dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            # If the file got messed up somehow, just start fresh instead
-            # of stopping you from studying.
-            return cls()
+        # A missing, unreadable, or messed-up file (read_json gives None)
+        # just starts fresh, instead of stopping you from studying.
+        cleaned, rejected = clean_config_values(cls, read_json(path))
+        if rejected:
+            logger.warning("config.json: used the default for %s", ", ".join(rejected))
+        cfg = cls(**cleaned)
+        cfg._path = path
+        return cfg
 
-        known = {f for f in cls.__dataclass_fields__}          # type: ignore[attr-defined]
-        filtered = {k: v for k, v in raw.items() if k in known}
-        return cls(**filtered)
+    def save(self, path: Path | None = None) -> None:
+        """Save the current settings to disk, written out neatly -- and
+        safely, so a crash mid-save can't leave a half-written file.
 
-    def save(self, path: Path = CONFIG_PATH) -> None:
-        """Save the current settings to disk, written out neatly."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
+        With no `path`, it saves back to the file it was loaded from (or
+        the normal config.json), so settings loaded from somewhere else
+        are never written over your real ones."""
+        path = path or getattr(self, "_path", None) or CONFIG_PATH
+        self._path = path
+        atomic_write_json(path, asdict(self), indent=2, ensure_ascii=True)
 
     # ------------------------------------------------------------------ #
     # Little helpers the blocking logic uses

@@ -22,8 +22,22 @@ How the phases flow
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Protocol
+
+
+class SessionConfig(Protocol):
+    """The settings the timer reads. Config (config.py) has all of these;
+    the tests pass small stand-ins with just these."""
+
+    focus_minutes: int
+    blocks_until_long_break: int
+    auto_start_focus: bool
+
+    def phase_seconds(self, phase_name: str) -> int: ...
+
+    def effective_auto_start_breaks(self) -> bool: ...
 
 
 class Phase(str, Enum):
@@ -110,15 +124,15 @@ class PomodoroSession:
         suddenly jump.
     """
 
-    def __init__(self, config, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(self, config: SessionConfig, clock: Callable[[], float] = time.monotonic) -> None:
         self.config = config
         self._clock = clock
 
         self.phase: Phase = Phase.IDLE
         self.completed_focus_blocks: int = 0
 
-        self._phase_ends_at: Optional[float] = None   # the exact moment this phase should end
-        self._paused_remaining: Optional[float] = None  # time left, saved while paused
+        self._phase_ends_at: float | None = None  # the exact moment this phase should end
+        self._paused_remaining: float | None = None  # time left, saved while paused
 
     # ------------------------------------------------------------------ #
     # Asking questions
@@ -181,7 +195,7 @@ class PomodoroSession:
     # ------------------------------------------------------------------ #
     # Things you can tell it to do
     # ------------------------------------------------------------------ #
-    def start(self) -> List[Event]:
+    def start(self) -> list[Event]:
         """Start (or continue) the session. Starting fresh always begins with focus time."""
         if self.is_paused:
             return self.resume()
@@ -202,7 +216,7 @@ class PomodoroSession:
         self._paused_remaining = max(0.0, self._phase_ends_at - self._clock())
         self._phase_ends_at = None
 
-    def resume(self) -> List[Event]:
+    def resume(self) -> list[Event]:
         """Un-freeze the countdown, picking up from right where it left off."""
         if self._paused_remaining is None:
             return []
@@ -210,14 +224,14 @@ class PomodoroSession:
         self._paused_remaining = None
         return []
 
-    def toggle(self) -> List[Event]:
+    def toggle(self) -> list[Event]:
         """One button that starts, pauses, or resumes — what the big button on screen calls."""
         if self.is_running:
             self.pause()
             return []
         return self.start()
 
-    def skip(self) -> List[Event]:
+    def skip(self) -> list[Event]:
         """
         Jump straight to the next phase.
 
@@ -239,7 +253,7 @@ class PomodoroSession:
     # ------------------------------------------------------------------ #
     # The heartbeat — call this over and over to keep time moving
     # ------------------------------------------------------------------ #
-    def tick(self) -> List[Event]:
+    def tick(self) -> list[Event]:
         """
         Move the clock forward by checking the current time. Call this a few
         times a second from the app's main loop.
@@ -257,10 +271,10 @@ class PomodoroSession:
     # ------------------------------------------------------------------ #
     # Behind-the-scenes helpers
     # ------------------------------------------------------------------ #
-    def _advance(self) -> List[Event]:
+    def _advance(self) -> list[Event]:
         """Figure out what phase comes next, and move into it."""
         finished = self.phase
-        events: List[Event] = [Event.PHASE_ENDED]
+        events: list[Event] = [Event.PHASE_ENDED]
 
         if finished is Phase.FOCUS:
             self.completed_focus_blocks += 1
@@ -275,7 +289,7 @@ class PomodoroSession:
         events += self._enter(nxt, autostart=auto)
         return events
 
-    def _enter(self, phase: Phase, autostart: bool = True) -> List[Event]:
+    def _enter(self, phase: Phase, autostart: bool = True) -> list[Event]:
         """
         Switch into `phase`.
 

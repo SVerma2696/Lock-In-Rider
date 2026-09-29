@@ -1,56 +1,53 @@
 """
 ui/revice.py
 ============
-Kamen Rider Revice's buddy link, from the app's side: what the Buddy
-page's buttons do, and the check that runs on every timer tick.
+Kamen Rider Revice's buddy link, from the window's side: the Buddy
+page's buttons, and redrawing that page on every timer tick.
 
-The network part is still lock_in/revice_link.py and the rules are still
-lock_in/revice_sync.py -- neither changed. This is the same code the app
-always had, moved into its own file. The only new thing: it finds the
-Buddy page through the page list instead of a tab.
+What the link actually does (pairing, sharing your timer, copying
+history) lives in lock_in/application/buddy_controller.py. This file
+only passes button presses to it and shows what it says.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 
-from .. import revice_sync
+from ..rider_effects import InteractionEffect
+from .host import AppHost
+
+logger = logging.getLogger(__name__)
 
 
-class ReviceMixin:
+class ReviceMixin(AppHost):
     def _on_buddy_share(self) -> None:
-        try:
-            self._buddy_message = ""
-            self._buddy_status = None
-            self.buddy_link.share()
-        except Exception:
-            pass
+        self._buddy_action("share", self.controller.buddy.share)
 
     def _on_buddy_receive(self, code: str) -> None:
-        try:
-            if not revice_sync.is_valid_code(code):
-                self._buddy_message = revice_sync.MSG_TYPE_FOUR
-                return
-            self._buddy_message = ""
-            self._buddy_status = None
-            self.buddy_link.receive(code)
-        except Exception:
-            pass
+        self._buddy_action("receive", lambda: self.controller.buddy.receive(code))
 
     def _on_buddy_cancel(self) -> None:
-        try:
-            self._buddy_message = ""
-            self._buddy_status = None
-            self.buddy_link.close()
-        except Exception:
-            pass
+        self._buddy_action("cancel", self.controller.buddy.cancel)
 
     def _on_buddy_pull(self) -> None:
+        self._buddy_action("pull history", self.controller.buddy.pull)
+
+    def _buddy_action(self, name: str, action) -> None:
+        # A network problem must never reach the window. It's logged (no
+        # history or task names are written to the log).
         try:
-            if self.buddy_link.request_pull():
-                self._buddy_message = ""
+            action()
         except Exception:
-            pass
+            logger.exception("Buddy link %s failed", name)
+
+    @property
+    def _buddy_status(self):
+        return self.controller.buddy.status
+
+    @property
+    def _buddy_message(self) -> str:
+        return self.controller.buddy.message
 
     @property
     def _buddy_tab(self):
@@ -59,62 +56,19 @@ class ReviceMixin:
         return getattr(page, "tab", None)
 
     def _drain_buddy_link(self) -> None:
-        """Called every tick from _pump(). Reads what the link heard,
-        sends our timer about once a second, and redraws the Buddy page.
-        Closes the link as soon as Revice isn't the Rider any more
+        """Called every tick from _pump(). Lets the buddy controller read
+        what the link heard and send our timer, then redraws the Buddy
+        page. The link closes as soon as Revice isn't the Rider any more
         (another Rider, or Standard Mode). Never lets an error reach the
         timer."""
         try:
-            link = self.buddy_link
-            if self.current_tier6_effect != "buddy_link":
-                if link.state != "idle":
-                    link.close()
-                link.poll()
-                self._buddy_status = None
-                self._buddy_message = ""
-                return
-            for event in link.poll():
-                kind = event[0]
-                if kind == "paired":
-                    self._buddy_message = ""
-                    self._buddy_status = None
-                elif kind == "status":
-                    self._buddy_status = revice_sync.clean_status(event[1])
-                elif kind == "pull_request":
-                    sessions, task_list = revice_sync.pull_reply_payload(self.history, self.tasks)
-                    link.send_pull_reply(sessions, task_list)
-                elif kind == "pull_reply":
-                    # The merge alone is wrapped here (not the whole
-                    # handler) so a mid-merge failure -- e.g.
-                    # sessions.jsonl locked by OneDrive -- still shows a
-                    # message instead of leaving the page looking frozen.
-                    before = len(self.tasks.all())
-                    try:
-                        added = revice_sync.merge_pull(self.history, self.tasks, event[1], event[2])
-                        self._buddy_message = revice_sync.pull_result_text(*added)
-                    except Exception:
-                        self._buddy_message = revice_sync.MSG_PULL_FAILED
-                    finally:
-                        # Redraw whenever a task actually got added, even
-                        # if something above failed partway through.
-                        if len(self.tasks.all()) != before:
-                            self._render_tasks()
-                            self._refresh_current_task_picker()
-                elif kind == "pull_failed":
-                    self._buddy_message = revice_sync.MSG_PULL_FAILED
-                elif kind == "left":
-                    self._buddy_message = revice_sync.MSG_BUDDY_LEFT
-                    self._buddy_status = None
-                elif kind == "error":
-                    self._buddy_message = event[1]
-            now = time.monotonic()
-            if link.state == "paired" and now - self._buddy_last_sent >= revice_sync.STATUS_EVERY_SECONDS:
-                self._buddy_last_sent = now
-                task = self.tasks.get(self.current_task_id) if self.current_task_id else None
-                link.send_status(revice_sync.status_from_session(
-                    self.session, task.name if task else None, link.name))
+            buddy = self.controller.buddy
+            active = self.abilities.interaction is InteractionEffect.BUDDY_LINK
+            if buddy.tick(active):
+                self._render_tasks()
+                self._refresh_current_task_picker()
             tab = self._buddy_tab
-            if tab is not None:
-                tab.show(link, self._buddy_status, self._buddy_message, now)
+            if active and tab is not None:
+                tab.show(buddy.link, buddy.status, buddy.message, time.monotonic())
         except Exception:
-            pass
+            logger.exception("Buddy link tick failed")

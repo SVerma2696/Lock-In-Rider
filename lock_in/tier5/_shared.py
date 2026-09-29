@@ -18,7 +18,6 @@ docs/superpowers/specs/2026-09-14-tier5-decade-analytics-design.md.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 from ..history import SessionRecord
 from ..tasks import TaskStore
@@ -45,7 +44,7 @@ def last_n_days(totals: dict[str, int], today: date, n: int) -> list[tuple[date,
     ]
 
 
-def resolve_task_name(task_id: Optional[str], tasks: TaskStore) -> str:
+def resolve_task_name(task_id: str | None, tasks: TaskStore) -> str:
     """None -> 'No task'. A live task's id -> its real name. An id that
     doesn't match any task any more (the task was deleted after this
     block was logged) -> 'Deleted task', never a crash or a blank."""

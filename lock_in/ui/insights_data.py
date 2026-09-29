@@ -15,9 +15,9 @@ No window code here, so it's tested by itself
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Iterable
 
 from ..tasks import TaskStatus
 
@@ -25,12 +25,12 @@ from ..tasks import TaskStatus
 @dataclass(frozen=True)
 class InsightNumbers:
     today_seconds: int
-    week_seconds: int          # today and the 6 days before it
+    week_seconds: int  # today and the 6 days before it
     all_time_seconds: int
     blocks_logged: int
-    blocks_finished: int       # ran all the way to the end
+    blocks_finished: int  # ran all the way to the end
     average_block_seconds: int
-    active_days: int           # days with any focus at all
+    active_days: int  # days with any focus at all
     tasks_open: int
     tasks_in_progress: int
     tasks_done: int
