@@ -67,8 +67,18 @@ class PreferencesMixin:
         # repaints everything by itself -- no need to rebuild any page.
 
     def _on_rider_theme_change(self, value: str) -> None:
-        """Called when you pick a new Kamen Rider in Settings."""
+        """Called when you pick a new Kamen Rider in Settings. It shows up
+        right away -- no need to save, restart, or wait for a new session.
+
+        Standard Mode hides every Rider's colors, so picking a Rider while
+        it's on used to change nothing you could see. Picking a Rider is a
+        clear "I want to see this one", so Standard Mode turns off."""
         self.config_obj.rider_theme = value
+        if self.config_obj.standard_mode:
+            self.config_obj.standard_mode = False
+            self._after_standard_mode_change()
+            self._show_banner(f"Standard Mode is off now, so you can see {value}.", "low")
+            return
         self.config_obj.save()
         self._apply_theme_everywhere()
 
@@ -77,6 +87,10 @@ class PreferencesMixin:
         page = self.pages.get("settings")
         if page is not None:
             self.config_obj.standard_mode = bool(page.standard_mode_switch.get())
+        self._after_standard_mode_change()
+
+    def _after_standard_mode_change(self) -> None:
+        """Saves Standard Mode's new on/off and switches everything over."""
         self.config_obj.save()
         self._apply_theme_everywhere()
         # Standard Mode changes current_tier3_effect too (see
@@ -206,7 +220,8 @@ class PreferencesMixin:
 
         name = preset.name_tokusatsu if self._is_tokusatsu() else preset.name_professional
         self._show_banner(
-            f"Applied: {name} — {preset.focus_minutes}m focus. Applies from the next phase.",
+            f"Applied: {name} — {preset.focus_minutes}m focus. "
+            "New times start with the next focus block or break.",
             "low",
         )
 
@@ -227,7 +242,7 @@ class PreferencesMixin:
         self.config_obj.save()
         name = GAVV_MICRO_SPRINT.name_tokusatsu if self._is_tokusatsu() else GAVV_MICRO_SPRINT.name_professional
         state = "on" if self.config_obj.micro_sprint_mode else "off"
-        self._show_banner(f"{name}: {state}. Applies from the next phase.", "low")
+        self._show_banner(f"{name}: {state}. Starts with the next focus block or break.", "low")
 
     # ------------------------------------------------------------------ #
     # Saving
@@ -251,11 +266,13 @@ class PreferencesMixin:
         """Checks and saves the number boxes; tells you clearly if something's wrong."""
         page = self._page("settings")
         problems = []
+        changed = False
         for key, entry in page.spinners.items():
             try:
                 value = int(entry.get())
                 if value < 1:
                     raise ValueError
+                changed = changed or getattr(self.config_obj, key) != value
                 setattr(self.config_obj, key, value)
             except ValueError:
                 problems.append(key.replace("_", " "))
@@ -264,8 +281,12 @@ class PreferencesMixin:
 
         if problems:
             self._show_banner(f"Ignored invalid values: {', '.join(problems)}", "high")
+        elif changed:
+            # Only the number boxes wait: a timer that's already running
+            # keeps its length. Colors, Rider, and switches never wait.
+            self._show_banner("Saved. New times start with the next focus block or break.", "low")
         else:
-            self._show_banner("Settings saved. Applies from the next phase.", "low")
+            self._show_banner("Saved.", "low")
 
     def _reset_model(self) -> None:
         """

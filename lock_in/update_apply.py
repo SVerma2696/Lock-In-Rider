@@ -14,12 +14,13 @@ quit -- a running program can't safely delete or replace its own file.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 EXPECTED_ENTRY = {
     "win32": "Lock In.exe",
@@ -125,17 +126,21 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
 
     if platform == "win32":
         script_path = script_dir / "update.bat"
+        # Windows' own tasklist and find, by full path. Another program
+        # called "find" earlier on the PATH (Git for Windows has one) made
+        # the wait below end at once, before the old app had closed.
+        tasklist = r"%SystemRoot%\System32\tasklist.exe"
+        find = r"%SystemRoot%\System32\find.exe"
         script_path.write_text(
             "@echo off\n"
             "set TRIES=0\n"
             ":wait\n"
-            f"tasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul\n"
+            f"\"{tasklist}\" /nh /fi \"PID eq {pid}\" | \"{find}\" \"{pid}\" >nul\n"
             "if errorlevel 1 goto swap\n"
             "set /a TRIES+=1\n"
             f"if %TRIES% geq {_WAIT_TRIES} goto swap\n"
-            # ping, not `timeout /t 1`: timeout.exe refuses to run with no
-            # console attached, and launch_relauncher_and_quit starts this
-            # script DETACHED_PROCESS (no console at all), which would
+            # ping, not `timeout /t 1`: timeout.exe refuses to run
+            # without a console it can read keys from, which would
             # collapse the whole wait to nothing.
             "ping -n 2 127.0.0.1 >nul\n"
             "goto wait\n"
@@ -146,8 +151,32 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
             # renaming anything, or the app renames itself to .old and then
             # has nothing to put in its place.
             f"if not exist \"{new_path}\" goto end\n"
-            f"move /y \"{current_path}\" \"{current_path}.old\" >nul\n"
-            f"move /y \"{new_path}\" \"{current_path}\" >nul\n"
+            # Each move gets a few tries: a virus scanner or a cloud-sync
+            # folder (OneDrive) can hold the file for a moment.
+            "set TRIES=0\n"
+            ":backup\n"
+            f"move /y \"{current_path}\" \"{current_path}.old\" >nul 2>nul\n"
+            "if not errorlevel 1 goto putnew\n"
+            "set /a TRIES+=1\n"
+            # Couldn't move the old app aside: leave it exactly as it was
+            # and just open it again. No update this time, nothing lost.
+            f"if %TRIES% geq {_WAIT_TRIES} goto reopen\n"
+            "ping -n 2 127.0.0.1 >nul\n"
+            "goto backup\n"
+            ":putnew\n"
+            "set TRIES=0\n"
+            ":putnew_try\n"
+            f"move /y \"{new_path}\" \"{current_path}\" >nul 2>nul\n"
+            "if not errorlevel 1 goto reopen\n"
+            "set /a TRIES+=1\n"
+            f"if %TRIES% geq {_WAIT_TRIES} goto putback\n"
+            "ping -n 2 127.0.0.1 >nul\n"
+            "goto putnew_try\n"
+            # The new one wouldn't go in: put the old one back, so the app
+            # never disappears and leaves only a "Lock In.exe.old" behind.
+            ":putback\n"
+            f"move /y \"{current_path}.old\" \"{current_path}\" >nul 2>nul\n"
+            ":reopen\n"
             f"start \"\" \"{current_path}\"\n"
             ":end\n"
             "del \"%~f0\"\n",
@@ -177,8 +206,11 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
         # leave the installed app completely alone rather than renaming
         # it to .old with nothing to replace it.
         f'[ -e "{new_posix}" ] || exit 0\n'
-        f'mv "{current_posix}" "{current_posix}.old"\n'
-        f'mv "{new_posix}" "{current_posix}"\n'
+        # If the new one won't go in, put the old one back so the app
+        # never disappears.
+        f'if mv "{current_posix}" "{current_posix}.old"; then\n'
+        f'    mv "{new_posix}" "{current_posix}" || mv "{current_posix}.old" "{current_posix}"\n'
+        "fi\n"
         f"{reopen}\n"
         'rm -- "$0"\n',
         encoding="utf-8",
@@ -187,15 +219,83 @@ def write_relauncher_script(script_dir: Path, current_path: Path, new_path: Path
     return script_path
 
 
+def clean_environment(environ: Mapping[str, str], bundle_dir: Optional[str]) -> dict:
+    """A copy of environ that's safe to hand to a NEW copy of the app.
+
+    The packaged app is one file that unpacks itself into a temp folder
+    (bundle_dir) each time it opens, and it leaves notes for itself in
+    its environment: "_PYI_..." values, plus paths into that folder
+    (TCL_LIBRARY, TK_LIBRARY, entries on PATH). A program started from
+    here inherits all of that. When the updated app started with those
+    notes, it thought it was a helper of the old app, looked for the old
+    app's temp folder (already deleted by then), and quit before
+    showing anything -- the "it closed and never came back" bug.
+
+    This removes every one of those notes and adds the switch the
+    packager itself provides for "start fresh, like a double-click"."""
+    folder = os.path.normcase(os.path.abspath(bundle_dir)) if bundle_dir else None
+
+    def inside_bundle(value: str) -> bool:
+        if folder is None or not value:
+            return False
+        try:
+            path = os.path.normcase(os.path.abspath(value))
+        except (TypeError, ValueError):
+            return False
+        return path == folder or path.startswith(folder + os.sep)
+
+    clean = {}
+    for key, value in environ.items():
+        if key.upper().startswith(("_PYI_", "_MEIPASS")):
+            continue
+        if key.upper() == "PATH":
+            value = os.pathsep.join(
+                part for part in value.split(os.pathsep) if not inside_bundle(part))
+        elif inside_bundle(value):
+            continue
+        clean[key] = value
+    clean["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return clean
+
+
+def app_process_id() -> int:
+    """The process the update script should wait for.
+
+    The packaged app is really two processes: a small starter, and the
+    app itself running inside it. The starter keeps going for a moment
+    after the app closes (it tidies up its temp folder), so waiting only
+    for the app could start the swap too early. When the parent process
+    is that starter (same program file), this returns the parent."""
+    pid = os.getpid()
+    if not getattr(sys, "frozen", False):
+        return pid
+    try:
+        import psutil
+        parent = psutil.Process(pid).parent()
+        if parent is not None and os.path.normcase(parent.exe()) == os.path.normcase(sys.executable):
+            return parent.pid
+    except Exception:
+        pass
+    return pid
+
+
 def launch_relauncher_and_quit(script_path: Path, platform: str) -> None:
     """Starts script_path as a fully detached process, so it keeps
     running after this one exits. Does NOT close the app itself --
     ui.py calls its normal _on_close() right after this returns, so
-    settings/tasks/history are saved exactly like any other quit."""
+    settings/tasks/history are saved exactly like any other quit.
+
+    The script (and so the reopened app) gets a clean environment, so
+    the new version opens exactly as if it had been double-clicked."""
+    env = clean_environment(os.environ, getattr(sys, "_MEIPASS", None))
     if platform == "win32":
+        # CREATE_NO_WINDOW gives the script a hidden console window.
+        # DETACHED_PROCESS (no console at all) made Windows' find.exe
+        # wait forever, so the swap never happened and the app just
+        # closed.
         subprocess.Popen(
-            ["cmd", "/c", str(script_path)],
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+            ["cmd", "/c", str(script_path)], env=env,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
         )
     else:
-        subprocess.Popen(["/bin/sh", str(script_path)], start_new_session=True)
+        subprocess.Popen(["/bin/sh", str(script_path)], env=env, start_new_session=True)

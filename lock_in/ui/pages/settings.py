@@ -69,8 +69,9 @@ class SettingsPage(Page):
         self.blackrx_switch = None
 
         self.page_header(
-            "Settings", "Switches save right away. Number boxes save when you press "
-                        "Save settings, and apply from the next phase.",
+            "Settings", "Colors, Riders, and switches change right away. Number boxes "
+                        "save when you press Save settings, and start with the next "
+                        "focus block or break.",
             trailing=lambda m: PrimaryButton(m, p, text="Save settings", height=36, width=130,
                                              font_size=13, command=app._save_settings),
         )
@@ -168,7 +169,8 @@ class SettingsPage(Page):
                   "Strips every Rider's color, art, and gimmick for a plain, fast, "
                   "distraction-free look, and switches Wording to plain Professional while "
                   "it's on. Your Rider pick and Wording setting are remembered and come "
-                  "right back when you turn this off.", standard_control, divider=True)
+                  "right back when you turn this off. Picking a Rider below turns it off too.",
+                  standard_control, divider=True)
 
         def rider_control(master):
             self.rider_menu = MenuButton(

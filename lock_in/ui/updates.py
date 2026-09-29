@@ -12,7 +12,6 @@ the window. Same steps as before, just in their own file:
 
 from __future__ import annotations
 
-import os
 import queue
 import shutil
 import sys
@@ -193,7 +192,7 @@ class UpdatesMixin:
         current_path = update_apply.current_app_path(sys.platform)
         script_path = update_apply.write_relauncher_script(
             extracted_path.parent, current_path, extracted_path,
-            pid=os.getpid(), platform=sys.platform,
+            pid=update_apply.app_process_id(), platform=sys.platform,
         )
         update_apply.launch_relauncher_and_quit(script_path, sys.platform)
         self._on_close()

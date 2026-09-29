@@ -21,6 +21,28 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## 🛠️ New in v3.0.1: two fixes
+
+- **"Restart now" works again.** Before, pressing the blue Restart now
+  button closed Lock In, and the new version never opened. Now Lock In
+  closes, swaps in the new version, and opens it again by itself. If
+  anything goes wrong during the swap, your old Lock In is put back, so
+  you're never left without the app.
+- **Picking a new Rider shows it right away.** If Standard Mode was on,
+  picking a Rider used to change nothing you could see, because Standard
+  Mode hides every Rider's colors. Then "Save settings" said the change
+  would come later, but it never did. Now picking a Rider turns Standard
+  Mode off, so you see your Rider straight away. Only the number boxes
+  (like how long a focus block is) wait for the next focus block or
+  break, and the app now says exactly that.
+
+**Coming from v3.0.0 or older?** Your copy still has the old Restart
+button, so update by hand this one time. See
+[If an update didn't work](#if-an-update-didnt-work) below. After that,
+Restart now works on its own.
+
+---
+
 ## ✨ New in v3.0.0: a brand-new look
 
 Lock In got a whole new coat of paint. **Everything it could do before,
@@ -148,6 +170,29 @@ asks when you press it.
 - Only works for the app downloaded from Releases. Running it from
   source (`python main.py`)? Use `git pull` instead — you'll still see
   a small "update available" note, just without the restart button.
+- After an update, a file called `Lock In.exe.old` sits next to the app.
+  That's the old version, kept just in case. You can delete it.
+
+### If an update didn't work
+
+This happens with v3.0.0 and older: you press **Restart now**, Lock In
+closes, and it doesn't come back. Here's how to fix it on Windows:
+
+1. Open the folder where you keep `Lock In.exe`.
+2. Look at the files there:
+   - **You see `Lock In.exe`:** double-click it. The first start after
+     an update can take up to half a minute, so wait a little before
+     clicking again.
+   - **You only see `Lock In.exe.old`:** Windows can't open that file.
+     Rename it back to `Lock In.exe` (right-click → Rename), then
+     double-click it.
+3. Still stuck? Get the newest version by hand: open the
+   [Releases page](https://github.com/SVerma2696/Lock-In-Rider/releases/latest), download
+   `LockIn-Windows.zip`, unzip it, and put its `Lock In.exe` in place of
+   the old one.
+
+Your settings, tasks, and history aren't stored next to the app, so
+none of these steps touch them.
 
 ---
 
@@ -681,7 +726,8 @@ Tier 6 (no Rider page, no Buddy page, no gestures), forces Wording to
 Professional, and uses the plain progress bar and a plain grey line
 instead of the era strip. It's the cleanest, lightest look in the app. Your actual Rider and Wording choices
 are never overwritten; turning Standard Mode back off restores both
-instantly.
+instantly. Picking a Rider from the menu also turns Standard Mode off,
+so the Rider you picked shows up straight away.
 
 ### Tier 1: 10 Riders with their own gimmick
 

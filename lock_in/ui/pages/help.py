@@ -140,12 +140,15 @@ class HelpPage(Page):
                            "every color, glow, and gimmick down to a plain grey-and-blue look, "
                            "no matter which Rider is picked underneath. It also switches "
                            "Wording to plain Professional while it's on. Turn it off and your "
-                           "Rider — and your Wording setting — come right back.")
+                           "Rider — and your Wording setting — come right back. Picking a hero "
+                           "from the theme menu also turns Standard Mode off, so you see that "
+                           "hero straight away.")
 
         card = self._card("4. Some heroes have a secret extra power", "star")
         self._text(card, "To turn one on, just pick that hero from the theme menu in Settings "
-                         "— there's nothing else to click. As soon as you start your next "
-                         "focus block, its power shows up by itself.")
+                         "— there's nothing else to click. Its color changes right away. Some "
+                         "powers only show while a focus block is running, so press Start to "
+                         "see those.")
         self._heading(card, "Heroes with a fancy progress bar")
         for name, what in TIER1:
             self._bullet(card, f"{name} — {what}")

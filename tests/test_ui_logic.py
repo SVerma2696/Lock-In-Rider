@@ -246,3 +246,105 @@ def test_mirror_layout_replaces_instead_of_piling_up():
     layout.pack(w, side="left")
     layout.pack(w, side="right")
     assert len(layout) == 1
+
+
+# ---------------------------------------------------------------------- #
+# Picking a Rider and saving Settings (no window needed)
+# ---------------------------------------------------------------------- #
+from types import SimpleNamespace
+
+from lock_in.session import Phase
+from lock_in.ui.preferences import PreferencesMixin
+
+
+class FakeConfig(SimpleNamespace):
+    def save(self):
+        self.saves = getattr(self, "saves", 0) + 1
+
+
+class FakeEntry:
+    def __init__(self, text):
+        self.text = text
+
+    def get(self):
+        return self.text
+
+
+class FakeVar:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+
+class FakeApp(PreferencesMixin):
+    def __init__(self, standard_mode=False):
+        self.config_obj = FakeConfig(rider_theme="Kamen Rider (1971)", standard_mode=standard_mode,
+                                     zero_grace_mode=False, focus_minutes=25)
+        self.session = SimpleNamespace(phase=Phase.IDLE, is_running=False)
+        self.current_tier3_effect = "none"
+        self.pages = {}
+        self.banners = []
+        self.theme_applied = 0
+
+    def _apply_theme_everywhere(self):
+        self.theme_applied += 1
+
+    def attributes(self, *args):
+        pass
+
+    def _show_banner(self, text, urgency="low", duration_ms=None):
+        self.banners.append(text)
+
+
+def test_picking_a_rider_shows_it_right_away():
+    app = FakeApp()
+    app._on_rider_theme_change("Kamen Rider Kuuga (2000)")
+    assert app.config_obj.rider_theme == "Kamen Rider Kuuga (2000)"
+    assert app.theme_applied == 1
+    assert app.config_obj.saves >= 1
+
+
+def test_picking_a_rider_while_standard_mode_is_on_turns_standard_mode_off():
+    """Standard Mode hides every Rider color, so the pick used to change
+    nothing you could see -- and "Save settings" then said it would apply
+    later, which it never did."""
+    app = FakeApp(standard_mode=True)
+    app._on_rider_theme_change("Kamen Rider Kuuga (2000)")
+    assert app.config_obj.standard_mode is False
+    assert app.config_obj.rider_theme == "Kamen Rider Kuuga (2000)"
+    assert app.theme_applied == 1
+    assert any("Standard Mode is off" in text for text in app.banners)
+
+
+def _settings_app(focus_text):
+    app = FakeApp()
+    app.pages["settings"] = SimpleNamespace(spinners={"focus_minutes": FakeEntry(focus_text)})
+    app._page = lambda route_id: app.pages[route_id]
+    for name in ("enforce_var", "hard_var", "classifier_var", "record_var", "autobreak_var",
+                 "autofocus_var", "sound_var", "toast_var", "check_updates_var", "gestures_var"):
+        setattr(app, name, FakeVar(False))
+    app._refresh_summaries = lambda: None
+    return app
+
+
+def test_save_settings_only_mentions_waiting_when_a_time_changed():
+    app = _settings_app("25")          # same as before
+    app._save_settings()
+    assert app.banners == ["Saved."]
+
+    app = _settings_app("30")          # a new focus length
+    app._save_settings()
+    assert "next focus block or break" in app.banners[-1]
+    assert app.config_obj.focus_minutes == 30
+
+
+def test_no_message_talks_about_a_next_phase_or_session():
+    import inspect
+    from lock_in.ui import preferences
+    from lock_in.ui.pages import help as help_page, settings as settings_page
+    for module in (preferences, help_page, settings_page):
+        text = inspect.getsource(module)
+        assert "next phase" not in text
+        assert "next session" not in text
