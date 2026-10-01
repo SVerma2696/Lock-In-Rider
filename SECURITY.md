@@ -11,7 +11,8 @@ runs on your own machine. It only uses the network in these ways:
   README's "Auto-Update" section has details.
 - Revice's buddy link (only while Revice is the picked Rider, and only
   after you press Share or Receive) talks to one other computer on the
-  same local network. Either of you can press Pull History at any time
+  same local network. It only listens on that one network (your Wi-Fi
+  or cable), never on every network the computer is on. Either of you can press Pull History at any time
   to send your focus blocks and their tasks to the other side, with no
   extra confirmation, and your computer's name is shown to your buddy
   the whole time you're paired. Pairing uses a 4-digit code that is

@@ -21,6 +21,25 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## 🔒 New in v3.0.3: the buddy link stays on your home Wi-Fi
+
+Think of your computer as a house with many doors: one for the Wi-Fi,
+one for a cable, maybe one for a VPN. Before, when you pressed **Share**
+on Revice's Buddy page, Lock In opened its door on *every* one of
+them at once. Now it opens only the Wi-Fi door, the one your buddy
+actually uses. The other doors stay shut.
+
+- Share and Receive work just like before. You won't see any change.
+- Your buddy can still find you with the 4-number code, the same way.
+- **Both of you should update to v3.0.3**, especially on a Mac or
+  Linux. A Mac or Linux computer on v3.0.3 can't be found by a buddy
+  still using an older version. (Windows can still be found by older
+  versions.)
+- If your buddy can't find you, turn off any VPN and try again. A VPN
+  can make Lock In pick the VPN's door instead of the Wi-Fi one.
+
+---
+
 ## 🧰 New in v3.0.2: sturdier on the inside
 
 Everything looks and works the same as before: all 38 Riders, every
@@ -1039,6 +1058,9 @@ The last two Riders do things no earlier Rider does. Both are built:
     (encrypted). Someone snooping on the same Wi-Fi could read your
     timer, task names, and pulled history. That's fine at home, but
     don't use it on café Wi-Fi.
+  - Lock In only listens on your Wi-Fi (or cable), never on every
+    network your computer is on at once. If you use a VPN and your
+    buddy can't find you, turn the VPN off and try again.
   - Pairing can never start, pause, or stop anyone's timer.
 
 Tier 6 is complete.

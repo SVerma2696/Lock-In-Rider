@@ -9,7 +9,7 @@ import time
 import pytest
 
 from lock_in import revice_sync as rs
-from lock_in.revice_link import BuddyLink
+from lock_in.revice_link import BuddyLink, find_lan_address
 
 
 def wait_for(link, kind, timeout=5.0):
@@ -37,6 +37,8 @@ def links():
 
     def make(name, **kwargs):
         kwargs.setdefault("discovery_port", None)
+        kwargs.setdefault("host", "127.0.0.1")
+        kwargs.setdefault("discovery_group", None)
         link = BuddyLink(name, **kwargs)
         made.append(link)
         return link
@@ -210,12 +212,28 @@ def test_discovery_survives_a_reset_from_a_gone_asker(links):
 
 def test_busy_discovery_port_means_cant_share(links):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as blocker:
-        blocker.bind(("", 0))
+        blocker.bind(("127.0.0.1", 0))
         port = blocker.getsockname()[1]
         a = links("A", discovery_port=port)
         assert a.share() is None
         assert wait_for(a, "error") == ("error", rs.MSG_CANT_SHARE)
         assert a.state == "idle"
+
+
+def test_lan_address_is_one_real_address():
+    address = find_lan_address()
+    socket.inet_aton(address)  # a proper address, like 192.168.1.20
+    assert address != "0.0.0.0"
+
+
+def test_share_never_listens_on_every_network(links):
+    """Every socket sits on one address (our Wi-Fi, or the group call),
+    never on 0.0.0.0, which would mean "every network at once"."""
+    a = links("A", discovery_port=free_udp_port(), host=None, discovery_group=rs.DISCOVERY_GROUP)
+    if a.share() is None:
+        pytest.skip("this computer can't share right now")
+    addresses = [sock.getsockname()[0] for sock in a._sockets]
+    assert addresses and "0.0.0.0" not in addresses
 
 
 def test_nothing_is_listening_before_share(links):

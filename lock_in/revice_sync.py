@@ -28,6 +28,10 @@ from .tasks import task_from_dict
 # The port the "anyone sharing?" call goes to. Only listened on while a
 # code is showing on screen.
 DISCOVERY_PORT = 47821
+# A "group address" the call also goes to. Only computers that ask to
+# hear this group get it, so a sharer can listen for just this instead
+# of listening on every network the computer is on.
+DISCOVERY_GROUP = "239.255.78.21"
 # The "anyone sharing?" call itself. Has no code in it.
 HELLO = b"lock-in-revice-hello-1"
 # How long a code works for, in seconds (2 minutes).

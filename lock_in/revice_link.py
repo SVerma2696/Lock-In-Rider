@@ -18,6 +18,10 @@ All the waiting happens on background threads. They NEVER touch the
 window -- they only drop news into a queue, and ui.py picks it up with
 poll() on its normal timer tick. Nothing listens on the network until
 share() is called, and close() stops everything.
+
+Everything listens on this computer's own Wi-Fi address only, never on
+"every network at once", so a VPN or a second network card can't be
+used to reach it.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ import logging
 import queue
 import secrets
 import socket
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -46,11 +51,18 @@ class BuddyLink:
         discovery_port: int | None = rs.DISCOVERY_PORT,
         broadcast_address: str = "255.255.255.255",
         clock: Callable[[], float] = time.monotonic,
+        host: str | None = None,
+        discovery_group: str | None = rs.DISCOVERY_GROUP,
     ) -> None:
         self.name = name
         # None means "don't use the call-out at all" (tests use this).
         self.discovery_port = discovery_port
         self.broadcast_address = broadcast_address
+        # The address to listen on. None means "find this computer's
+        # Wi-Fi address each time" (tests use 127.0.0.1 instead).
+        self.host = host
+        # None means "don't use the group call" (tests use this).
+        self.discovery_group = discovery_group
         self._clock = clock
         self._events: queue.Queue[tuple] = queue.Queue()
         self._lock = threading.Lock()
@@ -89,26 +101,30 @@ class BuddyLink:
         """Start sharing. Returns the code, or None if it couldn't start."""
         self.close()
         stop = self._fresh_stop()
-        server = udp = None
+        host = self._host()
+        server = udp = reply = None
         try:
             server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server.bind(("", 0))
+            server.bind((host, 0))
             server.listen(4)
             server.settimeout(0.5)
             if self.discovery_port is not None:
-                udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                udp.bind(("", self.discovery_port))
-                udp.settimeout(0.5)
+                udp = _open_listener(host, self.discovery_port, self._group(host))
+                # Answers go out from our own address, so the buddy
+                # knows where to connect.
+                reply = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                reply.bind((host, 0))
         except OSError:
-            for sock in (server, udp):
+            for sock in (server, udp, reply):
                 if sock is not None:
                     sock.close()
             stop.set()
             self._events.put(("error", rs.MSG_CANT_SHARE))
             return None
         self._track(server)
-        if udp is not None:
-            self._track(udp)
+        for sock in (udp, reply):
+            if sock is not None:
+                self._track(sock)
         code = rs.make_code()
         self.code = code
         self.code_deadline = self._clock() + rs.CODE_LIFETIME_SECONDS
@@ -116,7 +132,7 @@ class BuddyLink:
         self.state = "sharing"
         self._thread(self._share_loop, stop, server, udp, code)
         if udp is not None:
-            self._thread(self._answer_loop, stop, udp, self.tcp_port)
+            self._thread(self._answer_loop, stop, udp, reply, self.tcp_port)
         return code
 
     def receive(self, code: str, address: tuple | None = None) -> None:
@@ -163,6 +179,16 @@ class BuddyLink:
     # ------------------------------------------------------------------ #
     # Bookkeeping
     # ------------------------------------------------------------------ #
+    def _host(self) -> str:
+        return self.host if self.host is not None else find_lan_address()
+
+    def _group(self, host: str) -> str | None:
+        """The group call to use, or None. With no network (only this
+        computer, 127.x.x.x) nobody else could hear it anyway."""
+        if host.startswith("127."):
+            return None
+        return self.discovery_group
+
     def _fresh_stop(self) -> threading.Event:
         with self._lock:
             self._stop = threading.Event()
@@ -209,7 +235,7 @@ class BuddyLink:
     # ------------------------------------------------------------------ #
     # Share
     # ------------------------------------------------------------------ #
-    def _answer_loop(self, stop, udp, tcp_port) -> None:
+    def _answer_loop(self, stop, udp, reply_sock, tcp_port) -> None:
         """Answer every "anyone sharing?" call with where to connect."""
         reply = json.dumps({"port": tcp_port}).encode("utf-8")
         while not stop.is_set():
@@ -223,12 +249,16 @@ class BuddyLink:
                 # really an error here -- just keep listening.
                 continue
             except OSError:
-                return
+                break
             if data == rs.HELLO:
                 try:
-                    udp.sendto(reply, addr)
+                    reply_sock.sendto(reply, addr)
                 except OSError:
                     pass
+        try:
+            reply_sock.close()
+        except OSError:
+            pass
 
     def _share_loop(self, stop, server, udp, code) -> None:
         wrong_tries = 0
@@ -320,11 +350,23 @@ class BuddyLink:
 
     def _call_out(self, stop, code) -> str | None:
         """Ask the Wi-Fi "anyone sharing?" and try each answer."""
+        host = self._host()
+        group = self._group(host)
         try:
             udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        except OSError:
+            return None
+        try:
+            udp.bind((host, 0))
             udp.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            if group is not None:
+                # Send the group call out on our Wi-Fi, and only one
+                # step away (it never leaves the home network).
+                udp.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(host))
+                udp.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
             udp.settimeout(0.5)
         except OSError:
+            udp.close()
             return None
         self._track(udp)
         saw_wrong = False
@@ -334,10 +376,16 @@ class BuddyLink:
         try:
             while not stop.is_set() and self._clock() < deadline:
                 if self._clock() >= next_hello:
-                    try:
-                        udp.sendto(rs.HELLO, (self.broadcast_address, self.discovery_port))
-                    except OSError:
-                        pass
+                    # Call out both ways: older versions only hear the
+                    # everyone-call, and newer ones on a Mac or Linux
+                    # only hear the group call.
+                    for call_to in (self.broadcast_address, group):
+                        if call_to is None:
+                            continue
+                        try:
+                            udp.sendto(rs.HELLO, (call_to, self.discovery_port))
+                        except OSError:
+                            pass
                     next_hello = self._clock() + 1.0
                 try:
                     data, addr = udp.recvfrom(1024)
@@ -526,6 +574,47 @@ class BuddyLink:
             except OSError:
                 self._end(stop, ("left",))
                 return
+
+
+def find_lan_address() -> str:
+    """This computer's address on its Wi-Fi (or cable) network, like
+    192.168.1.20. Falls back to 127.0.0.1 (this computer only) when
+    there's no network. Nothing is actually sent: "connecting" a UDP
+    socket just asks the computer which address it would use."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            # 192.0.2.1 is an "examples only" address that is never a
+            # real computer.
+            probe.connect(("192.0.2.1", 9))
+            address = probe.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    return address if address != "0.0.0.0" else "127.0.0.1"
+
+
+def _open_listener(host: str, port: int, group: str | None) -> socket.socket:
+    """The socket that hears "anyone sharing?" calls, on our own network
+    only. Raises OSError if it can't (for example, the port is busy)."""
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        if group is None:
+            udp.bind((host, port))
+        else:
+            # Windows listens on our own address and still hears the
+            # group call (and older versions' everyone-call). A Mac or
+            # Linux only hears a group call on a socket set to the group.
+            udp.bind((host if sys.platform == "win32" else group, port))
+            # Join the group on our Wi-Fi only.
+            udp.setsockopt(
+                socket.IPPROTO_IP,
+                socket.IP_ADD_MEMBERSHIP,
+                socket.inet_aton(group) + socket.inet_aton(host),
+            )
+        udp.settimeout(0.5)
+    except OSError:
+        udp.close()
+        raise
+    return udp
 
 
 def _read_line(conn, buf: bytearray) -> bytes:
