@@ -301,10 +301,15 @@ def launch_relauncher_and_quit(script_path: Path, platform: str) -> None:
         # DETACHED_PROCESS (no console at all) made Windows' find.exe
         # wait forever, so the swap never happened and the app just
         # closed.
+        # These two only exist in Python on Windows, so they're looked
+        # up by name (with Windows' own numbers as a backup). That keeps
+        # the type check happy when it runs on a Mac or Linux.
+        new_group = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+        no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         subprocess.Popen(
             ["cmd", "/c", str(script_path)],
             env=env,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+            creationflags=new_group | no_window,
         )
     else:
         subprocess.Popen(["/bin/sh", str(script_path)], env=env, start_new_session=True)

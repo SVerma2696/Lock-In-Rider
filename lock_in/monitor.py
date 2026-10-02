@@ -303,6 +303,10 @@ class ActiveWindowMonitor:
         self._stop = threading.Event()
         self._paused = threading.Event()
         self._paused.set()  # start paused — nothing to check until a focus block begins
+        # Held while sending an answer, and by pause(). So once pause()
+        # returns, nothing more is sent -- not even the answer to a check
+        # that was already running (that can take up to 2 seconds on a Mac).
+        self._send_lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
     def start(self) -> None:
@@ -325,8 +329,10 @@ class ActiveWindowMonitor:
         self._paused.clear()
 
     def pause(self) -> None:
-        """Stop sending updates (during breaks, pauses, or idle time)."""
-        self._paused.set()
+        """Stop sending updates (during breaks, pauses, or idle time).
+        Nothing at all is sent after this returns."""
+        with self._send_lock:
+            self._paused.set()
 
     @property
     def is_active(self) -> bool:
@@ -338,7 +344,12 @@ class ActiveWindowMonitor:
         while not self._stop.is_set():
             if not self._paused.is_set():
                 try:
-                    self._callback(get_active_window())
+                    window = get_active_window()
+                    with self._send_lock:
+                        # Paused (or stopped) while we were looking? Then
+                        # this answer is old news -- throw it away.
+                        if not self._paused.is_set() and not self._stop.is_set():
+                            self._callback(window)
                 except Exception:
                     # If the callback breaks, blocking must not silently stop
                     # working. Logged once (no window titles are logged).

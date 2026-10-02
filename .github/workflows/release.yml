@@ -18,12 +18,12 @@ jobs:
             asset_name: LockIn-Windows.zip
           - os: macos-latest
             asset_name: LockIn-macOS.zip
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             asset_name: LockIn-Linux.tar.gz
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install dependencies
@@ -64,7 +64,7 @@ jobs:
           zip -r "../${{ matrix.asset_name }}" "Lock In.app"
 
       - name: Package (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           cd dist
           tar -czf "../${{ matrix.asset_name }}" "Lock In"
@@ -79,7 +79,7 @@ jobs:
           python scripts/write_checksum.py "${{ matrix.asset_name }}"
           cat "${{ matrix.asset_name }}.sha256"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset_name }}
           path: |
@@ -88,11 +88,11 @@ jobs:
 
   publish:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true

@@ -21,6 +21,203 @@ Linux — three things the author built this project to learn by doing.
 
 ---
 
+## 📥 How to Download
+
+You don't need to install Python or type any code. You download one
+file, open it up, and double-click the app inside.
+
+**Step 1 for everyone:** go to the
+**[Download page](https://github.com/SVerma2696/Lock-In-Rider/releases/latest)**.
+Scroll down to the part called **Assets**. You'll see a few files there.
+Click the one for your computer:
+
+| Your computer | The file to click | What's inside |
+| --- | --- | --- |
+| Windows 10 or 11 | `LockIn-Windows.zip` | `Lock In.exe` |
+| Mac with an Apple chip (M1, M2, M3, M4 or newer) | `LockIn-macOS.zip` | `Lock In.app` |
+| Linux (newer, like Ubuntu 24.04 or later) | `LockIn-Linux.tar.gz` | `Lock In` |
+
+You can ignore the files ending in `.sha256` and the "Source code"
+files. Those are for checking and building, not for running.
+
+Then follow the steps for your computer below.
+
+### 🪟 Windows
+
+1. **Download** `LockIn-Windows.zip`. It goes into your **Downloads**
+   folder.
+2. **Make a home for it.** Open **File Explorer**, go to **Documents**,
+   right-click an empty spot, pick **New → Folder**, and name it
+   `Lock In`. (Don't use `Program Files`: Lock In updates itself, and
+   Windows doesn't let apps change things in there.)
+3. **Unzip it.** In **Downloads**, right-click `LockIn-Windows.zip` and
+   pick **Extract All...**. Click **Browse**, choose the `Lock In` folder
+   you just made, then click **Extract**.
+4. **Open it.** Double-click `Lock In.exe`.
+5. **A blue box says "Windows protected your PC"?** That's normal for a
+   free app (see [why](#-releases)). Click **More info**, then **Run
+   anyway**. Windows only asks this once.
+6. **Make it easy to find (optional).** Right-click `Lock In.exe` and
+   pick **Pin to Start** or **Show more options → Send to → Desktop
+   (create shortcut)**.
+
+That's it. Blocking works right away on Windows.
+
+### 🍎 Mac
+
+1. **Download** `LockIn-macOS.zip`. It goes into your **Downloads**
+   folder. (Safari often unzips it by itself. If you already see
+   `Lock In.app` in Downloads, skip step 2.)
+2. **Unzip it.** Double-click `LockIn-macOS.zip`. A `Lock In` app
+   appears next to it.
+3. **Move it into Applications.** Open a new **Finder** window, click
+   **Applications** on the left, and drag `Lock In` from Downloads into
+   it.
+4. **Open it the first time like this:** in Applications, **right-click
+   (or Control-click) `Lock In` → Open → Open**. A normal double-click
+   won't work the first time, because the app isn't paid-signed by
+   Apple. (See [why](#-releases).)
+   - **No "Open" button?** Open **System Settings → Privacy &
+     Security**, scroll down, and click **Open Anyway** next to
+     Lock In.
+   - **It says the app "is damaged"?** It isn't. That's how macOS
+     sometimes talks about apps from the internet. Open the **Terminal**
+     app (Applications → Utilities → Terminal), paste this line, and
+     press Return:
+     ```bash
+     xattr -dr com.apple.quarantine "/Applications/Lock In.app"
+     ```
+     Then open Lock In again.
+5. **Say yes to two questions.** So Lock In can see which app you're in
+   and hide distractions, your Mac will ask:
+   - "Lock In wants access to control **System Events**" → click **OK**.
+   - "Lock In would like to control this computer using
+     **Accessibility**" → click **Open System Settings**, then turn on
+     the switch next to Lock In.
+
+   Missed one? Go to **System Settings → Privacy & Security**, open
+   **Automation** and **Accessibility**, and turn Lock In on in both.
+6. **Keep it in the Dock (optional).** While it's open, right-click its
+   icon in the Dock and pick **Options → Keep in Dock**.
+
+**Got an older Mac with an Intel chip?** The ready-made app won't run
+on it. You can still run Lock In from its code instead. See
+[How to Run](#-how-to-run). (To check your chip: click the apple in
+the top-left corner → **About This Mac**. It says "Chip: Apple M..." or "Processor: Intel".)
+
+### 🐧 Linux
+
+1. **Download** `LockIn-Linux.tar.gz`. It goes into your **Downloads**
+   folder.
+2. **Open a terminal** (on Ubuntu, press **Ctrl + Alt + T**).
+3. **Make a home for it and unpack it.** Paste these lines one at a
+   time, pressing Enter after each:
+   ```bash
+   mkdir -p ~/Apps/LockIn
+   tar -xzf ~/Downloads/LockIn-Linux.tar.gz -C ~/Apps/LockIn
+   chmod +x ~/Apps/LockIn/"Lock In"
+   ```
+   The last line tells Linux "this file is allowed to run". New files
+   aren't, for safety.
+4. **Add the helpers blocking needs.** Lock In uses three small free
+   tools to see windows, hide them, and show pop-ups and sounds. On
+   Ubuntu or Debian:
+   ```bash
+   sudo apt install xdotool libnotify-bin pulseaudio-utils
+   ```
+   (On Fedora: `sudo dnf install xdotool libnotify pulseaudio-utils`.)
+   Lock In still opens without them, but it can't hide distracting
+   windows.
+5. **Open it:**
+   ```bash
+   ~/Apps/LockIn/"Lock In"
+   ```
+6. **Check your screen type.** Hiding windows only works on the older
+   "X11" kind of screen, not the newer "Wayland" kind. To check, run
+   `echo $XDG_SESSION_TYPE`. If it says `wayland`, log out, click the
+   gear ⚙️ on the login screen, pick **Ubuntu on Xorg**, and log back in.
+   (On Wayland, Lock In still notices distractions and warns you. It
+   just can't hide them.)
+
+**Older Linux?** If it won't start and talks about `GLIBC`, your Linux
+is older than the one the app was built on. Run Lock In from its code
+instead. See [How to Run](#-how-to-run).
+
+### ✔️ Check your download (optional)
+
+Each download has a "fingerprint" file next to it (for example
+`LockIn-Windows.zip.sha256`). A fingerprint is a long code worked out
+from every bit of the file. If even one bit changes, the code changes.
+To check yours, download the matching `.sha256` file too, open it with
+any text editor, and compare its long code with the one your computer
+works out:
+
+- **Windows** (in PowerShell, in your Downloads folder):
+  `Get-FileHash LockIn-Windows.zip -Algorithm SHA256`
+- **Mac** (in Terminal, in your Downloads folder):
+  `shasum -a 256 LockIn-macOS.zip`
+- **Linux** (in your Downloads folder):
+  `sha256sum -c LockIn-Linux.tar.gz.sha256` (it just says `OK`)
+
+The two codes must match exactly. Lock In does this check by itself for
+every update, so you only need to do it for the first download.
+
+### 🔄 Getting new versions
+
+You only download by hand once. After that, Lock In tells you when a
+new version is out and puts a **Restart now** button at the top. See
+[Auto-Update](#-auto-update).
+
+### 🗑️ Removing it
+
+Delete the app (`Lock In.exe`, `Lock In.app`, or `~/Apps/LockIn`).
+Your settings, tasks, and history live in their own folder. Delete that
+too if you want them gone:
+
+- **Windows:** `%APPDATA%\Lock In` (paste it into File Explorer's
+  address bar)
+- **Mac:** `~/Library/Application Support/Lock In` (in Finder, press
+  **Cmd + Shift + G** and paste it)
+- **Linux:** `~/.config/Lock In`
+
+---
+
+## ✅ New in v3.0.4: the checks are green again
+
+Every time new code goes up, GitHub runs a set of checks on it, like a
+teacher marking homework. Two kept failing. Both are fixed:
+
+- **The type check.** It checks that every piece of the code fits
+  together, like puzzle pieces. Two Windows-only pieces didn't fit when
+  the check ran on Linux. The app worked fine, but the check said no.
+  Now they fit on every computer.
+- **The Mac window test.** It opens the real app and clicks through it.
+  On a Mac it failed only sometimes. A Mac is slow to answer "which
+  window is in front?", and that answer sometimes landed in the middle
+  of the test and mixed things up. Now:
+  - The app throws away a late answer once watching has stopped. This
+    was a small real bug too: a slow answer could arrive just after a
+    focus block ended.
+  - The test uses a pretend answer, so the real screen can't get in its
+    way.
+
+Housekeeping, so the checks keep working:
+
+- The helpers the checks use (for getting the code and setting up
+  Python) are updated to their newest versions. The old ones ran on an
+  old version of Node.js, which GitHub is retiring.
+- The Linux checks now ask for Ubuntu 24.04 by name instead of "the
+  latest Ubuntu". On October 19, 2026, "latest" becomes Ubuntu 26. Now
+  that switch can't break things by surprise. It can be moved up later
+  on purpose.
+
+- **A new [How to Download](#-how-to-download) guide** at the top of
+  this page, with step-by-step help for Windows, Mac, and Linux.
+
+The app looks and works the same as v3.0.3.
+
+---
+
 ## 🔒 New in v3.0.3: the buddy link stays on your home Wi-Fi
 
 Think of your computer as a house with many doors: one for the Wi-Fi,
@@ -137,42 +334,20 @@ it still does** — only the look and the layout changed.
 
 ## 🚀 Releases
 
-Don't want to install anything? Every tagged version (`vX.Y.Z`) is built
-automatically for Windows, macOS, and Linux by a robot
-([`.github/workflows/release.yml`](.github/workflows/release.yml)) and
-published here:
+Every new version (`vX.Y.Z`) is built for Windows, macOS, and Linux by a
+robot ([`.github/workflows/release.yml`](.github/workflows/release.yml))
+and put on the
+[Download page](https://github.com/SVerma2696/Lock-In-Rider/releases/latest).
+The step-by-step guide for each computer is in
+[How to Download](#-how-to-download) at the top.
 
-**➡️ [Download the latest release](https://github.com/SVerma2696/Lock-In-Rider/releases/latest)**
-
-Pick the file for your computer, download it, unzip/extract it (it comes
-as a `.zip` on Windows/macOS or a `.tar.gz` on Linux), then open the app
-inside. No Python, no `pip install`, no commands — just double-click it.
-
-Your computer will probably show a warning the very first time you open
-it. That's normal, not a sign anything is wrong — here's exactly what
-each one means and the one-time click to get past it:
-
-**Windows: "Windows protected your PC"**
-This shows up because the app isn't signed with a paid certificate (those
-cost money every year, and this is a free personal project) — it doesn't
-mean the app is unsafe. Click **More info**, then **Run anyway**. It only
-asks once per download.
-
-**macOS: "cannot be opened because it is from an unidentified developer"**
-Same idea as the Windows warning, macOS's version of it. Instead of
-double-clicking, **right-click (or Control-click) the app → Open →
-Open**. If that doesn't show an "Open" button, go to **System Settings
-→ Privacy & Security**, scroll down, and click **Open Anyway** next to
-the app's name. Also only asks once.
-
-**Linux: "Permission denied"**
-The downloaded file isn't marked as "allowed to run" yet — a normal
-Linux safety default for any new file, not specific to this app. In a
-terminal, in the folder where you extracted it:
-```bash
-chmod +x "Lock In"
-./"Lock In"
-```
+**Why does my computer warn me the first time?**
+Big companies pay Microsoft and Apple every year to "sign" their apps,
+like a name tag. This is a free project, so its app has no paid name
+tag. Windows and macOS warn about any app without one. It doesn't mean
+the app is unsafe. You click past the warning once, and it never asks
+again. (On Linux, a new file just isn't allowed to run until you say
+so with `chmod +x`. That's a normal safety rule for every file.)
 
 **My antivirus flagged it / a red warning popped up**
 This is a well-known false alarm that affects a lot of small, free apps
@@ -310,7 +485,7 @@ none of these steps touch them.
 
 ## 📂 Project Structure
 
-Already got the app from [Releases](#-releases) above? You can skip this
+Already got the app from [How to Download](#-how-to-download) above? You can skip this
 part — it's just a map of the code, file by file, for anyone curious how
 it's organized under the hood.
 
@@ -481,7 +656,7 @@ python main.py
 ```
 Or double-click `run.bat` (launches with `pythonw`, no console window).
 To produce a standalone `.exe`, run `build.bat` — or just grab a
-[prebuilt release](#-releases) for your OS instead of building from
+[prebuilt release](#-how-to-download) for your OS instead of building from
 source.
 
 Once it's open, the app's own **Help page** has a full, plain-language
@@ -521,8 +696,11 @@ pytest                           the tests
 pytest --cov=lock_in             the tests, plus how much of the app they run
 ```
 And the real-window smoke test, with a throwaway settings folder so it
-never touches your own (three separate lines on Windows):
+never touches your own (four separate lines on Windows). The first line
+empties that folder: the test saves settings as it goes, and leftovers
+from an earlier run can make it fail.
 ```bat
+if exist .smoke-data rmdir /s /q .smoke-data
 set APPDATA=%CD%\.smoke-data
 set PYTHONPATH=.
 python tests\smoke_ui.py
@@ -1376,7 +1554,9 @@ boundary.
 pytest                                   :: runs the unit test suite
 xvfb-run -a python tests/smoke_ui.py     :: end-to-end, needs a display (Linux)
 :: On Windows, use a throwaway .smoke-data folder so your real settings are
-:: never touched -- three separate lines:
+:: never touched -- four separate lines (the first empties it, since
+:: leftovers from an earlier run can make the test fail):
+::   if exist .smoke-data rmdir /s /q .smoke-data
 ::   set APPDATA=%CD%\.smoke-data
 ::   set PYTHONPATH=.
 ::   python tests\smoke_ui.py

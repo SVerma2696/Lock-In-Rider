@@ -17,7 +17,10 @@ data folder at a throwaway folder first -- otherwise it changes yours.
 .smoke-data is already in .gitignore for exactly this.
 
 Run it with:  xvfb-run -a python tests/smoke_ui.py                (Linux)
-         or, on Windows, three separate lines:
+         or, on Windows, four separate lines (the first empties the
+         throwaway folder, since leftovers from an earlier run can
+         make this test fail):
+              if exist .smoke-data rmdir /s /q .smoke-data
               set APPDATA=%CD%\\.smoke-data
               set PYTHONPATH=.
               python tests\\smoke_ui.py
@@ -26,6 +29,7 @@ Run it with:  xvfb-run -a python tests/smoke_ui.py                (Linux)
 import sys
 import time
 
+from lock_in import monitor
 from lock_in.application import WindowSeen
 from lock_in.enforcer import WindowInfo
 from lock_in.session import Phase
@@ -33,6 +37,13 @@ from lock_in.ui import LockInApp
 
 failures = []
 DISCORD = WindowInfo(process_name="discord.exe", title="general #chat", handle=0)
+
+# The real window watcher reports whatever window is really in front on
+# this computer, and that's different every time (a terminal, a browser,
+# a Mac's Finder...). A real window sneaking in made this test fail only
+# sometimes. So the watcher is told it's always looking at Lock In
+# itself, which the app ignores. The test sends its own windows instead.
+monitor.get_active_window = lambda: WindowInfo(process_name="python", title="Lock In")
 
 
 def check(label, condition):
@@ -59,9 +70,7 @@ check("monitor resumed", app.monitor.is_active)
 check("button flipped to Pause", app.start_button.cget("text") == "Pause")
 
 print("injecting a blocked window...")
-# The real window watcher would report whatever window is really in front
-# on this computer (an allowed editor resets the warning ladder), so it's
-# paused while the test sends its own windows.
+# The watcher is paused too, so only the test's own windows arrive.
 app.monitor.pause()
 app.controller.events.post(WindowSeen(DISCORD))
 app.update()
