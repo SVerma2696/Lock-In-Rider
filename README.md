@@ -182,6 +182,30 @@ too if you want them gone:
 
 ---
 
+## 🧹 New in v3.0.5: the type check really is green now
+
+v3.0.4 fixed the Mac window test, and it passes now. But the type check
+still failed. Here's why, and the fix:
+
+- **What happened.** GitHub always grabbed the *newest* type checker.
+  A new one came out and started giving one old problem a new name.
+  That line of code had a note saying "ignore this problem", but the
+  note used the old name. So the new checker said "that note is wrong"
+  *and* "there's a problem here". The app worked fine. Only the check
+  failed.
+- **The fix.** That line no longer needs an "ignore" note at all. It
+  now says plainly: "use the setting's normal value if it has one,
+  otherwise make one". Old and new type checkers both agree it's fine.
+- **So it can't happen again.** GitHub now uses exact, fixed versions
+  of the two checkers (Ruff for style, mypy for types) instead of
+  "whatever is newest". A new version only gets used when it's changed
+  on purpose. See [Checking your changes](#checking-your-changes) to
+  use the same versions on your own computer.
+
+The app looks and works the same as v3.0.4.
+
+---
+
 ## ✅ New in v3.0.4: the checks are green again
 
 Every time new code goes up, GitHub runs a set of checks on it, like a
@@ -687,7 +711,9 @@ windows — but it's worth checking directly if you're not sure.
 
 These are the same checks GitHub runs on every push
 (`.github/workflows/tests.yml`). Install the tools once with
-`pip install -e ".[dev]"`, then:
+`pip install -e ".[dev]"`. GitHub uses exact versions of the two
+checkers, so get the same ones, or yours may disagree with GitHub's:
+`pip install "ruff==0.16.10" "mypy==2.4.0"`. Then:
 ```bat
 ruff check .                     style problems
 ruff format --check .            formatting

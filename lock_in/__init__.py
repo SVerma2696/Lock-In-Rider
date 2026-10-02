@@ -41,5 +41,5 @@ The modules marked (no deps) import nothing outside the standard library, which
 is why the whole behavioural core is unit-tested without a display server.
 """
 
-__version__ = "3.0.4"
+__version__ = "3.0.5"
 __all__ = ["__version__"]

@@ -167,9 +167,15 @@ def clean_config_values(config_class: type, raw: Any) -> tuple[dict[str, Any], l
     for field in dataclasses.fields(config_class):
         if field.name not in raw:
             continue
-        default = (
-            field.default if field.default is not dataclasses.MISSING else field.default_factory()  # type: ignore[misc]
-        )
+        # A setting's normal value is either written down as-is, or made
+        # fresh by a small maker (for lists, so no two copies share one).
+        default: Any
+        if field.default is not dataclasses.MISSING:
+            default = field.default
+        elif field.default_factory is not dataclasses.MISSING:
+            default = field.default_factory()
+        else:
+            continue  # no normal value at all, so nothing to check against
         rule = _rule_for(field.name, default, explicit)
         value = raw[field.name]
         if rule is None:
